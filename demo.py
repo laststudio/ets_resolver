@@ -1,0 +1,290 @@
+# -*- coding: utf-8 -*-
+# fuck microsoft
+import os, json
+from html.parser import HTMLParser
+import logging
+import time
+
+# TARGET_PATH = "./answer"
+DEBUG = False
+
+# 选择题答案从info.json提取，非选择题答案从content.json提取
+# export debug_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
+
+def debug_mode(mode: bool):
+    global DEBUG
+    DEBUG = mode
+
+def debug_log():
+    if DEBUG == True:
+        logging.basicConfig(level = logging.DEBUG,
+            format = '%(asctime)s [%(levelname)s] at %(filename)s,%(lineno)d: %(message)s',
+            datefmt = '%Y-%m-%d(%a)%H:%M:%S',
+            filename = f'debug_out_{int(time.time())}.txt',
+            filemode = 'w')
+        print("DEBUG MODE")
+    else:
+        logging.basicConfig(level = logging.INFO,
+            format = '%(asctime)s [%(levelname)s] at %(filename)s,%(lineno)d: %(message)s',
+            datefmt = '%Y-%m-%d(%a)%H:%M:%S',
+            filename = f'info_out_{int(time.time())}.txt',
+            filemode = 'w')
+    return
+
+def debug_print(s):
+    if DEBUG == True:
+        print(s)
+    return
+
+def sort_dict_by_key(d: dict) -> dict:
+    """
+    将字典按键 'xxxx_x' 排序，先按 xxxx 升序，再按 x 升序。
+    键必须是 '数字_数字' 格式。
+    """
+    # 使用 sorted 对 items 排序，key 为 (int(xxxx), int(x))
+    sorted_items = sorted(
+        d.items(),
+        key=lambda item: tuple(map(int, item[0].split('_')))
+    )
+    # 返回有序字典（Python 3.7+ 直接 dict 即可）
+    return dict(sorted_items)
+
+class HTMLTagStripper(HTMLParser):
+    """用于移除 HTML 标签的解析器，仅提取文本内容"""
+    def __init__(self):
+        super().__init__()
+        self.reset()
+        self.text = []
+        self.ignore_data = False  # 是否忽略数据（用于 script/style）
+
+    def handle_starttag(self, tag, attrs):
+        # 遇到 <script> 或 <style> 时开始忽略内部内容
+        if tag in ('script', 'style'):
+            self.ignore_data = True
+
+    def handle_endtag(self, tag):
+        # 遇到 </script> 或 </style> 时恢复提取
+        if tag in ('script', 'style'):
+            self.ignore_data = False
+
+    def handle_data(self, data):
+        # 只保留非忽略状态下的文本
+        if not self.ignore_data:
+            self.text.append(data)
+
+    def handle_entityref(self, name):
+        # 实体引用转换为对应字符（例如 &amp; -> &）
+        if not self.ignore_data:
+            self.text.append(self.unescape(f'&{name};'))
+
+    def handle_charref(self, name):
+        # 字符引用（数字形式，如 &#38;）
+        if not self.ignore_data:
+            self.text.append(self.unescape(f'&#{name};'))
+
+    def get_text(self):
+        return ''.join(self.text)
+def remove_html_tags(html_string: str) -> str:
+    """删除字符串中的所有 HTML 标记，仅返回纯文本内容"""
+    stripper = HTMLTagStripper()
+    stripper.feed(html_string)
+    return stripper.get_text()
+
+# 废弃函数
+# 选择题不要调用这个函数
+# 选择题，code_type = json_array(4)，答案从info.json解析
+# 其他所有，code_type != json_array(4)，答案从content.json解析
+# def resolve_by_type(code_type):
+#     if (code_type == "txt") | (code_type == "image"):
+
+#     return answerkey
+
+def collector_choose(TARGET_PATH):
+    choose_answer_dict = {}
+
+    if os.path.exists(os.path.join(TARGET_PATH, "info.json")):
+        with open(os.path.join(TARGET_PATH, "info.json"), "r", encoding='utf-8') as k:
+            info = json.load(k)
+            for item in info:
+                if (item["code_id"] == "answer") & (item["code_type"] == "json_array"):
+                    # 4
+                    # 解析code_json_array的answer项
+                    code_json_array = json.loads(item["code_json_array"])
+                    for answer in code_json_array:
+                        # xth用于区分第几道题
+                        key = answer["stid"] + "_" + answer["xth"]
+                        value = {"answer": [remove_html_tags(answer["answer"])], "important": []} # important为关键词或解析信息，选择题没有关键词
+                        choose_answer_dict[key] = value
+    else:
+        raise Exception("info.json not exists")
+    
+    return sort_dict_by_key(choose_answer_dict)
+
+def collector_read_word(TARGET_PATH):
+    read_word_answer_dict = {}
+
+    if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
+        # with open(os.path.join(TARGET_PATH, "info.json"), "r") as k:
+        with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as m:
+            # info = json.load(k)
+            # for item in info:
+            #     if (item["code_id"] == "value_all") & (item["code_type"] == "txt"):
+            #         # 1
+            #         # 解析txt的answer项
+            txt = json.load(m)
+            key = txt["info"]["stid"] + "_0"
+            value = {"answer": [remove_html_tags(txt["info"]["value"])], "important": [remove_html_tags(s) for s in txt["info"]["analyze"].split("</br>")]}
+            read_word_answer_dict[key] = value
+    else:
+        raise Exception("content.json not exists") # 懒
+    
+    return sort_dict_by_key(read_word_answer_dict)
+
+def collector_read(TARGET_PATH):
+    return collector_read_word(TARGET_PATH)
+
+def collector_word(TARGET_PATH):
+    return collector_read_word(TARGET_PATH)
+
+def collector_repeat(TARGET_PATH):
+    # using collector_repeat_essay_dialogue
+    return collector_repeat_essay_dialogue(TARGET_PATH)
+
+def collector_repeat_essay_dialogue(TARGET_PATH):
+    essay_dialogue_answer_dict = {}
+
+    if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
+        with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as m:
+            txt = json.load(m)
+            for question in txt["info"]["question"]:
+                part_answer = []
+                for std in question["std"]:
+                    part_answer.append(remove_html_tags(std["value"]))
+                key = txt["info"]["stid"] + "_" + question["xh"]
+                value = {"answer": part_answer, "important": [remove_html_tags(s) for s in question["keywords"].split(" | ")]}
+                essay_dialogue_answer_dict[key] = value
+    else:
+        raise Exception("content.json not exists")
+    
+    return sort_dict_by_key(essay_dialogue_answer_dict)
+
+def collector_repeat_essay(TARGET_PATH):
+    return collector_repeat_essay_dialogue(TARGET_PATH)
+
+def collector_repeat_dialogue(TARGET_PATH):
+    return collector_repeat_essay_dialogue(TARGET_PATH)
+
+def collector_others(TARGET_PATH):
+    # 全都试一遍，成功为止
+    try:
+        return collector_repeat(TARGET_PATH)
+    except:
+        debug_print(f"Others can't be resolved by repeat, path:{TARGET_PATH}, try others")
+    try:
+        return collector_choose(TARGET_PATH)
+    except:
+        debug_print(f"Others can't be resolved by choose, path:{TARGET_PATH}, try others")
+    try:
+        return collector_read_word(TARGET_PATH)
+    except:
+        debug_print(f"Others can't be resolved by read_word, path:{TARGET_PATH}, try others")
+    try:
+        return collector_repeat_essay_dialogue(TARGET_PATH)
+    except:
+        debug_print(f"Others can't be resolved by essay_dialogue, path:{TARGET_PATH}, try others")
+
+# int __thiscall sub_FCF2F0(void *this)
+# {
+#     if ( sub_DBEB0((int)this + 8, "txt") )        return 1;
+#     if ( sub_DBEB0((int)this + 8, "image") )      return 2;
+#     if ( sub_DBEB0((int)this + 8, "json_array") ) return 4;
+#     if ( sub_DBEB0((int)this + 8, "json_obj") )   return 3;
+#     return 0;
+# }
+
+def resolve(TARGET_PATH):
+    # 从target_path获取content.json并解析structure_type值
+    try:
+        if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
+            with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as f:
+                content = json.load(f)
+                structure_type = content["structure_type"]
+                match structure_type:
+                    case "collector.choose" | _ if "choose" in structure_type:
+                        return collector_choose(TARGET_PATH)
+                    case "collector.read" | _ if "read" in structure_type:
+                        return collector_read(TARGET_PATH)
+                    case "collector.word" | _ if "word" in structure_type:
+                        return collector_word(TARGET_PATH)
+                    case "collector.repeat" | _ if "repeat" in structure_type:
+                        return collector_repeat(TARGET_PATH)
+                    case "collector.repeat_essay" | _ if "repeat_essay" in structure_type:
+                        return collector_repeat_essay(TARGET_PATH)
+                    case "collector.repeat_dialogue" | _ if "repeat_dialogue" in structure_type:
+                        return collector_repeat_dialogue(TARGET_PATH)
+                    case "collector.essay" | _ if "essay" in structure_type:
+                        return collector_repeat_essay(TARGET_PATH)
+                    case "collector.dialogue" | _ if "dialogue" in structure_type:
+                        return collector_repeat_dialogue(TARGET_PATH)
+                    case x:
+                        debug_print(f"Unknown structure_type:{x}, but try to resolve it as others")
+                        return collector_others(TARGET_PATH)
+        else:
+            raise Exception("content.json not exists")
+    except Exception as e:
+        print(f"Error:{e}, path:{TARGET_PATH}")
+        return -1;
+
+def resolve_by_homework(TARGET_PATH): # TODO
+    answers = []
+    for item in os.listdir(TARGET_PATH):
+        found = False
+        item_path = os.path.join(TARGET_PATH, item)
+        for root, dirs, files in os.walk(item_path):
+            if "content.json" in files:
+                found = True
+                break
+        if not found:
+            continue
+        answers.append(resolve(item_path))
+    return answers
+
+def resolve_by_all_homework(TARGET_PATH): # TODO
+    answers = {}
+    for item in os.listdir(TARGET_PATH):
+        path = os.path.join(TARGET_PATH, item)
+        if os.path.isdir(path):
+            answers[item] = resolve_by_homework(path)
+        else:
+            continue
+    return answers
+
+# 妈的，快累死我了
+if __name__ == "__main__":
+    debug_log()
+    resolve_type: int = int(input("请输入需要解析的类型数字\n1.单文件夹\n2.单作业\n3.所有作业: "))
+    path = input("请输入路径: ")
+    match resolve_type:
+        case 1:
+            # test pass
+            print(resolve(TARGET_PATH = path))
+        case 2:
+            # test pass
+            print(resolve_by_homework(TARGET_PATH = path))
+        case 3:
+            # test pass
+            print(resolve_by_all_homework(TARGET_PATH = path))
+        case _:
+            print("请输入正确的数字")
+    # print(resolve(TARGET_PATH = "./answer"))
+
+    """
+    测试数据和环境
+    python: 3.14.5
+    system: win11(25h2,26200.8037)
+    cpu: AMD(R) Ryzen(TM) 3700X @ 4.3GHz
+    ram: G.SKILL Trident Z DDR4 8G*2 (Samsung B-DIE)
+    disk: WD SN550 1TB
+    speedtest(max): 911.4545817387955 dirs/s
+    speedtest(second): 876.6341122846902 dirs/s
+    """
