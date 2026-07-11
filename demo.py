@@ -5,15 +5,24 @@ from html.parser import HTMLParser
 import logging
 import time
 
-# TARGET_PATH = "./answer"
+# TARGET = "./answer"
 DEBUG = False
+NOFILE_READ = False
 
 # 选择题答案从info.json提取，非选择题答案从content.json提取
-# export debug_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
+# export debug_mode(bool), nofile_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
+# 注意：nofile_mode、debug_mode需要在其他导出函数调用前调用，否则无效
+
+def nofile_mode(mode: bool):
+    global NOFILE_READ
+    NOFILE_READ = mode
+    return
 
 def debug_mode(mode: bool):
     global DEBUG
     DEBUG = mode
+    debug_log()
+    return
 
 def debug_log():
     if DEBUG == True:
@@ -99,11 +108,24 @@ def remove_html_tags(html_string: str) -> str:
 
 #     return answerkey
 
-def collector_choose(TARGET_PATH):
+def collector_choose(TARGET):
+    """
+    选择题答案解析函数*
+    Args:
+        TARGET (str): 当NOFILE_READ == True时, 为info.json的具体内容; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+    Returns:
+        answer_dict (dict): 解析后的答案字典
+        *example (dict):{"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...]}, "stid2_xth2":{...}, ...}
+    """
+
     choose_answer_dict = {}
 
-    if os.path.exists(os.path.join(TARGET_PATH, "info.json")):
-        with open(os.path.join(TARGET_PATH, "info.json"), "r", encoding='utf-8') as k:
+    if NOFILE_READ == True:
+        # TARGET此时应为info.json的具体内容，需要json.loads加载解析
+        # TODO
+        pass
+    elif os.path.exists(os.path.join(TARGET, "info.json")):
+        with open(os.path.join(TARGET, "info.json"), "r", encoding='utf-8') as k:
             info = json.load(k)
             for item in info:
                 if (item["code_id"] == "answer") & (item["code_type"] == "json_array"):
@@ -120,12 +142,16 @@ def collector_choose(TARGET_PATH):
     
     return sort_dict_by_key(choose_answer_dict)
 
-def collector_read_word(TARGET_PATH):
+def collector_read_word(TARGET):
     read_word_answer_dict = {}
 
-    if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
-        # with open(os.path.join(TARGET_PATH, "info.json"), "r") as k:
-        with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as m:
+    if NOFILE_READ == True:
+        # TARGET此时应为content.json的具体内容，需要json.loads加载解析
+        # TODO
+        pass
+    elif os.path.exists(os.path.join(TARGET, "content.json")):
+        # with open(os.path.join(TARGET, "info.json"), "r") as k:
+        with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as m:
             # info = json.load(k)
             # for item in info:
             #     if (item["code_id"] == "value_all") & (item["code_type"] == "txt"):
@@ -140,21 +166,25 @@ def collector_read_word(TARGET_PATH):
     
     return sort_dict_by_key(read_word_answer_dict)
 
-def collector_read(TARGET_PATH):
-    return collector_read_word(TARGET_PATH)
+def collector_read(TARGET):
+    return collector_read_word(TARGET)
 
-def collector_word(TARGET_PATH):
-    return collector_read_word(TARGET_PATH)
+def collector_word(TARGET):
+    return collector_read_word(TARGET)
 
-def collector_repeat(TARGET_PATH):
+def collector_repeat(TARGET):
     # using collector_repeat_essay_dialogue
-    return collector_repeat_essay_dialogue(TARGET_PATH)
+    return collector_repeat_essay_dialogue(TARGET)
 
-def collector_repeat_essay_dialogue(TARGET_PATH):
+def collector_repeat_essay_dialogue(TARGET):
     essay_dialogue_answer_dict = {}
 
-    if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
-        with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as m:
+    if NOFILE_READ == True:
+        # TARGET此时应为content.json的具体内容，需要json.loads加载解析
+        # TODO
+        pass
+    elif os.path.exists(os.path.join(TARGET, "content.json")):
+        with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as m:
             txt = json.load(m)
             for question in txt["info"]["question"]:
                 part_answer = []
@@ -168,30 +198,30 @@ def collector_repeat_essay_dialogue(TARGET_PATH):
     
     return sort_dict_by_key(essay_dialogue_answer_dict)
 
-def collector_repeat_essay(TARGET_PATH):
-    return collector_repeat_essay_dialogue(TARGET_PATH)
+def collector_repeat_essay(TARGET):
+    return collector_repeat_essay_dialogue(TARGET)
 
-def collector_repeat_dialogue(TARGET_PATH):
-    return collector_repeat_essay_dialogue(TARGET_PATH)
+def collector_repeat_dialogue(TARGET):
+    return collector_repeat_essay_dialogue(TARGET)
 
-def collector_others(TARGET_PATH):
+def collector_others(TARGET):
     # 全都试一遍，成功为止
     try:
-        return collector_repeat(TARGET_PATH)
+        return collector_repeat(TARGET)
     except:
-        debug_print(f"Others can't be resolved by repeat, path:{TARGET_PATH}, try others")
+        debug_print(f"Others can't be resolved by repeat, path:{TARGET}, try others")
     try:
-        return collector_choose(TARGET_PATH)
+        return collector_choose(TARGET)
     except:
-        debug_print(f"Others can't be resolved by choose, path:{TARGET_PATH}, try others")
+        debug_print(f"Others can't be resolved by choose, path:{TARGET}, try others")
     try:
-        return collector_read_word(TARGET_PATH)
+        return collector_read_word(TARGET)
     except:
-        debug_print(f"Others can't be resolved by read_word, path:{TARGET_PATH}, try others")
+        debug_print(f"Others can't be resolved by read_word, path:{TARGET}, try others")
     try:
-        return collector_repeat_essay_dialogue(TARGET_PATH)
+        return collector_repeat_essay_dialogue(TARGET)
     except:
-        debug_print(f"Others can't be resolved by essay_dialogue, path:{TARGET_PATH}, try others")
+        debug_print(f"Others can't be resolved by essay_dialogue, path:{TARGET}, try others")
 
 # int __thiscall sub_FCF2F0(void *this)
 # {
@@ -202,44 +232,44 @@ def collector_others(TARGET_PATH):
 #     return 0;
 # }
 
-def resolve(TARGET_PATH):
-    # 从target_path获取content.json并解析structure_type值
+def resolve(TARGET):
+    # 从TARGET获取content.json并解析structure_type值
     try:
-        if os.path.exists(os.path.join(TARGET_PATH, "content.json")):
-            with open(os.path.join(TARGET_PATH, "content.json"), "r", encoding='utf-8') as f:
+        if os.path.exists(os.path.join(TARGET, "content.json")):
+            with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as f:
                 content = json.load(f)
                 structure_type = content["structure_type"]
                 match structure_type:
                     case "collector.choose" | _ if "choose" in structure_type:
-                        return collector_choose(TARGET_PATH)
+                        return collector_choose(TARGET)
                     case "collector.read" | _ if "read" in structure_type:
-                        return collector_read(TARGET_PATH)
+                        return collector_read(TARGET)
                     case "collector.word" | _ if "word" in structure_type:
-                        return collector_word(TARGET_PATH)
+                        return collector_word(TARGET)
                     case "collector.repeat" | _ if "repeat" in structure_type:
-                        return collector_repeat(TARGET_PATH)
+                        return collector_repeat(TARGET)
                     case "collector.repeat_essay" | _ if "repeat_essay" in structure_type:
-                        return collector_repeat_essay(TARGET_PATH)
+                        return collector_repeat_essay(TARGET)
                     case "collector.repeat_dialogue" | _ if "repeat_dialogue" in structure_type:
-                        return collector_repeat_dialogue(TARGET_PATH)
+                        return collector_repeat_dialogue(TARGET)
                     case "collector.essay" | _ if "essay" in structure_type:
-                        return collector_repeat_essay(TARGET_PATH)
+                        return collector_repeat_essay(TARGET)
                     case "collector.dialogue" | _ if "dialogue" in structure_type:
-                        return collector_repeat_dialogue(TARGET_PATH)
+                        return collector_repeat_dialogue(TARGET)
                     case x:
                         debug_print(f"Unknown structure_type:{x}, but try to resolve it as others")
-                        return collector_others(TARGET_PATH)
+                        return collector_others(TARGET)
         else:
             raise Exception("content.json not exists")
     except Exception as e:
-        print(f"Error:{e}, path:{TARGET_PATH}")
+        print(f"Error:{e}, path:{TARGET}")
         return -1;
 
-def resolve_by_homework(TARGET_PATH): # TODO
+def resolve_by_homework(TARGET): # TODO
     answers = []
-    for item in os.listdir(TARGET_PATH):
+    for item in os.listdir(TARGET):
         found = False
-        item_path = os.path.join(TARGET_PATH, item)
+        item_path = os.path.join(TARGET, item)
         for root, dirs, files in os.walk(item_path):
             if "content.json" in files:
                 found = True
@@ -249,10 +279,10 @@ def resolve_by_homework(TARGET_PATH): # TODO
         answers.append(resolve(item_path))
     return answers
 
-def resolve_by_all_homework(TARGET_PATH): # TODO
+def resolve_by_all_homework(TARGET): # TODO
     answers = {}
-    for item in os.listdir(TARGET_PATH):
-        path = os.path.join(TARGET_PATH, item)
+    for item in os.listdir(TARGET):
+        path = os.path.join(TARGET, item)
         if os.path.isdir(path):
             answers[item] = resolve_by_homework(path)
         else:
@@ -261,22 +291,22 @@ def resolve_by_all_homework(TARGET_PATH): # TODO
 
 # 妈的，快累死我了
 if __name__ == "__main__":
-    debug_log()
+    # debug_log()
     resolve_type: int = int(input("请输入需要解析的类型数字\n1.单文件夹\n2.单作业\n3.所有作业: "))
     path = input("请输入路径: ")
     match resolve_type:
         case 1:
             # test pass
-            print(resolve(TARGET_PATH = path))
+            print(resolve(TARGET = path))
         case 2:
             # test pass
-            print(resolve_by_homework(TARGET_PATH = path))
+            print(resolve_by_homework(TARGET = path))
         case 3:
             # test pass
-            print(resolve_by_all_homework(TARGET_PATH = path))
+            print(resolve_by_all_homework(TARGET = path))
         case _:
             print("请输入正确的数字")
-    # print(resolve(TARGET_PATH = "./answer"))
+    # print(resolve(TARGET = "./answer"))
 
     """
     测试数据和环境
