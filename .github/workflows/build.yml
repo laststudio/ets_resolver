@@ -26,11 +26,35 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Set up Android NDK
-        uses: android-ndk/setup-ndk@v1
+      # ---------- 缓存 Android NDK ----------
+      - name: Cache Android NDK
+        id: ndk-cache
+        uses: actions/cache@v3
         with:
-          ndk-version: r25c
+          path: C:\android-ndk-r25c
+          key: ndk-windows-r25c
 
+      # ---------- 仅在缓存未命中时下载 NDK ----------
+      - name: Download and install Android NDK
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
+        run: |
+          $ndkVersion = "r25c"
+          $ndkZip = "android-ndk-$ndkVersion-windows.zip"
+          $ndkUrl = "https://dl.google.com/android/repository/$ndkZip"
+          Write-Host "Downloading NDK..."
+          Invoke-WebRequest -Uri $ndkUrl -OutFile $ndkZip
+          Expand-Archive -Path $ndkZip -DestinationPath C:\
+          Remove-Item $ndkZip
+          # 重命名解压后的目录，确保路径一致（默认解压为 android-ndk-r25c）
+        shell: pwsh
+
+      # ---------- 设置环境变量（无论是否缓存都执行） ----------
+      - name: Set ANDROID_NDK_HOME
+        run: |
+          echo "ANDROID_NDK_HOME=C:\android-ndk-r25c" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      # ---------- 缓存 Cargo 和 target ----------
       - name: Cache cargo registry and target
         uses: actions/cache@v3
         with:
@@ -42,7 +66,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build Windows MSVC (x86_64) - dynamic library
+      - name: Build Windows MSVC (x86_64)
         run: cargo build --target x86_64-pc-windows-msvc --release
 
       - name: Build WebAssembly (wasm32)
@@ -54,24 +78,24 @@ jobs:
       - name: Generate release tag
         id: gen_tag
         run: |
-          tag="release-$(date +'%Y%m%d')-$(git rev-parse --short HEAD)"
+          tag="Release-$(date +'%Y%m%d')-$(git rev-parse --short HEAD)"
           echo "tag=$tag" >> $GITHUB_OUTPUT
         shell: bash
 
-      # ========== 关键修改：现在包含 .lib 导入库 ==========
+      # ---------- 打包动态库（包含 .lib） ----------
       - name: Package dynamic libraries
         run: |
           mkdir artifacts
-          # Windows: .dll, .lib (导入库), 可选 .pdb
+          # Windows: .dll + .lib 导入库
           cp target/x86_64-pc-windows-msvc/release/*.dll artifacts/ 2>/dev/null || true
           cp target/x86_64-pc-windows-msvc/release/*.lib artifacts/ 2>/dev/null || true
-          # WebAssembly: .wasm (通常为 cdylib 输出)
+          # WebAssembly
           cp target/wasm32-unknown-unknown/release/*.wasm artifacts/ 2>/dev/null || true
-          # Android: .so
+          # Android
           cp target/aarch64-linux-android/release/*.so artifacts/ 2>/dev/null || true
         shell: bash
 
-      - name: Upload artifacts (for release job)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: built-libs-${{ steps.gen_tag.outputs.tag }}
@@ -103,4 +127,4 @@ jobs:
           prerelease: true
           files: artifacts/*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
