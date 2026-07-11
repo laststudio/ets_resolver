@@ -57,7 +57,7 @@ python demo.py
 import ctypes
 import json
 
-lib = ctypes.CDLL("./target/release/libdemo.so")
+lib = ctypes.CDLL("./target/release/libresolver.so")
 
 lib.debug_mode.argtypes = [ctypes.c_bool]
 lib.debug_mode.restype = None
@@ -143,7 +143,7 @@ python3 test_lib.py ..\downloaded_res
 ## 系统和环境信息
 
 Python: 3.14.5  
-System: win11(25h2,26200.8037)  
+System: Windows 11(25H2,26200.8037)  
 CPU: AMD(R) Ryzen(TM) 3700X @ 4.3GHz  
 RAM: G.SKILL Trident Z DDR4 8G*2 3600MHz (Samsung B-DIE)  
 Disk: WD SN550 1TB  
@@ -152,14 +152,14 @@ Disk: WD SN550 1TB
 
 ### 纯python实现
 
-最终汇总:
+最终汇总:  
 逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  9.6807s  |  2411.81 answers/s  
 批量调用:  14402 成功 / 0 失败  |  23348 答案  |  5.9476s  |  3925.60 answers/s  
 加速比:    1.63x
 
 ### rust动态链接库
 
-最终汇总:
+最终汇总:  
 逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  4.3968s  |  5310.23 answers/s  
 批量调用:  14402 成功 / 0 失败  |  23348 答案  |  4.5328s  |  5150.93 answers/s  
 加速比:    0.97x
