@@ -15,9 +15,9 @@
 ## 在本机编译 Rust 动态库
 
 在项目根目录下执行：
-\`\`\`bash
+```bash
 cargo build --release
-\`\`\`
+```
 编译产物位于 `target/release/`：
 - Windows: `resolver.dll`
 - Android: `libresolver.so`
@@ -26,13 +26,13 @@ cargo build --release
 ## 交叉编译 Rust 动态库
 
 在项目根目录下执行：
-\`\`\`bash
+```bash
 rustup target add aarch64-linux-android wasm32-unknown-unknown x86_64-pc-windows-msvc
 cargo install cargo-ndk
 cargo build --target x86_64-pc-windows-msvc --release
 cargo build --target wasm32-unknown-unknown --release
 cargo ndk --target arm64-v8a build --release
-\`\`\`
+```
 编译产物位于 `target/release/`：
 - Windows: `resolver.dll`
 - Android: `libresolver.so`
@@ -45,15 +45,15 @@ cargo ndk --target arm64-v8a build --release
 ### 1. Python 程序 (`demo.py`) 使用
 
 直接运行脚本，根据提示输入：
-\`\`\`bash
+```bash
 python demo.py
-\`\`\`
+```
 
 ### 2. Rust 动态链接库使用 (以 Python 为例)
 
 通过 Python 的 `ctypes` 调用 Rust 动态链接库：
 
-\`\`\`python
+```python
 import ctypes
 import json
 
@@ -91,7 +91,7 @@ content_json = '{"structure_type": "collector.read", "info": {"stid": "1", "valu
 info_json = "[]"
 input_str = json.dumps([content_json, info_json])
 print(call(lib.resolve, input_str))
-\`\`\`
+```
 
 ---
 
@@ -106,7 +106,7 @@ print(call(lib.resolve, input_str))
   - `NOFILE_MODE = False`：包含 `content.json` 和 `info.json` 的文件夹路径。
   - `NOFILE_MODE = True`：JSON 字符串，格式为 `"[content.json_str, info.json_str]"`。
 - **输出**：JSON 字符串，解析失败时返回 `"null"`。解析成功的结构为：
-\`\`\`json
+```json
 {
   "stid1_xth1": {
     "answer": ["ans1", "ans2"],
@@ -114,7 +114,7 @@ print(call(lib.resolve, input_str))
   },
   "type": "collector.xxx"
 }
-\`\`\`
+```
 
 ### 3. `resolve_by_homework(str target)` -> `list[dict]`
 - **输入**：
@@ -133,42 +133,36 @@ print(call(lib.resolve, input_str))
 # 测试
 
 在项目根目录下执行：
-\`\`\`bash
+```bash
 python3 test_demo.py ..\downloaded
 python3 test_demo.py ..\downloaded_res
 python3 test_lib.py ..\downloaded
 python3 test_lib.py ..\downloaded_res
-\`\`\`
+```
 
 ## 系统和环境信息
 
-Python: 3.14.5
-System: win11(25h2,26200.8037)
-CPU: AMD(R) Ryzen(TM) 3700X @ 4.3GHz
-RAM: G.SKILL Trident Z DDR4 8G*2 3600MHz (Samsung B-DIE)
-Disk: WD SN550 1TB
+Python: 3.14.5  
+System: win11(25h2,26200.8037)  
+CPU: AMD(R) Ryzen(TM) 3700X @ 4.3GHz  
+RAM: G.SKILL Trident Z DDR4 8G*2 3600MHz (Samsung B-DIE)  
+Disk: WD SN550 1TB  
 
 ## 数据
 
 ### 纯python实现
 
-======================================================================
 最终汇总:
-======================================================================
-逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  9.6807s  |  2411.81 answers/s
-批量调用:  14402 成功 / 0 失败  |  23348 答案  |  5.9476s  |  3925.60 answers/s
+逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  9.6807s  |  2411.81 answers/s  
+批量调用:  14402 成功 / 0 失败  |  23348 答案  |  5.9476s  |  3925.60 answers/s  
 加速比:    1.63x
-======================================================================
 
 ### rust动态链接库
 
-======================================================================
 最终汇总:
-======================================================================
-逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  4.3968s  |  5310.23 answers/s
-批量调用:  14402 成功 / 0 失败  |  23348 答案  |  4.5328s  |  5150.93 answers/s
+逐个调用:  14402 成功 / 0 失败  |  23348 答案  |  4.3968s  |  5310.23 answers/s  
+批量调用:  14402 成功 / 0 失败  |  23348 答案  |  4.5328s  |  5150.93 answers/s  
 加速比:    0.97x
-======================================================================
 
 
 ###### powered by leitianshuo1337
