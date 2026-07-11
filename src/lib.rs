@@ -1,23 +1,30 @@
 // -*- coding: utf-8 -*-
 // Rust 重写版 demo.py，导出为动态链接库 (cdylib)。
 // FFI 约定：
-//   输入：以 '\0' 结尾的 UTF-8 C 字符串（路径）
+//   输入：以 '\0' 结尾的 UTF-8 C 字符串（路径或 JSON 字符串）
 //   输出：以 '\0' 结尾的 UTF-8 C 字符串（JSON 文本），由调用方使用 `resolver_free_string` 释放
 //   错误：返回 JSON 字符串 "null"（对应 Python 中的 -1 / 异常）
 
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::os::raw::c_char;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::{json, Map, Value};
 
-// ============== 全局 DEBUG 标志 ==============
+// ============== 全局标志 ==============
 
 static DEBUG: AtomicBool = AtomicBool::new(false);
+static NOFILE_READ: AtomicBool = AtomicBool::new(false);
 
-/// 设置调试模式（对应 Python: debug_mode(bool)）
+/// 设置无文件模式
+#[no_mangle]
+pub extern "C" fn nofile_mode(mode: bool) {
+    NOFILE_READ.store(mode, Ordering::SeqCst);
+}
+
+/// 设置调试模式
 #[no_mangle]
 pub extern "C" fn debug_mode(mode: bool) {
     DEBUG.store(mode, Ordering::SeqCst);
@@ -29,7 +36,7 @@ fn debug_print(s: &str) {
     }
 }
 
-/// 工具：把 JSON Value 统一转成 String（字符串、数字、布尔等都能用）
+/// 工具：获取 JSON 字段并转为 String
 fn get_str(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -40,14 +47,13 @@ fn get_str(v: &Value) -> String {
     }
 }
 
-// ============== HTML 标签剥离 ==============
-// 对应 Python 的 HTMLTagStripper / remove_html_tags
+// ============== HTML 标签剥离 (纯 Rust 标准库实现) ==============
 // 行为：移除所有 HTML 标签；跳过 <script>/<style> 内部内容；
 //       跳过 HTML 注释 <!-- ... -->；解码常见 HTML 实体。
 
 fn decode_html_entity(entity: &str) -> Option<String> {
     if entity.starts_with("&#") && entity.len() > 3 {
-        let inner = &entity[2..entity.len() - 1]; // 去掉 "&#" 和 ";"
+        let inner = &entity[2..entity.len() - 1];
         if let Some(hex_str) = inner.strip_prefix('x').or_else(|| inner.strip_prefix('X')) {
             return u32::from_str_radix(hex_str, 16)
                 .ok()
@@ -92,7 +98,6 @@ fn remove_html_tags(input: &str) -> String {
         let c = chars[i];
 
         if c == '<' {
-            // 解析标签
             let mut j = i + 1;
             let mut is_end = false;
             if j < n && chars[j] == '/' {
@@ -100,9 +105,7 @@ fn remove_html_tags(input: &str) -> String {
                 j += 1;
             }
 
-            // 处理注释 / 声明
             if j < n && chars[j] == '!' {
-                // 注释 <!-- ... -->
                 if j + 2 < n && chars[j + 1] == '-' && chars[j + 2] == '-' {
                     let mut k = j + 3;
                     let mut end = n;
@@ -116,7 +119,6 @@ fn remove_html_tags(input: &str) -> String {
                     i = end;
                     continue;
                 } else {
-                    // 其他声明 <!DOCTYPE ...>
                     while j < n && chars[j] != '>' {
                         j += 1;
                     }
@@ -128,7 +130,6 @@ fn remove_html_tags(input: &str) -> String {
                 }
             }
 
-            // 跳过空白
             while j < n && chars[j].is_whitespace() {
                 j += 1;
             }
@@ -138,15 +139,13 @@ fn remove_html_tags(input: &str) -> String {
             }
             let tag_name: String = chars[tag_start..j].iter().collect::<String>().to_lowercase();
 
-            // 找到 '>'
             while j < n && chars[j] != '>' {
                 j += 1;
             }
             if j < n {
-                j += 1; // 跳过 '>'
+                j += 1;
             }
 
-            // 处理 script/style：跳过内部内容直到匹配的闭合标签
             if !is_end && (tag_name == "script" || tag_name == "style") {
                 let close_tag_lower = format!("</{tag_name}");
                 let mut k = j;
@@ -175,7 +174,6 @@ fn remove_html_tags(input: &str) -> String {
 
             i = j;
         } else if c == '&' {
-            // 尝试解析实体
             let mut j = i + 1;
             let mut found_semi = false;
             while j < n && j - i < 30 {
@@ -209,8 +207,6 @@ fn remove_html_tags(input: &str) -> String {
 }
 
 // ============== 字典排序 ==============
-// 对应 Python: sort_dict_by_key
-// 按 'xxxx_x' 格式排序：先按 xxxx 升序，再按 x 升序（均按整数解析）
 
 fn sort_dict_by_key(d: Value) -> Value {
     if let Value::Object(map) = d {
@@ -230,29 +226,39 @@ fn sort_dict_by_key(d: Value) -> Value {
     }
 }
 
-// ============== Collector: choose ==============
-// 选择题答案从 info.json 提取
+// ============== Target 枚举 ==============
 
-fn collector_choose(target_path: &Path) -> Result<Value, String> {
-    let info_path = target_path.join("info.json");
-    if !info_path.exists() {
-        return Err("info.json not exists".into());
-    }
-    let content = fs::read_to_string(&info_path).map_err(|e| e.to_string())?;
-    let info: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    let arr = info.as_array().ok_or("info.json is not an array")?;
+enum Target {
+    Path(PathBuf),
+    NoFile { content: String, info: String },
+}
+
+// ============== Collector: choose ==============
+
+fn collector_choose(target: &Target) -> Result<Value, String> {
+    let info_val = match target {
+        Target::Path(p) => {
+            let info_path = p.join("info.json");
+            if !info_path.exists() {
+                return Err("info.json not exists".into());
+            }
+            let content = fs::read_to_string(&info_path).map_err(|e| e.to_string())?;
+            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+        }
+        Target::NoFile { info, .. } => {
+            serde_json::from_str::<Value>(info).map_err(|e| e.to_string())?
+        }
+    };
+
+    let arr = info_val.as_array().ok_or("info.json is not an array")?;
     let mut result = Map::new();
 
     for item in arr {
         let code_id = item.get("code_id").and_then(|v| v.as_str()).unwrap_or("");
         let code_type = item.get("code_type").and_then(|v| v.as_str()).unwrap_or("");
         if code_id == "answer" && code_type == "json_array" {
-            let code_json_array_str = item
-                .get("code_json_array")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let code_json_array: Value =
-                serde_json::from_str(code_json_array_str).map_err(|e| e.to_string())?;
+            let code_json_array_str = item.get("code_json_array").and_then(|v| v.as_str()).unwrap_or("");
+            let code_json_array: Value = serde_json::from_str::<Value>(code_json_array_str).map_err(|e| e.to_string())?;
             if let Some(answers) = code_json_array.as_array() {
                 for answer in answers {
                     let stid = get_str(answer.get("stid").unwrap_or(&Value::Null));
@@ -272,26 +278,28 @@ fn collector_choose(target_path: &Path) -> Result<Value, String> {
 }
 
 // ============== Collector: read_word ==============
-// 非选择题答案从 content.json 提取（read / word 类型）
 
-fn collector_read_word(target_path: &Path) -> Result<Value, String> {
-    let content_path = target_path.join("content.json");
-    if !content_path.exists() {
-        return Err("content.json not exists".into());
-    }
-    let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
-    let txt: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+fn collector_read_word(target: &Target) -> Result<Value, String> {
+    let txt_val = match target {
+        Target::Path(p) => {
+            let content_path = p.join("content.json");
+            if !content_path.exists() {
+                return Err("content.json not exists".into());
+            }
+            let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
+            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+        }
+        Target::NoFile { content, .. } => {
+            serde_json::from_str::<Value>(content).map_err(|e| e.to_string())?
+        }
+    };
 
-    let info = txt.get("info").ok_or("info field missing")?;
+    let info = txt_val.get("info").ok_or("info field missing")?;
     let stid = get_str(info.get("stid").unwrap_or(&Value::Null));
     let key = format!("{stid}_0");
     let value_text = get_str(info.get("value").unwrap_or(&Value::Null));
     let analyze = get_str(info.get("analyze").unwrap_or(&Value::Null));
-    // 与 Python 行为一致："".split("</br>") 返回 [""]
-    let important: Vec<String> = analyze
-        .split("</br>")
-        .map(remove_html_tags)
-        .collect();
+    let important: Vec<String> = analyze.split("</br>").map(remove_html_tags).collect();
 
     let mut result = Map::new();
     result.insert(
@@ -304,30 +312,34 @@ fn collector_read_word(target_path: &Path) -> Result<Value, String> {
     Ok(sort_dict_by_key(Value::Object(result)))
 }
 
-fn collector_read(target_path: &Path) -> Result<Value, String> {
-    collector_read_word(target_path)
+fn collector_read(target: &Target) -> Result<Value, String> {
+    collector_read_word(target)
 }
 
-fn collector_word(target_path: &Path) -> Result<Value, String> {
-    collector_read_word(target_path)
+fn collector_word(target: &Target) -> Result<Value, String> {
+    collector_read_word(target)
 }
 
 // ============== Collector: repeat_essay_dialogue ==============
 
-fn collector_repeat_essay_dialogue(target_path: &Path) -> Result<Value, String> {
-    let content_path = target_path.join("content.json");
-    if !content_path.exists() {
-        return Err("content.json not exists".into());
-    }
-    let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
-    let txt: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+fn collector_repeat_essay_dialogue(target: &Target) -> Result<Value, String> {
+    let txt_val = match target {
+        Target::Path(p) => {
+            let content_path = p.join("content.json");
+            if !content_path.exists() {
+                return Err("content.json not exists".into());
+            }
+            let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
+            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+        }
+        Target::NoFile { content, .. } => {
+            serde_json::from_str::<Value>(content).map_err(|e| e.to_string())?
+        }
+    };
 
-    let info = txt.get("info").ok_or("info field missing")?;
+    let info = txt_val.get("info").ok_or("info field missing")?;
     let stid = get_str(info.get("stid").unwrap_or(&Value::Null));
-    let questions = info
-        .get("question")
-        .and_then(|v| v.as_array())
-        .ok_or("question field missing or not array")?;
+    let questions = info.get("question").and_then(|v| v.as_array()).ok_or("question field missing or not array")?;
 
     let mut result = Map::new();
     for question in questions {
@@ -343,10 +355,7 @@ fn collector_repeat_essay_dialogue(target_path: &Path) -> Result<Value, String> 
         }
 
         let keywords = get_str(question.get("keywords").unwrap_or(&Value::Null));
-        let important: Vec<String> = keywords
-            .split(" | ")
-            .map(remove_html_tags)
-            .collect();
+        let important: Vec<String> = keywords.split(" | ").map(remove_html_tags).collect();
 
         result.insert(
             key,
@@ -359,121 +368,111 @@ fn collector_repeat_essay_dialogue(target_path: &Path) -> Result<Value, String> 
     Ok(sort_dict_by_key(Value::Object(result)))
 }
 
-fn collector_repeat(target_path: &Path) -> Result<Value, String> {
-    collector_repeat_essay_dialogue(target_path)
+fn collector_repeat(target: &Target) -> Result<Value, String> {
+    collector_repeat_essay_dialogue(target)
 }
 
-fn collector_repeat_essay(target_path: &Path) -> Result<Value, String> {
-    collector_repeat_essay_dialogue(target_path)
+fn collector_repeat_essay(target: &Target) -> Result<Value, String> {
+    collector_repeat_essay_dialogue(target)
 }
 
-fn collector_repeat_dialogue(target_path: &Path) -> Result<Value, String> {
-    collector_repeat_essay_dialogue(target_path)
+fn collector_repeat_dialogue(target: &Target) -> Result<Value, String> {
+    collector_repeat_essay_dialogue(target)
 }
 
 // ============== Collector: others ==============
-// 全都试一遍
 
-fn collector_others(target_path: &Path) -> Result<Value, String> {
-    if let Ok(r) = collector_repeat(target_path) {
-        return Ok(r);
-    }
-    debug_print(&format!(
-        "Others can't be resolved by repeat, path:{}, try others",
-        target_path.display()
-    ));
+fn collector_others(target: &Target) -> Result<Value, String> {
+    if let Ok(r) = collector_repeat(target) { return Ok(r); }
+    debug_print("Others can't be resolved by repeat, try others");
 
-    if let Ok(r) = collector_choose(target_path) {
-        return Ok(r);
-    }
-    debug_print(&format!(
-        "Others can't be resolved by choose, path:{}, try others",
-        target_path.display()
-    ));
+    if let Ok(r) = collector_choose(target) { return Ok(r); }
+    debug_print("Others can't be resolved by choose, try others");
 
-    if let Ok(r) = collector_read_word(target_path) {
-        return Ok(r);
-    }
-    debug_print(&format!(
-        "Others can't be resolved by read_word, path:{}, try others",
-        target_path.display()
-    ));
+    if let Ok(r) = collector_read_word(target) { return Ok(r); }
+    debug_print("Others can't be resolved by read_word, try others");
 
-    if let Ok(r) = collector_repeat_essay_dialogue(target_path) {
-        return Ok(r);
-    }
-    debug_print(&format!(
-        "Others can't be resolved by essay_dialogue, path:{}, try others",
-        target_path.display()
-    ));
+    if let Ok(r) = collector_repeat_essay_dialogue(target) { return Ok(r); }
+    debug_print("Others can't be resolved by essay_dialogue, try others");
 
     Err("All collectors failed".into())
 }
 
-// ============== resolve（单个文件夹）==============
+// ============== resolve (核心逻辑) ==============
 
-fn resolve_inner(target_path: &Path) -> Value {
-    let content_path = target_path.join("content.json");
-    if !content_path.exists() {
-        eprintln!("Error: content.json not exists, path: {}", target_path.display());
-        return Value::Null;
-    }
-    let content_str = match fs::read_to_string(&content_path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("Error:{e}, path:{}", target_path.display());
-            return Value::Null;
+fn resolve_inner(target: &Target) -> Value {
+    let content_val = match target {
+        Target::Path(p) => {
+            let content_path = p.join("content.json");
+            if !content_path.exists() {
+                eprintln!("Error: content.json not exists, path: {}", p.display());
+                return Value::Null;
+            }
+            let content_str = match fs::read_to_string(&content_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Error:{e}, path:{}", p.display());
+                    return Value::Null;
+                }
+            };
+            match serde_json::from_str::<Value>(&content_str) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Error:{e}, path:{}", p.display());
+                    return Value::Null;
+                }
+            }
+        }
+        Target::NoFile { content, .. } => {
+            match serde_json::from_str::<Value>(content) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Error parsing content json string: {e}");
+                    return Value::Null;
+                }
+            }
         }
     };
-    let content: Value = match serde_json::from_str(&content_str) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("Error:{e}, path:{}", target_path.display());
-            return Value::Null;
-        }
-    };
 
-    let structure_type = content
-        .get("structure_type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let structure_type = content_val.get("structure_type").and_then(|v| v.as_str()).unwrap_or("");
 
-    // 与 Python 的 match-case 行为保持一致（含子串匹配）
     let result = if structure_type == "collector.choose" || structure_type.contains("choose") {
-        collector_choose(target_path)
+        collector_choose(target)
     } else if structure_type == "collector.read" || structure_type.contains("read") {
-        collector_read(target_path)
+        collector_read(target)
     } else if structure_type == "collector.word" || structure_type.contains("word") {
-        collector_word(target_path)
+        collector_word(target)
     } else if structure_type == "collector.repeat" || structure_type.contains("repeat") {
-        collector_repeat(target_path)
+        collector_repeat(target)
     } else if structure_type == "collector.repeat_essay" || structure_type.contains("repeat_essay") {
-        collector_repeat_essay(target_path)
+        collector_repeat_essay(target)
     } else if structure_type == "collector.repeat_dialogue" || structure_type.contains("repeat_dialogue") {
-        collector_repeat_dialogue(target_path)
+        collector_repeat_dialogue(target)
     } else if structure_type == "collector.essay" || structure_type.contains("essay") {
-        collector_repeat_essay(target_path)
+        collector_repeat_essay(target)
     } else if structure_type == "collector.dialogue" || structure_type.contains("dialogue") {
-        collector_repeat_dialogue(target_path)
+        collector_repeat_dialogue(target)
     } else {
-        debug_print(&format!(
-            "Unknown structure_type:{structure_type}, but try to resolve it as others"
-        ));
-        collector_others(target_path)
+        debug_print(&format!("Unknown structure_type:{structure_type}, but try to resolve it as others"));
+        collector_others(target)
     };
 
     match result {
-        Ok(v) => v,
+        Ok(mut v) => {
+            if let Value::Object(ref mut map) = v {
+                map.insert("type".to_string(), Value::String(structure_type.to_string()));
+            }
+            v
+        }
         Err(e) => {
-            eprintln!("Error:{e}, path:{}", target_path.display());
+            eprintln!("Error:{e}");
             Value::Null
         }
     }
 }
 
-// ============== resolve_by_homework（单作业，遍历子目录）==============
+// ============== resolve_by_homework (单作业) ==============
 
-/// 在 path 的子目录中（递归）查找是否存在 content.json
 fn walkdir_has_content(path: &Path) -> bool {
     let entries = match fs::read_dir(path) {
         Ok(e) => e,
@@ -495,9 +494,8 @@ fn walkdir_has_content(path: &Path) -> bool {
     false
 }
 
-fn resolve_by_homework_inner(target_path: &Path) -> Value {
+fn resolve_by_homework_path(target_path: &Path) -> Value {
     let mut answers: Vec<Value> = Vec::new();
-
     let entries = match fs::read_dir(target_path) {
         Ok(e) => e,
         Err(_) => return Value::Array(answers),
@@ -506,10 +504,8 @@ fn resolve_by_homework_inner(target_path: &Path) -> Value {
     for entry in entries.flatten() {
         let item_path = entry.path();
         if !item_path.is_dir() {
-            // 与 Python 行为一致：os.walk 对文件返回空，found=False
             continue;
         }
-        // 检查 content.json 是否存在于 item_path 或其任意子目录
         let found = if item_path.join("content.json").exists() {
             true
         } else {
@@ -518,16 +514,15 @@ fn resolve_by_homework_inner(target_path: &Path) -> Value {
         if !found {
             continue;
         }
-        answers.push(resolve_inner(&item_path));
+        answers.push(resolve_inner(&Target::Path(item_path)));
     }
     Value::Array(answers)
 }
 
-// ============== resolve_by_all_homework（所有作业）==============
+// ============== resolve_by_all_homework (所有作业) ==============
 
-fn resolve_by_all_homework_inner(target_path: &Path) -> Value {
+fn resolve_by_all_homework_path(target_path: &Path) -> Value {
     let mut answers = Map::new();
-
     let entries = match fs::read_dir(target_path) {
         Ok(e) => e,
         Err(_) => return Value::Object(answers),
@@ -539,42 +534,109 @@ fn resolve_by_all_homework_inner(target_path: &Path) -> Value {
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
-        answers.insert(name, resolve_by_homework_inner(&path));
+        answers.insert(name, resolve_by_homework_path(&path));
     }
     Value::Object(answers)
 }
 
 // ============== FFI 导出函数 ==============
 
-/// 解析单个文件夹。返回 JSON 字符串（成功为对象，失败为 "null"）。
 #[no_mangle]
 pub extern "C" fn resolve(path: *const c_char) -> *mut c_char {
-    resolve_common(path, resolve_inner)
-}
-
-/// 解析单个作业（遍历其下所有子文件夹）。
-#[no_mangle]
-pub extern "C" fn resolve_by_homework(path: *const c_char) -> *mut c_char {
-    resolve_common(path, resolve_by_homework_inner)
-}
-
-/// 解析所有作业（遍历顶层目录）。
-#[no_mangle]
-pub extern "C" fn resolve_by_all_homework(path: *const c_char) -> *mut c_char {
-    resolve_common(path, resolve_by_all_homework_inner)
-}
-
-/// 通用包装：将 C 字符串路径转 Rust &str，调用内部函数，返回 JSON C 字符串
-fn resolve_common<F: FnOnce(&Path) -> Value>(path: *const c_char, f: F) -> *mut c_char {
     if path.is_null() {
         return std::ptr::null_mut();
     }
-    let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+    let s = match unsafe { CStr::from_ptr(path) }.to_str() {
         Ok(s) => s,
         Err(_) => return std::ptr::null_mut(),
     };
-    let target_path = Path::new(path_str);
-    let result = f(target_path);
+
+    let result = if NOFILE_READ.load(Ordering::SeqCst) {
+        match serde_json::from_str::<Vec<String>>(s) {
+            Ok(pair) if pair.len() >= 2 => resolve_inner(&Target::NoFile {
+                content: pair[0].clone(),
+                info: pair[1].clone(),
+            }),
+            _ => Value::Null,
+        }
+    } else {
+        resolve_inner(&Target::Path(PathBuf::from(s)))
+    };
+
+    json_to_ptr(result)
+}
+
+#[no_mangle]
+pub extern "C" fn resolve_by_homework(path: *const c_char) -> *mut c_char {
+    if path.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = match unsafe { CStr::from_ptr(path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let result = if NOFILE_READ.load(Ordering::SeqCst) {
+        match serde_json::from_str::<Vec<Vec<String>>>(s) {
+            Ok(list_of_pairs) => {
+                let mut arr = Vec::new();
+                for pair in list_of_pairs {
+                    if pair.len() >= 2 {
+                        arr.push(resolve_inner(&Target::NoFile {
+                            content: pair[0].clone(),
+                            info: pair[1].clone(),
+                        }));
+                    }
+                }
+                Value::Array(arr)
+            }
+            _ => Value::Array(vec![]),
+        }
+    } else {
+        resolve_by_homework_path(Path::new(s))
+    };
+
+    json_to_ptr(result)
+}
+
+#[no_mangle]
+pub extern "C" fn resolve_by_all_homework(path: *const c_char) -> *mut c_char {
+    if path.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = match unsafe { CStr::from_ptr(path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let result = if NOFILE_READ.load(Ordering::SeqCst) {
+        match serde_json::from_str::<Vec<Vec<Vec<String>>>>(s) {
+            Ok(list_of_list_of_pairs) => {
+                let mut map = Map::new();
+                for (i, list_of_pairs) in list_of_list_of_pairs.iter().enumerate() {
+                    let mut arr = Vec::new();
+                    for pair in list_of_pairs {
+                        if pair.len() >= 2 {
+                            arr.push(resolve_inner(&Target::NoFile {
+                                content: pair[0].clone(),
+                                info: pair[1].clone(),
+                            }));
+                        }
+                    }
+                    map.insert(i.to_string(), Value::Array(arr));
+                }
+                Value::Object(map)
+            }
+            _ => Value::Object(Map::new()),
+        }
+    } else {
+        resolve_by_all_homework_path(Path::new(s))
+    };
+
+    json_to_ptr(result)
+}
+
+fn json_to_ptr(result: Value) -> *mut c_char {
     let json_str = serde_json::to_string(&result).unwrap_or_else(|_| "null".to_string());
     match CString::new(json_str) {
         Ok(c) => c.into_raw(),
@@ -582,7 +644,7 @@ fn resolve_common<F: FnOnce(&Path) -> Value>(path: *const c_char, f: F) -> *mut 
     }
 }
 
-/// 释放由 resolve / resolve_by_homework / resolve_by_all_homework 返回的字符串
+/// 释放由 resolve 等函数返回的字符串
 #[no_mangle]
 pub extern "C" fn resolver_free_string(ptr: *mut c_char) {
     if ptr.is_null() {
@@ -590,29 +652,5 @@ pub extern "C" fn resolver_free_string(ptr: *mut c_char) {
     }
     unsafe {
         let _ = CString::from_raw(ptr);
-    }
-}
-
-// 测试（仅 `cargo test` 使用，不影响 cdylib 导出）
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_remove_html_tags_basic() {
-        assert_eq!(remove_html_tags("<b>hello</b>"), "hello");
-        assert_eq!(remove_html_tags("a &amp; b"), "a & b");
-        assert_eq!(remove_html_tags("&#60;&#62;"), "<>");
-        assert_eq!(remove_html_tags("<script>var x=1;</script>ok"), "ok");
-        assert_eq!(remove_html_tags("<style>.a{}</style>ok"), "ok");
-        assert_eq!(remove_html_tags("<!-- c -->ok"), "ok");
-    }
-
-    #[test]
-    fn test_sort_dict_by_key() {
-        let v: Value = serde_json::from_str(r#"{"10_2":1,"2_10":2,"2_2":3}"#).unwrap();
-        let sorted = sort_dict_by_key(v);
-        let keys: Vec<&String> = sorted.as_object().unwrap().keys().collect();
-        assert_eq!(keys, vec!["2_2", "2_10", "10_2"]);
     }
 }

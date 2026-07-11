@@ -354,11 +354,4 @@ if __name__ == "__main__":
 
     """
     测试数据和环境
-    python: 3.14.5
-    system: win11(25h2,26200.8037)
-    cpu: AMD(R) Ryzen(TM) 3700X @ 4.3GHz
-    ram: G.SKILL Trident Z DDR4 8G*2 3600MHz (Samsung B-DIE)
-    disk: WD SN550 1TB
-    speedtest(max): 911.4545817387955 dirs/s
-    speedtest(second): 876.6341122846902 dirs/s
     """

@@ -1,5 +1,5 @@
 /target
 /answer
-/test_demo.py
 /__pycache__
 /*.txt
+/*.dll

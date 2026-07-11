@@ -1,0 +1,106 @@
+name: Build and Release Rust Dynamic Libraries
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      release_tag: ${{ steps.gen_tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add Rust targets
+        run: |
+          rustup target add aarch64-linux-android
+          rustup target add wasm32-unknown-unknown
+          rustup target add x86_64-pc-windows-msvc
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Set up Android NDK
+        uses: android-ndk/setup-ndk@v1
+        with:
+          ndk-version: r25c
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Windows MSVC (x86_64) - dynamic library
+        run: cargo build --target x86_64-pc-windows-msvc --release
+
+      - name: Build WebAssembly (wasm32)
+        run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Build Android arm64-v8a
+        run: cargo ndk --target arm64-v8a build --release
+
+      - name: Generate release tag
+        id: gen_tag
+        run: |
+          tag="release-$(date +'%Y%m%d')-$(git rev-parse --short HEAD)"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # ========== 关键修改：现在包含 .lib 导入库 ==========
+      - name: Package dynamic libraries
+        run: |
+          mkdir artifacts
+          # Windows: .dll, .lib (导入库), 可选 .pdb
+          cp target/x86_64-pc-windows-msvc/release/*.dll artifacts/ 2>/dev/null || true
+          cp target/x86_64-pc-windows-msvc/release/*.lib artifacts/ 2>/dev/null || true
+          # WebAssembly: .wasm (通常为 cdylib 输出)
+          cp target/wasm32-unknown-unknown/release/*.wasm artifacts/ 2>/dev/null || true
+          # Android: .so
+          cp target/aarch64-linux-android/release/*.so artifacts/ 2>/dev/null || true
+        shell: bash
+
+      - name: Upload artifacts (for release job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-libs-${{ steps.gen_tag.outputs.tag }}
+          path: artifacts/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download built libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: built-libs-${{ needs.build.outputs.release_tag }}
+          path: artifacts/
+
+      - name: Create Release (Pre-release)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.build.outputs.release_tag }}
+          name: "Release Dynamic Libs ${{ needs.build.outputs.release_tag }}"
+          body: |
+            自动构建的动态库：
+            - Windows: .dll + .lib (导入库)
+            - WebAssembly: .wasm
+            - Android: .so
+            提交: ${{ github.sha }}
+          prerelease: true
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

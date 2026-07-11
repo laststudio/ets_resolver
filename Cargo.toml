@@ -1,11 +1,11 @@
 [package]
-name = "ets_resolver"
-version = "0.1.0"
+name = "resolver"
+version = "1.0.0"
 edition = "2021"
 
 [lib]
-name = "ets_resolver"
-crate-type = ["cdylib"]   # 编译为动态链接库: ets_resolver.so / ets_resolver.dylib / ets_resolver.dll
+name = "resolver"
+crate-type = ["cdylib"]   # 编译为动态链接库: libresolver.so / resolver.dll
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -17,3 +17,4 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+debug = false
