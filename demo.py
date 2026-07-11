@@ -10,7 +10,14 @@ DEBUG = False
 NOFILE_READ = False
 
 # 选择题答案从info.json提取，非选择题答案从content.json提取
+
+# NOFILE_READ == True时，调用resolve、resolve_by_homework、resolve_by_all_homework，传入str内部应为list
+# resolve_by_homework："[[content1.json, info1.json], [content2.json, info2.json], ...]"
+# resolve："[content.json, info.json]"
+# resolve_by_all_homework："[[[content1.json, info1.json], [content2.json, info2.json], ...], ...]"
+
 # export debug_mode(bool), nofile_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
+
 # 注意：nofile_mode、debug_mode需要在其他导出函数调用前调用，否则无效
 
 def nofile_mode(mode: bool):
@@ -109,36 +116,27 @@ def remove_html_tags(html_string: str) -> str:
 #     return answerkey
 
 def collector_choose(TARGET):
-    """
-    选择题答案解析函数*
-    Args:
-        TARGET (str): 当NOFILE_READ == True时, 为info.json的具体内容; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
-    Returns:
-        answer_dict (dict): 解析后的答案字典
-        *example (dict):{"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...]}, "stid2_xth2":{...}, ...}
-    """
-
     choose_answer_dict = {}
 
     if NOFILE_READ == True:
         # TARGET此时应为info.json的具体内容，需要json.loads加载解析
-        # TODO
-        pass
+        info = json.loads(TARGET)
     elif os.path.exists(os.path.join(TARGET, "info.json")):
         with open(os.path.join(TARGET, "info.json"), "r", encoding='utf-8') as k:
             info = json.load(k)
-            for item in info:
-                if (item["code_id"] == "answer") & (item["code_type"] == "json_array"):
-                    # 4
-                    # 解析code_json_array的answer项
-                    code_json_array = json.loads(item["code_json_array"])
-                    for answer in code_json_array:
-                        # xth用于区分第几道题
-                        key = answer["stid"] + "_" + answer["xth"]
-                        value = {"answer": [remove_html_tags(answer["answer"])], "important": []} # important为关键词或解析信息，选择题没有关键词
-                        choose_answer_dict[key] = value
     else:
         raise Exception("info.json not exists")
+    
+    for item in info:
+        if (item["code_id"] == "answer") & (item["code_type"] == "json_array"):
+            # 4
+            # 解析code_json_array的answer项
+            code_json_array = json.loads(item["code_json_array"])
+            for answer in code_json_array:
+                # xth用于区分第几道题
+                key = answer["stid"] + "_" + answer["xth"]
+                value = {"answer": [remove_html_tags(answer["answer"])], "important": []} # important为关键词或解析信息，选择题没有关键词
+                choose_answer_dict[key] = value
     
     return sort_dict_by_key(choose_answer_dict)
 
@@ -147,8 +145,7 @@ def collector_read_word(TARGET):
 
     if NOFILE_READ == True:
         # TARGET此时应为content.json的具体内容，需要json.loads加载解析
-        # TODO
-        pass
+        txt = json.loads(TARGET)
     elif os.path.exists(os.path.join(TARGET, "content.json")):
         # with open(os.path.join(TARGET, "info.json"), "r") as k:
         with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as m:
@@ -158,11 +155,12 @@ def collector_read_word(TARGET):
             #         # 1
             #         # 解析txt的answer项
             txt = json.load(m)
-            key = txt["info"]["stid"] + "_0"
-            value = {"answer": [remove_html_tags(txt["info"]["value"])], "important": [remove_html_tags(s) for s in txt["info"]["analyze"].split("</br>")]}
-            read_word_answer_dict[key] = value
     else:
         raise Exception("content.json not exists") # 懒
+    
+    key = txt["info"]["stid"] + "_0"
+    value = {"answer": [remove_html_tags(txt["info"]["value"])], "important": [remove_html_tags(s) for s in txt["info"]["analyze"].split("</br>")]}
+    read_word_answer_dict[key] = value
     
     return sort_dict_by_key(read_word_answer_dict)
 
@@ -181,20 +179,20 @@ def collector_repeat_essay_dialogue(TARGET):
 
     if NOFILE_READ == True:
         # TARGET此时应为content.json的具体内容，需要json.loads加载解析
-        # TODO
-        pass
+        txt = json.loads(TARGET)
     elif os.path.exists(os.path.join(TARGET, "content.json")):
         with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as m:
             txt = json.load(m)
-            for question in txt["info"]["question"]:
-                part_answer = []
-                for std in question["std"]:
-                    part_answer.append(remove_html_tags(std["value"]))
-                key = txt["info"]["stid"] + "_" + question["xh"]
-                value = {"answer": part_answer, "important": [remove_html_tags(s) for s in question["keywords"].split(" | ")]}
-                essay_dialogue_answer_dict[key] = value
     else:
         raise Exception("content.json not exists")
+    
+    for question in txt["info"]["question"]:
+        part_answer = []
+        for std in question["std"]:
+            part_answer.append(remove_html_tags(std["value"]))
+        key = txt["info"]["stid"] + "_" + question["xh"]
+        value = {"answer": part_answer, "important": [remove_html_tags(s) for s in question["keywords"].split(" | ")]}
+        essay_dialogue_answer_dict[key] = value
     
     return sort_dict_by_key(essay_dialogue_answer_dict)
 
@@ -233,60 +231,106 @@ def collector_others(TARGET):
 # }
 
 def resolve(TARGET):
+    """
+    单答案解析函数
+    Args:
+        TARGET (str): 当NOFILE_READ == True时, 为"[content.json, info.json]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+    Returns:
+        answer_dict (dict): 解析后的答案字典
+        *example (dict): {"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...]}, "stid2_xth2":{...}, ...}
+    """
+
     # 从TARGET获取content.json并解析structure_type值
     try:
-        if os.path.exists(os.path.join(TARGET, "content.json")):
+        # 这里io其实可以优化下，都是小文件，多一次打开还是比较吃4k读取的
+        if NOFILE_READ == True:
+            TARGET = list(TARGET)
+            content = json.loads(TARGET[0])
+        elif os.path.exists(os.path.join(TARGET, "content.json")):
             with open(os.path.join(TARGET, "content.json"), "r", encoding='utf-8') as f:
                 content = json.load(f)
-                structure_type = content["structure_type"]
-                match structure_type:
-                    case "collector.choose" | _ if "choose" in structure_type:
-                        return collector_choose(TARGET)
-                    case "collector.read" | _ if "read" in structure_type:
-                        return collector_read(TARGET)
-                    case "collector.word" | _ if "word" in structure_type:
-                        return collector_word(TARGET)
-                    case "collector.repeat" | _ if "repeat" in structure_type:
-                        return collector_repeat(TARGET)
-                    case "collector.repeat_essay" | _ if "repeat_essay" in structure_type:
-                        return collector_repeat_essay(TARGET)
-                    case "collector.repeat_dialogue" | _ if "repeat_dialogue" in structure_type:
-                        return collector_repeat_dialogue(TARGET)
-                    case "collector.essay" | _ if "essay" in structure_type:
-                        return collector_repeat_essay(TARGET)
-                    case "collector.dialogue" | _ if "dialogue" in structure_type:
-                        return collector_repeat_dialogue(TARGET)
-                    case x:
-                        debug_print(f"Unknown structure_type:{x}, but try to resolve it as others")
-                        return collector_others(TARGET)
         else:
             raise Exception("content.json not exists")
+        
+        structure_type = content["structure_type"]
+        match structure_type:
+            case "collector.choose" | _ if "choose" in structure_type:
+                _return = collector_choose(TARGET)
+            case "collector.read" | _ if "read" in structure_type:
+                _return = collector_read(TARGET)
+            case "collector.word" | _ if "word" in structure_type:
+                _return = collector_word(TARGET)
+            case "collector.repeat" | _ if "repeat" in structure_type:
+                _return = collector_repeat(TARGET)
+            case "collector.repeat_essay" | _ if "repeat_essay" in structure_type:
+                _return = collector_repeat_essay(TARGET)
+            case "collector.repeat_dialogue" | _ if "repeat_dialogue" in structure_type:
+                _return = collector_repeat_dialogue(TARGET)
+            case "collector.essay" | _ if "essay" in structure_type:
+                _return = collector_repeat_essay(TARGET)
+            case "collector.dialogue" | _ if "dialogue" in structure_type:
+                _return = collector_repeat_dialogue(TARGET)
+            case x:
+                debug_print(f"Unknown structure_type:{x}, but try to resolve it as others")
+                _return = collector_others(TARGET)
+
+        _return["type"] = structure_type
+        return _return
+
     except Exception as e:
         print(f"Error:{e}, path:{TARGET}")
         return -1;
 
-def resolve_by_homework(TARGET): # TODO
+def resolve_by_homework(TARGET):
+    """
+    单作业解析函数
+    Args:
+        TARGET (str): 当NOFILE_READ == True时, 为"[[content1.json, info1.json], [content2.json, info2.json], ...]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+    Returns:
+        answer_dict (dict): 解析后的答案字典
+        *example (dict): [resolve_return1, resolve_return2, ...]
+    """
+
     answers = []
-    for item in os.listdir(TARGET):
-        found = False
-        item_path = os.path.join(TARGET, item)
-        for root, dirs, files in os.walk(item_path):
-            if "content.json" in files:
-                found = True
-                break
-        if not found:
-            continue
-        answers.append(resolve(item_path))
+    if NOFILE_READ == True:
+        TARGET = list(TARGET)
+        for item in TARGET:
+            answers.append(resolve(str(item)))
+    else:
+        for item in os.listdir(TARGET):
+            found = False
+            item_path = os.path.join(TARGET, item)
+            for root, dirs, files in os.walk(item_path):
+                if "content.json" in files:
+                    found = True
+                    break
+            if not found:
+                continue
+            answers.append(resolve(item_path))
     return answers
 
-def resolve_by_all_homework(TARGET): # TODO
+def resolve_by_all_homework(TARGET):
+    """
+    全部作业解析函数
+    Args:
+        TARGET (str): 当NOFILE_READ == True时, 为"[[[content1.json, info1.json], [content2.json, info2.json], ...], ...]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+    Returns:
+        answer_dict (dict): 解析后的答案字典
+        *example (dict): {item1: resolve_by_homework_return1, item2:resolve_by_homework_return2, ...}
+    """
+
     answers = {}
-    for item in os.listdir(TARGET):
-        path = os.path.join(TARGET, item)
-        if os.path.isdir(path):
-            answers[item] = resolve_by_homework(path)
-        else:
-            continue
+    if NOFILE_READ == True:
+        TARGET = list(TARGET)
+        for item in TARGET:
+            answers[str(TARGET.index(item))] = resolve_by_homework(str(item))
+    else:
+        for item in os.listdir(TARGET):
+            path = os.path.join(TARGET, item)
+            if os.path.isdir(path):
+                answers[item] = resolve_by_homework(path)
+            else:
+                continue
     return answers
 
 # 妈的，快累死我了
@@ -313,7 +357,7 @@ if __name__ == "__main__":
     python: 3.14.5
     system: win11(25h2,26200.8037)
     cpu: AMD(R) Ryzen(TM) 3700X @ 4.3GHz
-    ram: G.SKILL Trident Z DDR4 8G*2 (Samsung B-DIE)
+    ram: G.SKILL Trident Z DDR4 8G*2 3600MHz (Samsung B-DIE)
     disk: WD SN550 1TB
     speedtest(max): 911.4545817387955 dirs/s
     speedtest(second): 876.6341122846902 dirs/s
