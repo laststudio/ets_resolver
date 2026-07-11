@@ -93,6 +93,8 @@ input_str = json.dumps([content_json, info_json])
 print(call(lib.resolve, input_str))
 ```
 
+注意: cpp引用头文件, 使用`resolver.h`, 动态链接库和静态链接库在`Releases`内
+
 ---
 
 ## 函数输入输出结构
