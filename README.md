@@ -166,6 +166,10 @@ Disk: WD SN550 1TB
 批量调用:  14402 成功 / 0 失败  |  23348 答案  |  4.5328s  |  5150.93 answers/s  
 加速比:    0.97x
 
+# 关于与致谢
 
-###### powered by leitianshuo1337
-###### thanks for the python and the rust language
+作者: leitianshuo1337  
+感谢以下项目的支持: [Rust Programming Language](rust-lang.org)  
+                   [Python](python.org)
+                   [ETS100](ets100.com)
+本项目的产生离不开各个开源项目和开源开发者的支持, 向其他开源开发者致敬!
