@@ -170,7 +170,7 @@ Disk: WD SN550 1TB
 
 作者: leitianshuo1337  
 感谢以下项目的支持:  
-[Rust Programming Language](rust-lang.org)  
-[Python](python.org)  
-[ETS100](ets100.com)  
+[Rust Programming Language](https://rust-lang.org/)  
+[Python](https://python.org/)  
+[ETS100](https://ets100.com/)  
 本项目的产生离不开各个开源项目和开源开发者的支持, 向其他开源开发者致敬!  
