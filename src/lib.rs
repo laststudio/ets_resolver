@@ -1,10 +1,8 @@
 // -*- coding: utf-8 -*-
 // Rust 重写版 demo.py，导出为动态链接库 (cdylib)。
-// FFI 约定：
-//   输入：以 '\0' 结尾的 UTF-8 C 字符串（路径或 JSON 字符串）
-//   输出：以 '\0' 结尾的 UTF-8 C 字符串（JSON 文本），由调用方使用 `resolver_free_string` 释放
-//   错误：返回 JSON 字符串 "null"（对应 Python 中的 -1 / 异常）
+// 极致性能优化版：sonic-rs SIMD 加速 + 缓冲区复用 + 零拷贝切片状态机
 
+use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::os::raw::c_char;
@@ -18,13 +16,11 @@ use serde_json::{json, Map, Value};
 static DEBUG: AtomicBool = AtomicBool::new(false);
 static NOFILE_READ: AtomicBool = AtomicBool::new(false);
 
-/// 设置无文件模式
 #[no_mangle]
 pub extern "C" fn nofile_mode(mode: bool) {
     NOFILE_READ.store(mode, Ordering::SeqCst);
 }
 
-/// 设置调试模式
 #[no_mangle]
 pub extern "C" fn debug_mode(mode: bool) {
     DEBUG.store(mode, Ordering::SeqCst);
@@ -36,7 +32,6 @@ fn debug_print(s: &str) {
     }
 }
 
-/// 工具：获取 JSON 字段并转为 String
 fn get_str(v: &Value) -> String {
     match v {
         Value::String(s) => s.clone(),
@@ -47,9 +42,11 @@ fn get_str(v: &Value) -> String {
     }
 }
 
-// ============== HTML 标签剥离 (纯 Rust 标准库实现) ==============
-// 行为：移除所有 HTML 标签；跳过 <script>/<style> 内部内容；
-//       跳过 HTML 注释 <!-- ... -->；解码常见 HTML 实体。
+// ============== HTML 标签剥离 (字节切片状态机 + 缓冲区复用) ==============
+
+thread_local! {
+    static HTML_BUF: RefCell<String> = RefCell::new(String::with_capacity(2048));
+}
 
 fn decode_html_entity(entity: &str) -> Option<String> {
     if entity.starts_with("&#") && entity.len() > 3 {
@@ -89,121 +86,128 @@ fn decode_html_entity(entity: &str) -> Option<String> {
 }
 
 fn remove_html_tags(input: &str) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let n = chars.len();
-    let mut result = String::with_capacity(input.len());
-    let mut i = 0usize;
+    HTML_BUF.with(|buf| {
+        let mut result = buf.borrow_mut();
+        result.clear();
 
-    while i < n {
-        let c = chars[i];
+        let bytes = input.as_bytes();
+        let n = bytes.len();
+        let mut i = 0usize;
+        let mut last_text_start = 0usize;
 
-        if c == '<' {
-            let mut j = i + 1;
-            let mut is_end = false;
-            if j < n && chars[j] == '/' {
-                is_end = true;
-                j += 1;
-            }
+        while i < n {
+            let c = bytes[i];
+            if c == b'<' {
+                // 批量拷贝之前累积的纯文本
+                if last_text_start < i {
+                    result.push_str(&input[last_text_start..i]);
+                }
 
-            if j < n && chars[j] == '!' {
-                if j + 2 < n && chars[j + 1] == '-' && chars[j + 2] == '-' {
-                    let mut k = j + 3;
-                    let mut end = n;
-                    while k + 2 < n {
-                        if chars[k] == '-' && chars[k + 1] == '-' && chars[k + 2] == '>' {
-                            end = k + 3;
+                let mut j = i + 1;
+                let mut is_end = false;
+                if j < n && bytes[j] == b'/' {
+                    is_end = true;
+                    j += 1;
+                }
+
+                if j < n && bytes[j] == b'!' {
+                    if j + 2 < n && bytes[j + 1] == b'-' && bytes[j + 2] == b'-' {
+                        let mut k = j + 3;
+                        let mut end = n;
+                        while k + 2 < n {
+                            if bytes[k] == b'-' && bytes[k + 1] == b'-' && bytes[k + 2] == b'>' {
+                                end = k + 3;
+                                break;
+                            }
+                            k += 1;
+                        }
+                        i = end;
+                    } else {
+                        while j < n && bytes[j] != b'>' { j += 1; }
+                        if j < n { j += 1; }
+                        i = j;
+                    }
+                    last_text_start = i;
+                    continue;
+                }
+
+                while j < n && bytes[j].is_ascii_whitespace() { j += 1; }
+                let tag_start = j;
+                while j < n && bytes[j].is_ascii_alphanumeric() { j += 1; }
+
+                let tag_name_bytes = &bytes[tag_start..j];
+                let is_script = tag_name_bytes.eq_ignore_ascii_case(b"script");
+                let is_style = tag_name_bytes.eq_ignore_ascii_case(b"style");
+
+                while j < n && bytes[j] != b'>' { j += 1; }
+                if j < n { j += 1; }
+
+                if !is_end && (is_script || is_style) {
+                    let close_bytes: &[u8] = if is_script { b"</script" } else { b"</style" };
+                    let mut k = j;
+                    let mut found = false;
+                    while k + close_bytes.len() <= n {
+                        if input[k..k + close_bytes.len()].as_bytes().eq_ignore_ascii_case(close_bytes) {
+                            let mut m = k + close_bytes.len();
+                            while m < n && bytes[m] != b'>' { m += 1; }
+                            if m < n { m += 1; }
+                            i = m;
+                            found = true;
                             break;
                         }
                         k += 1;
                     }
-                    i = end;
-                    continue;
-                } else {
-                    while j < n && chars[j] != '>' {
-                        j += 1;
+                    if !found {
+                        i = n;
                     }
-                    if j < n {
-                        j += 1;
-                    }
-                    i = j;
+                    last_text_start = i;
                     continue;
                 }
-            }
 
-            while j < n && chars[j].is_whitespace() {
-                j += 1;
-            }
-            let tag_start = j;
-            while j < n && chars[j].is_alphanumeric() {
-                j += 1;
-            }
-            let tag_name: String = chars[tag_start..j].iter().collect::<String>().to_lowercase();
+                i = j;
+                last_text_start = i;
+            } else if c == b'&' {
+                if last_text_start < i {
+                    result.push_str(&input[last_text_start..i]);
+                }
 
-            while j < n && chars[j] != '>' {
-                j += 1;
-            }
-            if j < n {
-                j += 1;
-            }
-
-            if !is_end && (tag_name == "script" || tag_name == "style") {
-                let close_tag_lower = format!("</{tag_name}");
-                let mut k = j;
-                let mut found = false;
-                while k + close_tag_lower.len() <= n {
-                    let slice: String = chars[k..k + close_tag_lower.len()].iter().collect();
-                    if slice.to_lowercase() == close_tag_lower {
-                        let mut m = k + close_tag_lower.len();
-                        while m < n && chars[m] != '>' {
-                            m += 1;
-                        }
-                        if m < n {
-                            m += 1;
-                        }
-                        i = m;
-                        found = true;
+                let mut j = i + 1;
+                let mut found_semi = false;
+                while j < n && j - i < 30 {
+                    if bytes[j] == b';' {
+                        found_semi = true;
                         break;
                     }
-                    k += 1;
+                    if !bytes[j].is_ascii_alphanumeric() && bytes[j] != b'#' {
+                        break;
+                    }
+                    j += 1;
                 }
-                if !found {
-                    i = n;
-                }
-                continue;
-            }
-
-            i = j;
-        } else if c == '&' {
-            let mut j = i + 1;
-            let mut found_semi = false;
-            while j < n && j - i < 30 {
-                if chars[j] == ';' {
-                    found_semi = true;
-                    break;
-                }
-                if !chars[j].is_alphanumeric() && chars[j] != '#' {
-                    break;
-                }
-                j += 1;
-            }
-            if found_semi {
-                let entity: String = chars[i..=j].iter().collect();
-                if let Some(decoded) = decode_html_entity(&entity) {
-                    result.push_str(&decoded);
+                if found_semi {
+                    let entity = &input[i..=j];
+                    if let Some(decoded) = decode_html_entity(entity) {
+                        result.push_str(&decoded);
+                    } else {
+                        result.push_str(entity);
+                    }
+                    i = j + 1;
+                    last_text_start = i;
                 } else {
-                    result.push_str(&entity);
+                    result.push('&');
+                    i += 1;
+                    last_text_start = i;
                 }
-                i = j + 1;
             } else {
-                result.push(c);
                 i += 1;
             }
-        } else {
-            result.push(c);
-            i += 1;
         }
-    }
-    result
+
+        if last_text_start < n {
+            result.push_str(&input[last_text_start..n]);
+        }
+
+        result.clone() // 克隆返回，复用底层会自动重用已有容量
+    })
 }
 
 // ============== 字典排序 ==============
@@ -226,8 +230,6 @@ fn sort_dict_by_key(d: Value) -> Value {
     }
 }
 
-// ============== Target 枚举 ==============
-
 enum Target {
     Path(PathBuf),
     NoFile { content: String, info: String },
@@ -243,10 +245,10 @@ fn collector_choose(target: &Target) -> Result<Value, String> {
                 return Err("info.json not exists".into());
             }
             let content = fs::read_to_string(&info_path).map_err(|e| e.to_string())?;
-            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(&content).map_err(|e| e.to_string())?
         }
         Target::NoFile { info, .. } => {
-            serde_json::from_str::<Value>(info).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(info).map_err(|e| e.to_string())?
         }
     };
 
@@ -258,7 +260,7 @@ fn collector_choose(target: &Target) -> Result<Value, String> {
         let code_type = item.get("code_type").and_then(|v| v.as_str()).unwrap_or("");
         if code_id == "answer" && code_type == "json_array" {
             let code_json_array_str = item.get("code_json_array").and_then(|v| v.as_str()).unwrap_or("");
-            let code_json_array: Value = serde_json::from_str::<Value>(code_json_array_str).map_err(|e| e.to_string())?;
+            let code_json_array: Value = sonic_rs::from_str::<Value>(code_json_array_str).map_err(|e| e.to_string())?;
             if let Some(answers) = code_json_array.as_array() {
                 for answer in answers {
                     let stid = get_str(answer.get("stid").unwrap_or(&Value::Null));
@@ -287,10 +289,10 @@ fn collector_read_word(target: &Target) -> Result<Value, String> {
                 return Err("content.json not exists".into());
             }
             let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
-            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(&content).map_err(|e| e.to_string())?
         }
         Target::NoFile { content, .. } => {
-            serde_json::from_str::<Value>(content).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(content).map_err(|e| e.to_string())?
         }
     };
 
@@ -330,10 +332,10 @@ fn collector_repeat_essay_dialogue(target: &Target) -> Result<Value, String> {
                 return Err("content.json not exists".into());
             }
             let content = fs::read_to_string(&content_path).map_err(|e| e.to_string())?;
-            serde_json::from_str::<Value>(&content).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(&content).map_err(|e| e.to_string())?
         }
         Target::NoFile { content, .. } => {
-            serde_json::from_str::<Value>(content).map_err(|e| e.to_string())?
+            sonic_rs::from_str::<Value>(content).map_err(|e| e.to_string())?
         }
     };
 
@@ -415,7 +417,7 @@ fn resolve_inner(target: &Target) -> Value {
                     return Value::Null;
                 }
             };
-            match serde_json::from_str::<Value>(&content_str) {
+            match sonic_rs::from_str::<Value>(&content_str) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Error:{e}, path:{}", p.display());
@@ -424,7 +426,7 @@ fn resolve_inner(target: &Target) -> Value {
             }
         }
         Target::NoFile { content, .. } => {
-            match serde_json::from_str::<Value>(content) {
+            match sonic_rs::from_str::<Value>(content) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Error parsing content json string: {e}");
@@ -471,7 +473,7 @@ fn resolve_inner(target: &Target) -> Value {
     }
 }
 
-// ============== resolve_by_homework (单作业) ==============
+// ============== resolve_by_homework ==============
 
 fn walkdir_has_content(path: &Path) -> bool {
     let entries = match fs::read_dir(path) {
@@ -519,7 +521,7 @@ fn resolve_by_homework_path(target_path: &Path) -> Value {
     Value::Array(answers)
 }
 
-// ============== resolve_by_all_homework (所有作业) ==============
+// ============== resolve_by_all_homework ==============
 
 fn resolve_by_all_homework_path(target_path: &Path) -> Value {
     let mut answers = Map::new();
@@ -552,7 +554,7 @@ pub extern "C" fn resolve(path: *const c_char) -> *mut c_char {
     };
 
     let result = if NOFILE_READ.load(Ordering::SeqCst) {
-        match serde_json::from_str::<Vec<String>>(s) {
+        match sonic_rs::from_str::<Vec<String>>(s) {
             Ok(pair) if pair.len() >= 2 => resolve_inner(&Target::NoFile {
                 content: pair[0].clone(),
                 info: pair[1].clone(),
@@ -563,7 +565,7 @@ pub extern "C" fn resolve(path: *const c_char) -> *mut c_char {
         resolve_inner(&Target::Path(PathBuf::from(s)))
     };
 
-    json_to_ptr(result)
+    json_to_ptr(&result)
 }
 
 #[no_mangle]
@@ -577,7 +579,7 @@ pub extern "C" fn resolve_by_homework(path: *const c_char) -> *mut c_char {
     };
 
     let result = if NOFILE_READ.load(Ordering::SeqCst) {
-        match serde_json::from_str::<Vec<Vec<String>>>(s) {
+        match sonic_rs::from_str::<Vec<Vec<String>>>(s) {
             Ok(list_of_pairs) => {
                 let mut arr = Vec::new();
                 for pair in list_of_pairs {
@@ -596,7 +598,7 @@ pub extern "C" fn resolve_by_homework(path: *const c_char) -> *mut c_char {
         resolve_by_homework_path(Path::new(s))
     };
 
-    json_to_ptr(result)
+    json_to_ptr(&result)
 }
 
 #[no_mangle]
@@ -610,7 +612,7 @@ pub extern "C" fn resolve_by_all_homework(path: *const c_char) -> *mut c_char {
     };
 
     let result = if NOFILE_READ.load(Ordering::SeqCst) {
-        match serde_json::from_str::<Vec<Vec<Vec<String>>>>(s) {
+        match sonic_rs::from_str::<Vec<Vec<Vec<String>>>>(s) {
             Ok(list_of_list_of_pairs) => {
                 let mut map = Map::new();
                 for (i, list_of_pairs) in list_of_list_of_pairs.iter().enumerate() {
@@ -633,18 +635,20 @@ pub extern "C" fn resolve_by_all_homework(path: *const c_char) -> *mut c_char {
         resolve_by_all_homework_path(Path::new(s))
     };
 
-    json_to_ptr(result)
+    json_to_ptr(&result)
 }
 
-fn json_to_ptr(result: Value) -> *mut c_char {
-    let json_str = serde_json::to_string(&result).unwrap_or_else(|_| "null".to_string());
+// 零拷贝序列化: 将序列化后的 String 直接转交所有权给 C，不产生多余的内存拷贝
+fn json_to_ptr(result: &Value) -> *mut c_char {
+    // sonic_rs::to_string 会利用 SIMD 极速序列化
+    let json_str = sonic_rs::to_string(result).unwrap_or_else(|_| "null".to_string());
+    // CString::new 会检查是否有 \0，如果没有则直接接管 String 的底层内存
     match CString::new(json_str) {
         Ok(c) => c.into_raw(),
         Err(_) => std::ptr::null_mut(),
     }
 }
 
-/// 释放由 resolve 等函数返回的字符串
 #[no_mangle]
 pub extern "C" fn resolver_free_string(ptr: *mut c_char) {
     if ptr.is_null() {

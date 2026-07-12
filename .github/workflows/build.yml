@@ -1,4 +1,4 @@
-name: Build and Release Rust Dynamic Libraries
+name: Build and Create Release on Push
 
 on:
   push:
@@ -9,7 +9,10 @@ jobs:
   build:
     runs-on: windows-latest
     outputs:
+      # 输出生成的 release tag（唯一）
       release_tag: ${{ steps.gen_tag.outputs.tag }}
+      # 输出从 Cargo.toml 读取的版本号，供后续步骤使用
+      version: ${{ steps.read_version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,8 +37,7 @@ jobs:
           path: C:\android-ndk-r25c
           key: ndk-windows-r25c
 
-      # ---------- 仅在缓存未命中时下载 NDK ----------
-      - name: Download and install Android NDK
+      - name: Download and install Android NDK (if not cached)
         if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           $ndkVersion = "r25c"
@@ -45,16 +47,13 @@ jobs:
           Invoke-WebRequest -Uri $ndkUrl -OutFile $ndkZip
           Expand-Archive -Path $ndkZip -DestinationPath C:\
           Remove-Item $ndkZip
-          # 重命名解压后的目录，确保路径一致（默认解压为 android-ndk-r25c）
         shell: pwsh
 
-      # ---------- 设置环境变量（无论是否缓存都执行） ----------
       - name: Set ANDROID_NDK_HOME
         run: |
           echo "ANDROID_NDK_HOME=C:\android-ndk-r25c" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
 
-      # ---------- 缓存 Cargo 和 target ----------
       - name: Cache cargo registry and target
         uses: actions/cache@v3
         with:
@@ -66,6 +65,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # ---------- 从 Cargo.toml 读取版本号 ----------
+      - name: Read version from Cargo.toml
+        id: read_version
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)
+          echo "version=$version" >> $GITHUB_OUTPUT
+        shell: bash
+
+      # ---------- 生成唯一 Tag：版本号 + 短哈希 ----------
+      - name: Generate release tag
+        id: gen_tag
+        run: |
+          version="${{ steps.read_version.outputs.version }}"
+          short_hash=$(git rev-parse --short HEAD)
+          tag="v${version}-${short_hash}"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Build Windows MSVC (x86_64)
         run: cargo build --target x86_64-pc-windows-msvc --release
 
@@ -75,14 +92,7 @@ jobs:
       - name: Build Android arm64-v8a
         run: cargo ndk --target arm64-v8a build --release
 
-      - name: Generate release tag
-        id: gen_tag
-        run: |
-          tag="Release-$(date +'%Y%m%d')-$(git rev-parse --short HEAD)"
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-        shell: bash
-
-      # ---------- 打包动态库（包含 .lib） ----------
+      # ---------- 打包动态库（含 .lib） ----------
       - name: Package dynamic libraries
         run: |
           mkdir artifacts
@@ -113,18 +123,21 @@ jobs:
           name: built-libs-${{ needs.build.outputs.release_tag }}
           path: artifacts/
 
-      - name: Create Release (Pre-release)
+      - name: Create Release (正式版)
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.build.outputs.release_tag }}
-          name: "Release Dynamic Libs ${{ needs.build.outputs.release_tag }}"
+          name: "Release v${{ needs.build.outputs.version }} (build ${{ github.sha }})"
           body: |
-            自动构建的动态库：
-            - Windows: .dll + .lib (导入库)
-            - WebAssembly: .wasm
-            - Android: .so
-            提交: ${{ github.sha }}
-          prerelease: true
+            自动构建的正式版动态库，版本号：${{ needs.build.outputs.version }}
+            
+            **包含文件：**
+            - Windows: `.dll` + `.lib`（导入库）
+            - WebAssembly: `.wasm`
+            - Android: `.so`
+            
+            提交哈希：${{ github.sha }}
+          # 不指定 prerelease，默认 false（正式版）
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
