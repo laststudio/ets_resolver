@@ -4,3 +4,4 @@
 #half_finished：4.题目名字对应关系 # TODO：LEGACY_ANALYSIS = True
 5.热修复、动态更新规则函数
 6.使用pytest为lib和demo生成单测，验证真实场景下能否正常解析，结构和内容顺序等是否正确
+7.更新readme.md，修改demo.py错误处理
