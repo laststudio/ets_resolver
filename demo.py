@@ -8,17 +8,23 @@ import time
 # TARGET = "./answer"
 DEBUG = False
 NOFILE_READ = False
+LEGACY_ANALYSIS = False
 
 # 选择题答案从info.json提取，非选择题答案从content.json提取
 
 # NOFILE_READ == True时，调用resolve、resolve_by_homework、resolve_by_all_homework，传入str内部应为list
-# resolve_by_homework："[[content1.json, info1.json], [content2.json, info2.json], ...]"
+# resolve_by_homework："[[content1.json, info1.json], [content2.json, info2.json], ..., res.json]"
 # resolve："[content.json, info.json]"
-# resolve_by_all_homework："[[[content1.json, info1.json], [content2.json, info2.json], ...], ...]"
+# resolve_by_all_homework："[[[content1.json, info1.json], [content2.json, info2.json], ..., res.json], ...]"
 
-# export debug_mode(bool), nofile_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
+# export legacy_mode(bool), debug_mode(bool), nofile_mode(bool), resolve(str), resolve_by_homework(str), resolve_by_all_homework(str) function
 
-# 注意：nofile_mode、debug_mode需要在其他导出函数调用前调用，否则无效
+# 注意：legacy_mode、nofile_mode、debug_mode需要在其他导出函数调用前调用，否则无效
+
+def legacy_mode(mode: bool):
+    global LEGACY_ANALYSIS
+    LEGACY_ANALYSIS = mode
+    return
 
 def nofile_mode(mode: bool):
     global NOFILE_READ
@@ -237,7 +243,7 @@ def resolve(TARGET):
         TARGET (str): 当NOFILE_READ == True时, 为"[content.json, info.json]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
     Returns:
         answer_dict (dict): 解析后的答案字典
-        *example (dict): {"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...]}, "stid2_xth2":{...}, ...}
+        *example (dict): {"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...]}, "stid2_xth2":{...}, ..., "type": structure_type}
     """
 
     # 从TARGET获取content.json并解析structure_type值
@@ -281,23 +287,88 @@ def resolve(TARGET):
         print(f"Error:{e}, path:{TARGET}")
         return -1;
 
+def listdir_sorted(path):
+    """
+    完全兼容 os.listdir(path) 的用法，返回按修改时间升序（从旧到新）排列的名称列表。
+    """
+    # 获取所有条目（包括文件和目录）
+    entries = os.listdir(path)
+    # 按完整路径的修改时间排序（os.path.getmtime 对目录同样有效）
+    entries.sort(key=lambda name: os.path.getmtime(os.path.join(path, name)))
+    return entries
+
+def new_analysis(ANSWER, TARGET):
+    """
+    元信息解析和插入函数
+    Args:
+        TARGET (str): 当NOFILE_READ == True时, 为"[[content1.json, info1.json], [content2.json, info2.json], ..., [res1.json]]"; 当NOFILE_READ == False时, 为作业根目录
+    Returns:
+        answer_dict (dict): 插入后的答案字典
+        *example (dict): [{"stid1_xth1":{"answer":["answer1", "answer2", ...], "important":["important1", "important2", ...], 
+                        "score":"score", "count":"count", "eval_type":"eval_type"}, "stid2_xth2":{...}, ..., "type": structure_type, 
+                        "name": "name", "score": "score", "count": "count"}, ..., {"total_score":"total_score"}]
+    """
+    if NOFILE_READ == True:
+        TARGET = list(TARGET)
+        res = json.loads(TARGET[-1][0])
+    else:
+        for item in os.listdir(TARGET):
+            found = False
+            item_path = os.path.join(TARGET, item)
+            for root, dirs, files in os.walk(item_path):
+                if "res.json" in files:
+                    found = True
+                    break
+            if not found:
+                continue
+            res_path = os.path.join(item_path, "res.json")
+            with open(res_path, "r", encoding='utf-8') as f:
+                res = json.load(f)
+
+    total_score = {"total_score": res["set_score"]}
+    answer_new = []
+    for exam_list in res["exam_type_list"]:
+        for item in ANSWER:
+            answer = {}
+            if item["type"] == exam_list["exam_type_collect"]:
+                answer = item
+                answer["name"] = exam_list["exam_type_name"]
+                answer["score"] = exam_list["exam_type_score"]
+                answer["count"] = exam_list["exam_type_count"]
+                for exam in exam_list["exam_list"]:
+                    for key in answer.keys():
+                        # answer[key]有序，不用匹配了
+                        answer[key]["score"] = exam["exam_score"]
+                        answer[key]["count"] = exam["exam_count"]
+                        answer[key]["eval_type"] = exam["evaluation_type"]
+                answer_new.append(answer)
+                break
+            else:
+                continue
+    answer_new.append(total_score)
+
+    return answer_new
+
+def legacy_analysis(ANSWER, TARGET):
+    pass # TODO
+
 def resolve_by_homework(TARGET):
     """
     单作业解析函数
     Args:
-        TARGET (str): 当NOFILE_READ == True时, 为"[[content1.json, info1.json], [content2.json, info2.json], ...]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+        TARGET (str): 当NOFILE_READ == True时, 为"[[content1.json, info1.json], [content2.json, info2.json], ..., [res1.json]]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
     Returns:
         answer_dict (dict): 解析后的答案字典
-        *example (dict): [resolve_return1, resolve_return2, ...]
+        *example (dict): [new_analysis_return1, new_analysis_return2, ...]
     """
 
     answers = []
     if NOFILE_READ == True:
         TARGET = list(TARGET)
         for item in TARGET:
-            answers.append(resolve(str(item)))
+            answers.append(resolve(str(item[:-1])))
     else:
-        for item in os.listdir(TARGET):
+        for item in listdir_sorted(TARGET):
             found = False
             item_path = os.path.join(TARGET, item)
             for root, dirs, files in os.walk(item_path):
@@ -307,13 +378,17 @@ def resolve_by_homework(TARGET):
             if not found:
                 continue
             answers.append(resolve(item_path))
+    if LEGACY_ANALYSIS == False:
+        answers = new_analysis(answers, TARGET)
+    else:
+        answers = legacy_analysis(answers, TARGET)
     return answers
 
 def resolve_by_all_homework(TARGET):
     """
     全部作业解析函数
     Args:
-        TARGET (str): 当NOFILE_READ == True时, 为"[[[content1.json, info1.json], [content2.json, info2.json], ...], ...]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
+        TARGET (str): 当NOFILE_READ == True时, 为"[[[content1.json, info1.json], [content2.json, info2.json], ..., [res1.json]], ...]"; 当NOFILE_READ == False时, 为包含info.json的TARGET目录地址
     Returns:
         answer_dict (dict): 解析后的答案字典
         *example (dict): {item1: resolve_by_homework_return1, item2:resolve_by_homework_return2, ...}
@@ -351,7 +426,3 @@ if __name__ == "__main__":
         case _:
             print("请输入正确的数字")
     # print(resolve(TARGET = "./answer"))
-
-    """
-    测试数据和环境
-    """
