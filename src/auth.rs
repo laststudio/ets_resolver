@@ -52,6 +52,9 @@ pub struct AuthState {
     pub app_version_code: i64,
     pub public_key_b64: String,
     pub access_token: String,
+    /// 最近一次成功的授权 grant (有效期约 120s), 供批量解析复用避免限流。
+    /// 每次复用前仍会本地重新验签 + 校验过期。
+    pub cached_grant: Option<Value>,
 }
 
 impl Default for AuthState {
@@ -64,6 +67,7 @@ impl Default for AuthState {
             app_version_code: 0,
             public_key_b64: DEFAULT_PUBLIC_KEY_B64.to_string(),
             access_token: String::new(),
+            cached_grant: None,
         }
     }
 }
@@ -111,6 +115,7 @@ pub extern "C" fn set_auth_config(
     if !public_key_b64.trim().is_empty() {
         st.public_key_b64 = public_key_b64.trim().to_string();
     }
+    st.cached_grant = None;
     0
 }
 
@@ -118,19 +123,27 @@ pub extern "C" fn set_auth_config(
 #[no_mangle]
 pub extern "C" fn set_access_token(token: *const c_char) {
     let token = crate::read_str(token);
-    state().lock().unwrap().access_token = token;
+    let mut st = state().lock().unwrap();
+    st.access_token = token;
+    st.cached_grant = None;
 }
 
 /// 清除当前访问令牌。
 #[no_mangle]
 pub extern "C" fn clear_access_token() {
-    state().lock().unwrap().access_token.clear();
+    let mut st = state().lock().unwrap();
+    st.access_token.clear();
+    st.cached_grant = None;
 }
 
 /// 启用/关闭内部授权。关闭时 authorized 接口一律拒绝。
 #[no_mangle]
 pub extern "C" fn set_auth_enabled(enabled: bool) {
-    state().lock().unwrap().enabled = enabled;
+    let mut st = state().lock().unwrap();
+    st.enabled = enabled;
+    if !enabled {
+        st.cached_grant = None;
+    }
 }
 
 /// 查询内部授权是否启用。
@@ -173,8 +186,11 @@ fn generate_nonce() -> String {
 }
 
 /// 与后端一致的类型化授权请求。
+///
+/// 优先复用未过期的 cached grant (本地重新验签), 避免批量解析时每文件一次
+/// 网络授权触发后端限流。缓存失效/缺失时才发起网络请求; 授权被拒时清除缓存。
 pub fn authorize() -> Result<Value, AuthError> {
-    let (base_url, token, software_key, feature_key, app_version_code) = {
+    let (base_url, token, software_key, feature_key, app_version_code, public_key_b64) = {
         let st = state().lock().unwrap();
         if !st.enabled {
             return Err(AuthError::new("auth_disabled", "内部授权未启用"));
@@ -191,8 +207,25 @@ pub fn authorize() -> Result<Value, AuthError> {
             st.software_key.clone(),
             st.feature_key.clone(),
             st.app_version_code,
+            st.public_key_b64.clone(),
         )
     };
+
+    if let Some(cached) = state()
+        .lock()
+        .unwrap()
+        .cached_grant
+        .clone()
+    {
+        let nonce = cached
+            .get("operation_nonce")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        if verify_grant(&cached, nonce, &public_key_b64, &software_key, &feature_key).is_ok() {
+            return Ok(cached);
+        }
+        state().lock().unwrap().cached_grant = None;
+    }
 
     let nonce = generate_nonce();
     let body = json!({
@@ -229,6 +262,7 @@ pub fn authorize() -> Result<Value, AuthError> {
         .map_err(|_| AuthError::new("invalid_response", "后端响应无法解析"))?;
     let allowed = value.get("allowed").and_then(|v| v.as_bool()).unwrap_or(false);
     if !allowed {
+        state().lock().unwrap().cached_grant = None;
         let reason = value
             .get("reason")
             .and_then(|v| v.as_str())
@@ -242,16 +276,8 @@ pub fn authorize() -> Result<Value, AuthError> {
         return Err(AuthError::new(&reason, message));
     }
 
-    verify_grant(
-        &value,
-        &nonce,
-        &{
-            let st = state().lock().unwrap();
-            st.public_key_b64.clone()
-        },
-        &software_key,
-        &feature_key,
-    )?;
+    verify_grant(&value, &nonce, &public_key_b64, &software_key, &feature_key)?;
+    state().lock().unwrap().cached_grant = Some(value.clone());
     Ok(value)
 }
 
