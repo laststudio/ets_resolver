@@ -15,6 +15,9 @@ mod api;
 mod cleaner;
 mod collectors;
 
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+mod auth;
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -84,9 +87,79 @@ pub extern "C" fn extract_meta(content: *const c_char) -> *mut c_char {
 
 mod legacy;
 
+// ============== 内部授权解析入口 ==============
+
+/// 内部授权后单任务解析: parse_task_authorized(content, info, content2)
+/// 返回 {"ok": true, "result": [...], "grant": {...}} 或
+///      {"ok": false, "error": {"code": "...", "message": "..."}}
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[no_mangle]
+pub extern "C" fn parse_task_authorized(
+    content: *const c_char,
+    info: *const c_char,
+    content2: *const c_char,
+) -> *mut c_char {
+    let result = match auth::authorize() {
+        Ok(grant) => {
+            let content_val = match parse_json(&read_str(content)) {
+                Some(v) => v,
+                None => {
+                    return json_to_ptr(serde_json::json!({
+                        "ok": false,
+                        "error": {"code": "invalid_input", "message": "content 无法解析"}
+                    }))
+                }
+            };
+            let info_val = parse_json(&read_str(info));
+            let content2_val = parse_json(&read_str(content2));
+            let questions = api::parse_task(&content_val, content2_val.as_ref(), info_val.as_ref());
+            serde_json::json!({
+                "ok": true,
+                "result": Value::Array(questions),
+                "grant": grant,
+            })
+        }
+        Err(e) => serde_json::json!({
+            "ok": false,
+            "error": {"code": e.code, "message": e.message}
+        }),
+    };
+    json_to_ptr(result)
+}
+
+/// 内部授权后批量解析: parse_batch_authorized(tasks_json)
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[no_mangle]
+pub extern "C" fn parse_batch_authorized(tasks_json: *const c_char) -> *mut c_char {
+    let result = match auth::authorize() {
+        Ok(grant) => {
+            let tasks = match parse_json(&read_str(tasks_json)).and_then(|v| v.as_array().cloned())
+            {
+                Some(arr) => arr,
+                None => {
+                    return json_to_ptr(serde_json::json!({
+                        "ok": false,
+                        "error": {"code": "invalid_input", "message": "tasks 无法解析"}
+                    }))
+                }
+            };
+            serde_json::json!({
+                "ok": true,
+                "result": api::parse_batch(&tasks, true),
+                "grant": grant,
+            })
+        }
+        Err(e) => serde_json::json!({
+            "ok": false,
+            "error": {"code": e.code, "message": e.message}
+        }),
+    };
+    json_to_ptr(result)
+}
+
 // ============== 工具 ==============
 
-fn read_str(ptr: *const c_char) -> String {
+pub(crate) fn read_str(ptr: *const c_char) -> String {
     if ptr.is_null() {
         return String::new();
     }
@@ -96,14 +169,14 @@ fn read_str(ptr: *const c_char) -> String {
     }
 }
 
-fn parse_json(s: &str) -> Option<Value> {
+pub(crate) fn parse_json(s: &str) -> Option<Value> {
     if s.trim().is_empty() {
         return None;
     }
     serde_json::from_str::<Value>(s).ok()
 }
 
-fn json_to_ptr(result: Value) -> *mut c_char {
+pub(crate) fn json_to_ptr(result: Value) -> *mut c_char {
     let json_str = serde_json::to_string(&result).unwrap_or_else(|_| "null".to_string());
     match CString::new(json_str) {
         Ok(c) => c.into_raw(),

@@ -11,6 +11,13 @@ crate-type = ["cdylib"]   # 编译为动态链接库: libresolver.so / resolver.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# 内部后端授权 (仅非 wasm 目标)
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
+ureq = { version = "2", features = ["tls"] }
+base64 = "0.22"
+ed25519-compact = "2"
+getrandom = "0.2"
+
 [profile.release]
 #opt-level = "z"
 opt-level = 3

@@ -132,6 +132,87 @@ print(call(lib.resolve, input_str))
 
 ---
 
+## 内部后端授权接口 (answer_parser 功能门控)
+
+> 面向 Fe (Android) 客户端接入 lastudio-platform 后端的实时授权方案。
+> 解析前由 **库内部** 调用 `/client-auth/features/authorize` 并校验 Ed25519 签名授权，
+> 通过后才真正解析；即使外部 Java 层被 patch 绕过，库内部仍强制联网校验。
+> 授权相关符号仅在非 wasm 目标导出（wasm 构建不受影响）。
+
+### 使用流程
+
+```text
+Fe 外部登录 (/client-auth/login) 拿到 access_token
+  → set_auth_config(base_url, "fe", "answer_parser", public_key_b64, version_code)
+  → set_access_token(token)
+  → set_auth_enabled(true)
+  → parse_task_authorized(content, info, content2)   # 内部先授权再解析
+后台关闭 answer_parser 功能 → 解析器下一次授权请求立即返回 feature_disabled
+```
+
+### 配置接口
+
+| 函数 | 说明 |
+| --- | --- |
+| `int set_auth_config(base_url, software_key, feature_key, public_key_b64, app_version_code)` | 配置后端地址、软件/功能 key、Ed25519 公钥 (urlsafe base64)。`public_key_b64` 可传 NULL 保留内置默认公钥。返回 0 成功。 |
+| `void set_access_token(token)` | 设置当前访问令牌（仅存内存，不持久化）。 |
+| `void clear_access_token()` | 清除访问令牌。 |
+| `void set_auth_enabled(bool)` | 启用/关闭内部授权。关闭时 `parse_*_authorized` 一律拒绝。 |
+| `bool is_auth_enabled()` | 查询内部授权是否启用。 |
+| `char* authorize_feature()` | 仅执行一次内部授权（联调用），返回授权 JSON 或错误 JSON。 |
+
+### 授权解析接口
+
+- `parse_task_authorized(content, info, content2)`：内部授权后单任务解析。
+- `parse_batch_authorized(tasks_json)`：内部授权后批量解析（`[{content, info?, content2?, order?}, ...]`）。
+
+**成功返回**：
+
+```json
+{
+  "ok": true,
+  "result": [ ...同 parse_task 输出... ],
+  "grant": { "allowed": true, "decision_id": "...", "feature_key": "answer_parser",
+             "operation_nonce": "...", "expires_at": 1710000000, "grant": "...", "grant_key_id": "..." }
+}
+```
+
+**被拒 / 错误返回**：
+
+```json
+{ "ok": false, "error": { "code": "feature_disabled", "message": "该功能已停用" } }
+```
+
+错误码：`auth_disabled` / `auth_not_configured` / `network_error` / `invalid_token` /
+`feature_disabled` / `software_kill_switch` / `override_denied` / `membership_required` /
+`rate_limited` / `device_blocked` / `signature_invalid` / `grant_expired` / `nonce_mismatch` 等。
+
+### 权限校验内容（库内部）
+
+1. 每次解析生成随机 `operation_nonce` 提交授权。
+2. 校验服务器 Ed25519 签名（与后端 `sign_grant` 同款规范化 JSON：`sort_keys` + 紧凑 + 非 ASCII 原样）。
+3. 校验 `software_key` / `feature_key` / `operation_nonce` 与请求一致。
+4. 校验 `issued_at` 时钟偏差与 `expires_at` 有效期（授权仅 120 秒有效，即时开关生效）。
+5. 校验通过后才执行解析；授权结果仅作用于本次操作，不作长期离线凭证。
+
+### 单元 / 集成测试
+
+```bash
+cargo test                 # Rust 单元测试 (含签名校验、篡改/过期拒绝)
+python3 test_auth_e2e.py   # 端到端: 需本地后端已运行并 seed answer_parser 功能
+```
+
+### 编译产物
+
+```bash
+cargo build --release                          # x86_64 Linux: target/release/libresolver.so
+cargo ndk -t arm64-v8a build --release         # Android arm64: target/aarch64-linux-android/release/libresolver.so
+```
+
+> 交叉编译需要安装 `cargo-ndk` 并配置 `ANDROID_NDK_HOME`。
+
+---
+
 # 测试
 
 在项目根目录下执行：
