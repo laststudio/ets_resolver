@@ -142,9 +142,14 @@ pub extern "C" fn is_auth_enabled() -> bool {
 /// 仅执行内部授权 (联调/诊断), 返回授权 JSON 或错误 JSON。
 #[no_mangle]
 pub extern "C" fn authorize_feature() -> *mut c_char {
+    crate::json_to_ptr(authorize_json())
+}
+
+/// 授权结果 JSON (成功返回 grant, 失败返回错误对象)。JNI/FFI 共用。
+pub fn authorize_json() -> Value {
     match authorize() {
-        Ok(grant) => crate::json_to_ptr(grant),
-        Err(e) => crate::json_to_ptr(error_json(&e)),
+        Ok(grant) => grant,
+        Err(e) => error_json(&e),
     }
 }
 

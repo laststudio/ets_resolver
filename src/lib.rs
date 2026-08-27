@@ -89,29 +89,23 @@ mod legacy;
 
 // ============== 内部授权解析入口 ==============
 
-/// 内部授权后单任务解析: parse_task_authorized(content, info, content2)
-/// 返回 {"ok": true, "result": [...], "grant": {...}} 或
-///      {"ok": false, "error": {"code": "...", "message": "..."}}
+/// 授权后单任务解析 (纯逻辑): 返回 {"ok": true, "result": [...], "grant": {...}}
+/// 或 {"ok": false, "error": {"code": "...", "message": "..."}}
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
-#[no_mangle]
-pub extern "C" fn parse_task_authorized(
-    content: *const c_char,
-    info: *const c_char,
-    content2: *const c_char,
-) -> *mut c_char {
-    let result = match auth::authorize() {
+pub fn authorized_parse_task(content: &str, info: &str, content2: &str) -> Value {
+    match auth::authorize() {
         Ok(grant) => {
-            let content_val = match parse_json(&read_str(content)) {
+            let content_val = match parse_json(content) {
                 Some(v) => v,
                 None => {
-                    return json_to_ptr(serde_json::json!({
+                    return serde_json::json!({
                         "ok": false,
                         "error": {"code": "invalid_input", "message": "content 无法解析"}
-                    }))
+                    })
                 }
             };
-            let info_val = parse_json(&read_str(info));
-            let content2_val = parse_json(&read_str(content2));
+            let info_val = parse_json(info);
+            let content2_val = parse_json(content2);
             let questions = api::parse_task(&content_val, content2_val.as_ref(), info_val.as_ref());
             serde_json::json!({
                 "ok": true,
@@ -123,24 +117,21 @@ pub extern "C" fn parse_task_authorized(
             "ok": false,
             "error": {"code": e.code, "message": e.message}
         }),
-    };
-    json_to_ptr(result)
+    }
 }
 
-/// 内部授权后批量解析: parse_batch_authorized(tasks_json)
+/// 授权后批量解析 (纯逻辑): parse_batch_authorized(tasks_json)
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
-#[no_mangle]
-pub extern "C" fn parse_batch_authorized(tasks_json: *const c_char) -> *mut c_char {
-    let result = match auth::authorize() {
+pub fn authorized_parse_batch(tasks_json: &str) -> Value {
+    match auth::authorize() {
         Ok(grant) => {
-            let tasks = match parse_json(&read_str(tasks_json)).and_then(|v| v.as_array().cloned())
-            {
+            let tasks = match parse_json(tasks_json).and_then(|v| v.as_array().cloned()) {
                 Some(arr) => arr,
                 None => {
-                    return json_to_ptr(serde_json::json!({
+                    return serde_json::json!({
                         "ok": false,
                         "error": {"code": "invalid_input", "message": "tasks 无法解析"}
-                    }))
+                    })
                 }
             };
             serde_json::json!({
@@ -153,9 +144,35 @@ pub extern "C" fn parse_batch_authorized(tasks_json: *const c_char) -> *mut c_ch
             "ok": false,
             "error": {"code": e.code, "message": e.message}
         }),
-    };
-    json_to_ptr(result)
+    }
 }
+
+/// 内部授权后单任务解析: parse_task_authorized(content, info, content2)
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[no_mangle]
+pub extern "C" fn parse_task_authorized(
+    content: *const c_char,
+    info: *const c_char,
+    content2: *const c_char,
+) -> *mut c_char {
+    json_to_ptr(authorized_parse_task(
+        &read_str(content),
+        &read_str(info),
+        &read_str(content2),
+    ))
+}
+
+/// 内部授权后批量解析: parse_batch_authorized(tasks_json)
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[no_mangle]
+pub extern "C" fn parse_batch_authorized(tasks_json: *const c_char) -> *mut c_char {
+    json_to_ptr(authorized_parse_batch(&read_str(tasks_json)))
+}
+
+// ============== Android JNI 桥 ==============
+
+#[cfg(target_os = "android")]
+mod jni_bridge;
 
 // ============== 工具 ==============
 
