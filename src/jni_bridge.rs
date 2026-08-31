@@ -313,6 +313,56 @@ pub extern "system" fn Java_com_shuaiqiu_fuckets100_ResolverNative_cloudDownload
     )
 }
 
+// ============== 自校验 (so integrity) ==============
+
+#[no_mangle]
+pub extern "system" fn Java_com_shuaiqiu_fuckets100_ResolverNative_selfIntegrityCheck(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    to_jstring(&mut env, &self_integrity_json().to_string())
+}
+
+/// 自校验: 反调试 (TracerPid) + 自身 .so 内存段完整性。
+fn self_integrity_json() -> serde_json::Value {
+    use std::fs;
+
+    let tracer_pid = read_self_status()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("TracerPid:"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .map(|v| v.trim().to_string())
+        })
+        .unwrap_or_default();
+
+    let mut has_exec = false;
+    let mut maps_count = 0usize;
+    if let Ok(maps) = fs::read_to_string("/proc/self/maps") {
+        for line in maps.lines() {
+            let lower = line.to_ascii_lowercase();
+            if lower.contains("libresolver") {
+                maps_count += 1;
+                if lower.contains("r-xp") {
+                    has_exec = true;
+                }
+            }
+        }
+    }
+
+    serde_json::json!({
+        "tracer_pid": tracer_pid,
+        "maps_count": maps_count,
+        "has_exec": has_exec,
+        "debugged": !tracer_pid.is_empty() && tracer_pid != "0",
+        "ok": maps_count > 0 && has_exec && (tracer_pid.is_empty() || tracer_pid == "0"),
+    })
+}
+
+fn read_self_status() -> Option<String> {
+    std::fs::read_to_string("/proc/self/status").ok()
+}
+
 // ============== 工具 ==============
 
 fn get_string(env: &mut JNIEnv, value: &JString) -> String {
