@@ -18,6 +18,9 @@ mod collectors;
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 mod auth;
 
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+mod cloud;
+
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -42,11 +45,7 @@ pub extern "C" fn parse_task(
     };
     let info_val = parse_json(&info);
     let content2_val = parse_json(&content2);
-    let questions = api::parse_task(
-        &content_val,
-        content2_val.as_ref(),
-        info_val.as_ref(),
-    );
+    let questions = api::parse_task(&content_val, content2_val.as_ref(), info_val.as_ref());
     json_to_ptr(Value::Array(questions))
 }
 
@@ -93,7 +92,7 @@ mod legacy;
 /// 或 {"ok": false, "error": {"code": "...", "message": "..."}}
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 pub fn authorized_parse_task(content: &str, info: &str, content2: &str) -> Value {
-    match auth::authorize() {
+    match auth::authorize_for_feature(auth::ANSWER_PARSER_FEATURE) {
         Ok(grant) => {
             let content_val = match parse_json(content) {
                 Some(v) => v,
@@ -123,7 +122,7 @@ pub fn authorized_parse_task(content: &str, info: &str, content2: &str) -> Value
 /// 授权后批量解析 (纯逻辑): parse_batch_authorized(tasks_json)
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 pub fn authorized_parse_batch(tasks_json: &str) -> Value {
-    match auth::authorize() {
+    match auth::authorize_for_feature(auth::ANSWER_PARSER_FEATURE) {
         Ok(grant) => {
             let tasks = match parse_json(tasks_json).and_then(|v| v.as_array().cloned()) {
                 Some(arr) => arr,

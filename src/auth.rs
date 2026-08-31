@@ -9,6 +9,7 @@
 //
 // 这样即使外部 Java 层被 patch 绕过, 库内部仍然强制联网校验, 无法直接解析。
 
+use std::collections::HashMap;
 use std::ffi::c_char;
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -23,6 +24,8 @@ use serde_json::{json, Map, Value};
 const DEFAULT_PUBLIC_KEY_B64: &str = "iIsgUPrBJidorQGIs-BJCt5EiLrRHVbAWStnNaPn3cI";
 
 const FEATURE_AUTHORIZE_PATH: &str = "/client-auth/features/authorize";
+pub const ANSWER_PARSER_FEATURE: &str = "answer_parser";
+pub const CLOUD_MODE_FEATURE: &str = "cloud_mode";
 
 /// issued_at 允许的最大时钟偏差 (秒)。
 const MAX_ISSUE_SKEW_SECONDS: i64 = 60;
@@ -52,9 +55,9 @@ pub struct AuthState {
     pub app_version_code: i64,
     pub public_key_b64: String,
     pub access_token: String,
-    /// 最近一次成功的授权 grant (有效期约 120s), 供批量解析复用避免限流。
+    /// 每个功能最近一次成功的授权 grant (有效期约 120s)。
     /// 每次复用前仍会本地重新验签 + 校验过期。
-    pub cached_grant: Option<Value>,
+    pub cached_grants: HashMap<String, Value>,
 }
 
 impl Default for AuthState {
@@ -63,11 +66,11 @@ impl Default for AuthState {
             enabled: false,
             base_url: String::new(),
             software_key: "fe".to_string(),
-            feature_key: "answer_parser".to_string(),
+            feature_key: ANSWER_PARSER_FEATURE.to_string(),
             app_version_code: 0,
             public_key_b64: DEFAULT_PUBLIC_KEY_B64.to_string(),
             access_token: String::new(),
-            cached_grant: None,
+            cached_grants: HashMap::new(),
         }
     }
 }
@@ -108,14 +111,25 @@ pub extern "C" fn set_auth_config(
         }
     }
     let mut st = state().lock().unwrap();
-    st.base_url = base_url.trim_end_matches('/').to_string();
+    let base_url = base_url.trim_end_matches('/').to_string();
+    let public_key_b64 = if public_key_b64.trim().is_empty() {
+        st.public_key_b64.clone()
+    } else {
+        public_key_b64.trim().to_string()
+    };
+    let changed = st.base_url != base_url
+        || st.software_key != software_key
+        || st.feature_key != feature_key
+        || st.app_version_code != app_version_code
+        || st.public_key_b64 != public_key_b64;
+    st.base_url = base_url;
     st.software_key = software_key;
     st.feature_key = feature_key;
     st.app_version_code = app_version_code;
-    if !public_key_b64.trim().is_empty() {
-        st.public_key_b64 = public_key_b64.trim().to_string();
+    st.public_key_b64 = public_key_b64;
+    if changed {
+        st.cached_grants.clear();
     }
-    st.cached_grant = None;
     0
 }
 
@@ -124,8 +138,10 @@ pub extern "C" fn set_auth_config(
 pub extern "C" fn set_access_token(token: *const c_char) {
     let token = crate::read_str(token);
     let mut st = state().lock().unwrap();
-    st.access_token = token;
-    st.cached_grant = None;
+    if st.access_token != token {
+        st.access_token = token;
+        st.cached_grants.clear();
+    }
 }
 
 /// 清除当前访问令牌。
@@ -133,7 +149,7 @@ pub extern "C" fn set_access_token(token: *const c_char) {
 pub extern "C" fn clear_access_token() {
     let mut st = state().lock().unwrap();
     st.access_token.clear();
-    st.cached_grant = None;
+    st.cached_grants.clear();
 }
 
 /// 启用/关闭内部授权。关闭时 authorized 接口一律拒绝。
@@ -142,7 +158,7 @@ pub extern "C" fn set_auth_enabled(enabled: bool) {
     let mut st = state().lock().unwrap();
     st.enabled = enabled;
     if !enabled {
-        st.cached_grant = None;
+        st.cached_grants.clear();
     }
 }
 
@@ -190,7 +206,17 @@ fn generate_nonce() -> String {
 /// 优先复用未过期的 cached grant (本地重新验签), 避免批量解析时每文件一次
 /// 网络授权触发后端限流。缓存失效/缺失时才发起网络请求; 授权被拒时清除缓存。
 pub fn authorize() -> Result<Value, AuthError> {
-    let (base_url, token, software_key, feature_key, app_version_code, public_key_b64) = {
+    let feature_key = state().lock().unwrap().feature_key.clone();
+    authorize_for_feature(&feature_key)
+}
+
+/// 使用同一后端、访问令牌和签名公钥授权指定功能。
+pub fn authorize_for_feature(feature_key: &str) -> Result<Value, AuthError> {
+    let feature_key = feature_key.trim().to_lowercase();
+    if feature_key.len() < 2 {
+        return Err(AuthError::new("auth_not_configured", "授权功能标识无效"));
+    }
+    let (base_url, token, software_key, app_version_code, public_key_b64) = {
         let st = state().lock().unwrap();
         if !st.enabled {
             return Err(AuthError::new("auth_disabled", "内部授权未启用"));
@@ -205,7 +231,6 @@ pub fn authorize() -> Result<Value, AuthError> {
             st.base_url.clone(),
             st.access_token.clone(),
             st.software_key.clone(),
-            st.feature_key.clone(),
             st.app_version_code,
             st.public_key_b64.clone(),
         )
@@ -214,8 +239,9 @@ pub fn authorize() -> Result<Value, AuthError> {
     if let Some(cached) = state()
         .lock()
         .unwrap()
-        .cached_grant
-        .clone()
+        .cached_grants
+        .get(&feature_key)
+        .cloned()
     {
         let nonce = cached
             .get("operation_nonce")
@@ -224,7 +250,7 @@ pub fn authorize() -> Result<Value, AuthError> {
         if verify_grant(&cached, nonce, &public_key_b64, &software_key, &feature_key).is_ok() {
             return Ok(cached);
         }
-        state().lock().unwrap().cached_grant = None;
+        state().lock().unwrap().cached_grants.remove(&feature_key);
     }
 
     let nonce = generate_nonce();
@@ -260,9 +286,12 @@ pub fn authorize() -> Result<Value, AuthError> {
 
     let value: Value = serde_json::from_str(&text)
         .map_err(|_| AuthError::new("invalid_response", "后端响应无法解析"))?;
-    let allowed = value.get("allowed").and_then(|v| v.as_bool()).unwrap_or(false);
+    let allowed = value
+        .get("allowed")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     if !allowed {
-        state().lock().unwrap().cached_grant = None;
+        state().lock().unwrap().cached_grants.remove(&feature_key);
         let reason = value
             .get("reason")
             .and_then(|v| v.as_str())
@@ -277,7 +306,11 @@ pub fn authorize() -> Result<Value, AuthError> {
     }
 
     verify_grant(&value, &nonce, &public_key_b64, &software_key, &feature_key)?;
-    state().lock().unwrap().cached_grant = Some(value.clone());
+    state()
+        .lock()
+        .unwrap()
+        .cached_grants
+        .insert(feature_key, value.clone());
     Ok(value)
 }
 
@@ -452,13 +485,13 @@ mod tests {
     use super::*;
     use ed25519_compact::{KeyPair, Seed};
 
-    fn test_grant(signing: &KeyPair, nonce: &str) -> Value {
+    fn test_grant(signing: &KeyPair, nonce: &str, feature_key: &str) -> Value {
         let now = now_unix();
         let payload = json!({
             "allowed": true,
             "decision_id": "dec_test",
             "software_key": "fe",
-            "feature_key": "answer_parser",
+            "feature_key": feature_key,
             "operation_nonce": nonce,
             "policy_revision": 1,
             "user_id": 123,
@@ -507,8 +540,18 @@ mod tests {
         let seed = Seed::new([7u8; 32]);
         let signing = KeyPair::from_seed(seed);
         let nonce = "0123456789abcdef";
-        let grant = test_grant(&signing, nonce);
+        let grant = test_grant(&signing, nonce, ANSWER_PARSER_FEATURE);
         assert!(verify_with(&signing, &grant, nonce).is_ok());
+    }
+
+    #[test]
+    fn test_cloud_grant_is_feature_bound() {
+        let signing = KeyPair::from_seed(Seed::new([12u8; 32]));
+        let nonce = "0123456789abcdef";
+        let grant = test_grant(&signing, nonce, CLOUD_MODE_FEATURE);
+        let public_key = URL_SAFE_NO_PAD.encode(signing.pk.as_ref());
+        assert!(verify_grant(&grant, nonce, &public_key, "fe", CLOUD_MODE_FEATURE,).is_ok());
+        assert!(verify_grant(&grant, nonce, &public_key, "fe", ANSWER_PARSER_FEATURE,).is_err());
     }
 
     #[test]
@@ -516,7 +559,7 @@ mod tests {
         let seed = Seed::new([8u8; 32]);
         let signing = KeyPair::from_seed(seed);
         let nonce = "0123456789abcdef";
-        let mut grant = test_grant(&signing, nonce);
+        let mut grant = test_grant(&signing, nonce, ANSWER_PARSER_FEATURE);
         grant.as_object_mut().unwrap().insert(
             "operation_nonce".to_string(),
             Value::String("tampered-xxxx".to_string()),
@@ -530,7 +573,7 @@ mod tests {
         let signing = KeyPair::from_seed(seed);
         let other = KeyPair::from_seed(Seed::new([10u8; 32]));
         let nonce = "0123456789abcdef";
-        let grant = test_grant(&signing, nonce);
+        let grant = test_grant(&signing, nonce, ANSWER_PARSER_FEATURE);
         assert!(verify_with(&other, &grant, nonce).is_err());
     }
 
@@ -539,7 +582,7 @@ mod tests {
         let seed = Seed::new([11u8; 32]);
         let signing = KeyPair::from_seed(seed);
         let nonce = "0123456789abcdef";
-        let mut grant = test_grant(&signing, nonce);
+        let mut grant = test_grant(&signing, nonce, ANSWER_PARSER_FEATURE);
         let obj = grant.as_object_mut().unwrap();
         obj.insert("issued_at".to_string(), json!(now_unix() - 200));
         obj.insert("expires_at".to_string(), json!(now_unix() - 100));

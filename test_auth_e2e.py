@@ -3,6 +3,7 @@
 
 前置: lastudio-backend 本地已在 127.0.0.1:8000 运行, 且已:
   - 应用 e5f6a7b8c9d0 迁移 (seed answer_parser 功能)
+  - 应用 c3d4e5f6a7b8 迁移 (seed cloud_mode 功能)
   - 创建用户 resolver_e2e / TestPass!23456
   - fe-android 客户端已 provisioned (迁移 b9f2c1e4a7d3)
 
@@ -10,7 +11,8 @@
   1. 通过 /client-auth/login 获取 access_token (模拟 Fe 外部登录)
   2. 配置 libresolver.so 内部授权 (base_url/software_key/feature_key/公钥/token)
   3. parse_task_authorized: 内部先授权 (带 Ed25519 验签) 再解析
-  4. 后端关闭 answer_parser 功能后, 再次调用应被拒绝
+   4. cloud_authorize_feature: 内部授权并验签 cloud_mode grant
+   5. 后端关闭对应功能后, 下一次未命中有效 grant 的调用应被拒绝
 """
 import ctypes
 import json
@@ -157,19 +159,29 @@ def main() -> int:
     assert sections and sections[0]["questions"], f"批量结果异常: {sections}"
     print(f"[4] parse_batch_authorized 成功: {len(sections)} 节")
 
+    cloud_grant = call_ffi(lib, "cloud_authorize_feature")
+    assert cloud_grant is not None and cloud_grant.get("ok") is True, (
+        f"cloud_mode 授权失败: {cloud_grant}"
+    )
+    cloud_grant_result = cloud_grant["result"]
+    assert cloud_grant_result.get("allowed") is True, cloud_grant
+    assert cloud_grant_result.get("feature_key") == "cloud_mode", cloud_grant
+    assert cloud_grant_result.get("grant_key_id"), "cloud_mode grant 缺少 grant_key_id"
+    print(f"[5] cloud_mode 授权成功: decision={cloud_grant_result.get('decision_id')}")
+
     # 关闭授权后必须拒绝 (即便内容合法)
     lib.set_auth_enabled(False)
     denied = call_ffi(lib, "parse_task_authorized", SAMPLE_CONTENT, "[]", "[]")
     assert denied is not None and denied.get("ok") is False, f"关闭授权后未拒绝: {denied}"
     assert denied["error"]["code"] == "auth_disabled", f"错误码异常: {denied}"
-    print(f"[5] 关闭内部授权后正确拒绝: {denied['error']}")
+    print(f"[6] 关闭内部授权后正确拒绝: {denied['error']}")
 
     # 使用无效 token 应被后端拒绝
     lib.set_auth_enabled(True)
     lib.set_access_token(b"lsa_bad.invalid-token")
     invalid = call_ffi(lib, "parse_task_authorized", SAMPLE_CONTENT, "[]", "[]")
     assert invalid is not None and invalid.get("ok") is False, f"无效 token 未拒绝: {invalid}"
-    print(f"[6] 无效 token 被拒绝: {invalid['error']}")
+    print(f"[7] 无效 token 被拒绝: {invalid['error']}")
 
     print("\nE2E 全部通过 ✓")
     return 0
