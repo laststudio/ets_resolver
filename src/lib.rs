@@ -18,9 +18,6 @@ mod collectors;
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 mod auth;
 
-#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
-mod cloud;
-
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 

@@ -37,6 +37,10 @@ LIB_PATH = os.environ.get(
     "RESOLVER_LIB_PATH",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "target", "release", "libresolver.so"),
 )
+CLOUD_LIB_PATH = os.environ.get(
+    "CLOUD_LIB_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "target", "release", "libcloud.so"),
+)
 
 SAMPLE_CONTENT = json.dumps({
     "structure_type": "collector.fill",
@@ -97,7 +101,7 @@ def toggle_feature(status_: str) -> None:
     """
 
 
-def call_ffi(lib, fn_name: str, *args) -> object:
+def call_ffi(lib, fn_name: str, *args, free_name: str = "resolver_free_string") -> object:
     fn = getattr(lib, fn_name)
     fn.restype = ctypes.c_void_p
     if args:
@@ -109,11 +113,12 @@ def call_ffi(lib, fn_name: str, *args) -> object:
         s = ctypes.cast(ptr, ctypes.c_char_p).value.decode("utf-8")
         return json.loads(s)
     finally:
-        lib.resolver_free_string(ptr)
+        getattr(lib, free_name)(ptr)
 
 
 def main() -> int:
     lib = ctypes.CDLL(LIB_PATH)
+    cloud_lib = ctypes.CDLL(CLOUD_LIB_PATH)
     lib.resolver_free_string.argtypes = [ctypes.c_void_p]
     lib.set_auth_config.argtypes = [
         ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int64,
@@ -159,7 +164,22 @@ def main() -> int:
     assert sections and sections[0]["questions"], f"批量结果异常: {sections}"
     print(f"[4] parse_batch_authorized 成功: {len(sections)} 节")
 
-    cloud_grant = call_ffi(lib, "cloud_authorize_feature")
+    cloud_lib.cloud_free_string.argtypes = [ctypes.c_void_p]
+    cloud_lib.cloud_set_auth_config.argtypes = [
+        ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int64,
+    ]
+    cloud_lib.cloud_set_auth_config.restype = ctypes.c_int32
+    cloud_lib.cloud_set_access_token.argtypes = [ctypes.c_char_p]
+    cloud_lib.cloud_set_auth_enabled.argtypes = [ctypes.c_bool]
+    cloud_rc = cloud_lib.cloud_set_auth_config(
+        BASE_URL.encode(), SOFTWARE_KEY.encode(), b"cloud_mode", PUBLIC_KEY_B64.encode(), VERSION_CODE
+    )
+    assert cloud_rc == 0, f"cloud_set_auth_config 失败 rc={cloud_rc}"
+    cloud_lib.cloud_set_access_token(access_token.encode())
+    cloud_lib.cloud_set_auth_enabled(True)
+    cloud_grant = call_ffi(
+        cloud_lib, "cloud_authorize_feature", free_name="cloud_free_string"
+    )
     assert cloud_grant is not None and cloud_grant.get("ok") is True, (
         f"cloud_mode 授权失败: {cloud_grant}"
     )

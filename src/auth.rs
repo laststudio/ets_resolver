@@ -24,8 +24,15 @@ use serde_json::{json, Map, Value};
 const DEFAULT_PUBLIC_KEY_B64: &str = "iIsgUPrBJidorQGIs-BJCt5EiLrRHVbAWStnNaPn3cI";
 
 const FEATURE_AUTHORIZE_PATH: &str = "/client-auth/features/authorize";
+#[cfg(any(not(feature = "cloud-library"), test))]
 pub const ANSWER_PARSER_FEATURE: &str = "answer_parser";
+#[allow(dead_code)]
 pub const CLOUD_MODE_FEATURE: &str = "cloud_mode";
+
+#[cfg(feature = "cloud-library")]
+const DEFAULT_FEATURE_KEY: &str = CLOUD_MODE_FEATURE;
+#[cfg(not(feature = "cloud-library"))]
+const DEFAULT_FEATURE_KEY: &str = ANSWER_PARSER_FEATURE;
 
 /// issued_at 允许的最大时钟偏差 (秒)。
 const MAX_ISSUE_SKEW_SECONDS: i64 = 60;
@@ -66,7 +73,7 @@ impl Default for AuthState {
             enabled: false,
             base_url: String::new(),
             software_key: "fe".to_string(),
-            feature_key: ANSWER_PARSER_FEATURE.to_string(),
+            feature_key: DEFAULT_FEATURE_KEY.to_string(),
             app_version_code: 0,
             public_key_b64: DEFAULT_PUBLIC_KEY_B64.to_string(),
             access_token: String::new(),
@@ -85,7 +92,7 @@ fn state() -> &'static Mutex<AuthState> {
 /// 配置内部授权: base_url / software_key / feature_key / 服务器公钥 / version_code。
 /// public_key_b64 可传 NULL 或空串以保留内置默认公钥。
 /// 返回 0 成功, 非 0 参数错误。
-#[no_mangle]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn set_auth_config(
     base_url: *const c_char,
     software_key: *const c_char,
@@ -134,7 +141,7 @@ pub extern "C" fn set_auth_config(
 }
 
 /// 设置当前访问令牌 (仅存内存, 不清除零化交给调用方选择)。
-#[no_mangle]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn set_access_token(token: *const c_char) {
     let token = crate::read_str(token);
     let mut st = state().lock().unwrap();
@@ -145,7 +152,7 @@ pub extern "C" fn set_access_token(token: *const c_char) {
 }
 
 /// 清除当前访问令牌。
-#[no_mangle]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn clear_access_token() {
     let mut st = state().lock().unwrap();
     st.access_token.clear();
@@ -153,7 +160,7 @@ pub extern "C" fn clear_access_token() {
 }
 
 /// 启用/关闭内部授权。关闭时 authorized 接口一律拒绝。
-#[no_mangle]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn set_auth_enabled(enabled: bool) {
     let mut st = state().lock().unwrap();
     st.enabled = enabled;
@@ -163,18 +170,21 @@ pub extern "C" fn set_auth_enabled(enabled: bool) {
 }
 
 /// 查询内部授权是否启用。
-#[no_mangle]
+#[cfg(not(feature = "cloud-library"))]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn is_auth_enabled() -> bool {
     state().lock().unwrap().enabled
 }
 
 /// 仅执行内部授权 (联调/诊断), 返回授权 JSON 或错误 JSON。
-#[no_mangle]
+#[cfg(not(feature = "cloud-library"))]
+#[cfg_attr(not(feature = "cloud-library"), no_mangle)]
 pub extern "C" fn authorize_feature() -> *mut c_char {
     crate::json_to_ptr(authorize_json())
 }
 
 /// 授权结果 JSON (成功返回 grant, 失败返回错误对象)。JNI/FFI 共用。
+#[cfg(not(feature = "cloud-library"))]
 pub fn authorize_json() -> Value {
     match authorize() {
         Ok(grant) => grant,
@@ -184,6 +194,7 @@ pub fn authorize_json() -> Value {
 
 // ============== 核心授权逻辑 ==============
 
+#[cfg(not(feature = "cloud-library"))]
 fn error_json(e: &AuthError) -> Value {
     json!({"ok": false, "error": {"code": e.code, "message": e.message}})
 }
@@ -205,6 +216,7 @@ fn generate_nonce() -> String {
 ///
 /// 优先复用未过期的 cached grant (本地重新验签), 避免批量解析时每文件一次
 /// 网络授权触发后端限流。缓存失效/缺失时才发起网络请求; 授权被拒时清除缓存。
+#[cfg(not(feature = "cloud-library"))]
 pub fn authorize() -> Result<Value, AuthError> {
     let feature_key = state().lock().unwrap().feature_key.clone();
     authorize_for_feature(&feature_key)

@@ -1,6 +1,6 @@
 # ETS100 Cloud SO API
 
-本文档描述 `libresolver.so` 的 ETS100 云端接口。手机号密码协议完全在 SO 内；讯飞/畅言页面交互由 Android WebView 完成，登录结果交换在 SO 内。
+本文档描述独立 `libcloud.so` 的 ETS100 云端接口。该库不包含答案解析器；解析由 `libresolver.so` 单独完成。
 
 ## 设计边界
 
@@ -8,7 +8,7 @@
 - 调用方负责手机号/密码输入、短信验证码 UI、token 与设备码持久化、LA Studio 登录和页面状态。
 - SO 不持久化任何凭据。
 - 所有 `cloud_*` 操作都会在 SO 内固定校验 LA Studio `cloud_mode` 功能授权。
-- `cloud_download_and_parse_homework` 还会调用 `parse_batch_authorized`，独立校验 `answer_parser`；两种 grant 不能互相替代。
+- 云端库不会调用 `parse_batch_authorized`；调用方拿到资源 JSON 后再交给 `libresolver.so`。
 - 调用云端接口前必须完成 `set_auth_config`、`set_access_token` 和 `set_auth_enabled(true)`。
 - 网络及文件函数是阻塞接口。Android 必须在 `Dispatchers.IO` 中调用。
 
@@ -56,7 +56,7 @@
 
 ## C FFI 顺序
 
-所有返回的 `char*` 均由 `resolver_free_string` 释放。
+所有返回的 `char*` 均由 `cloud_free_string` 释放。
 
 ### 0. 配置 LA Studio 远程授权
 
@@ -167,30 +167,17 @@ char* json = cloud_get_homework_list(token, parent_account_id, "1");
 
 每个 content 同时返回 ETS100 原始 `url` 和已解析的 HTTPS `download_url`。
 
-### 6. 一步下载并解析
+### 6. 解析职责
 
-完成第 0 步的 LA Studio 授权配置后，把某个作业的 `contents` 数组传给：
-
-```c
-char* json = cloud_download_and_parse_homework(base_url, contents_json, cache_directory);
-```
-
-成功结果的 `result` 包含：
-
-- `parse`：与 `parse_batch_authorized` 的 `result` 相同。
-- `grant`：本次解析使用的 LA Studio 授权。
-- `resources`：成功下载并读取的资源包。
-- `failures`：单个资源失败列表。部分资源失败不会阻止其他资源解析。
-
-资源不会解压到目录。SO 使用计算出的密码直接从 ZIP 中读取 `content.json`、`info.json` 和 `content2.json`，减少临时文件和路径穿越风险。
+`libcloud.so` 仅负责登录、列表、下载和 ZIP 协议。答案解析统一调用 `libresolver.so` 的 `parse_task_authorized` / `parse_batch_authorized`。
 
 ## Android JNI
 
 Kotlin 声明示例：
 
 ```kotlin
-internal object ResolverNative {
-    init { System.loadLibrary("resolver") }
+internal object CloudNative {
+    init { System.loadLibrary("cloud") }
 
     external fun cloudAuthorizeFeature(): String
     external fun cloudGenerateDeviceCode(): String
@@ -213,15 +200,10 @@ internal object ResolverNative {
     external fun cloudGetHomeworkList(token: String, parentAccountId: String, status: String): String
     external fun cloudDownloadFile(url: String, destination: String): String
     external fun cloudZipPassword(path: String): String
-    external fun cloudDownloadAndParseHomework(
-        baseUrl: String,
-        contentsJson: String,
-        cacheDirectory: String,
-    ): String
 }
 ```
 
-JNI 符号当前绑定 `com.shuaiqiu.fuckets100.ResolverNative`。如果 Android 包名或类名变化，需要同步修改 `src/jni_bridge.rs` 或改为 `RegisterNatives`。
+云端 JNI 符号绑定 `com.shuaiqiu.fuckets100.CloudNative`；解析 JNI 绑定 `ResolverNative`。
 
 ## 安全说明
 

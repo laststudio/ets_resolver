@@ -50,19 +50,21 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
-      - name: Build Android arm64 libresolver.so (strong hardening)
+      - name: Build Android arm64 resolver/cloud SOs (strong hardening)
         run: |
-          cargo ndk -t arm64-v8a build --release
+          cargo ndk -t arm64-v8a build --release --workspace
           ls -la target/aarch64-linux-android/release/libresolver.so
+          ls -la target/aarch64-linux-android/release/libcloud.so
 
-      - name: Build host Linux libresolver.so (dev/tooling)
+      - name: Build host Linux resolver/cloud SOs (dev/tooling)
         run: |
-          cargo build --release --target x86_64-unknown-linux-gnu
+          cargo build --release --target x86_64-unknown-linux-gnu --workspace
           ls -la target/x86_64-unknown-linux-gnu/release/libresolver.so
+          ls -la target/x86_64-unknown-linux-gnu/release/libcloud.so
 
       - name: Build wasm (optional, keep parity with existing release)
         run: |
-          cargo build --release --target wasm32-unknown-unknown || true
+          cargo build -p resolver --release --target wasm32-unknown-unknown || true
           ls -la target/wasm32-unknown-unknown/release/resolver.wasm 2>/dev/null || true
 
       - name: Post-build integrity checks
@@ -72,6 +74,12 @@ jobs:
           readelf -h target/aarch64-linux-android/release/libresolver.so 2>/dev/null | sed -n '1p;4p' || true
           echo "== exported symbols count =="
           nm -D --defined-only target/aarch64-linux-android/release/libresolver.so 2>/dev/null | wc -l
+          if nm -D --defined-only target/aarch64-linux-android/release/libresolver.so | grep -Eq 'cloud|CloudNative'; then
+            echo "libresolver.so 意外包含 cloud 符号"; exit 1
+          fi
+          if nm -D --defined-only target/aarch64-linux-android/release/libcloud.so | grep -Eq 'parseTask|parseBatch|parse_task|parse_batch|ResolverNative'; then
+            echo "libcloud.so 意外包含解析符号"; exit 1
+          fi
           echo "== strip debug sections (defence in depth) =="
           find target -name 'libresolver.so' -o -name 'resolver.wasm' | while read -r f; do
             # strip true already in profile.release; apply a second strip to be explicit
@@ -82,7 +90,9 @@ jobs:
         run: |
           mkdir -p dist
           cp target/aarch64-linux-android/release/libresolver.so dist/libresolver.so
+          cp target/aarch64-linux-android/release/libcloud.so dist/libcloud.so
           cp target/x86_64-unknown-linux-gnu/release/libresolver.so dist/libresolver_linux_x86_64.so
+          cp target/x86_64-unknown-linux-gnu/release/libcloud.so dist/libcloud_linux_x86_64.so
           if [ -f target/wasm32-unknown-unknown/release/resolver.wasm ]; then
             cp target/wasm32-unknown-unknown/release/resolver.wasm dist/resolver.wasm
           fi
@@ -99,7 +109,9 @@ jobs:
           generate_release_notes: true
           files: |
             dist/libresolver.so
+            dist/libcloud.so
             dist/libresolver_linux_x86_64.so
+            dist/libcloud_linux_x86_64.so
             dist/resolver.wasm
             dist/SHA256SUMS.txt
         env:

@@ -270,19 +270,6 @@ pub extern "C" fn cloud_zip_password(path: *const c_char) -> *mut c_char {
     crate::json_to_ptr(cloud_zip_password_json(&crate::read_str(path)))
 }
 
-#[no_mangle]
-pub extern "C" fn cloud_download_and_parse_homework(
-    base_url: *const c_char,
-    contents_json: *const c_char,
-    cache_directory: *const c_char,
-) -> *mut c_char {
-    crate::json_to_ptr(cloud_download_and_parse_homework_json(
-        &crate::read_str(base_url),
-        &crate::read_str(contents_json),
-        &crate::read_str(cache_directory),
-    ))
-}
-
 pub fn cloud_login_json(phone: &str, password: &str, device_code: &str) -> Value {
     cloud_authorized_response(|| login(phone, password, device_code))
 }
@@ -349,16 +336,6 @@ pub fn cloud_download_file_json(url: &str, destination: &str) -> Value {
 pub fn cloud_zip_password_json(path: &str) -> Value {
     cloud_authorized_response(|| {
         zip_password(Path::new(path)).map(|password| json!({"password": password}))
-    })
-}
-
-pub fn cloud_download_and_parse_homework_json(
-    base_url: &str,
-    contents_json: &str,
-    cache_directory: &str,
-) -> Value {
-    cloud_authorized_response(|| {
-        download_and_parse_homework(base_url, contents_json, cache_directory)
     })
 }
 
@@ -991,188 +968,6 @@ impl ServerCertVerifier for EtsCdnVerifier {
     }
 }
 
-fn download_and_parse_homework(
-    base_url: &str,
-    contents_json: &str,
-    cache_directory: &str,
-) -> Result<Value, CloudError> {
-    validate_required(cache_directory, "cache_directory")?;
-    let contents: Vec<Value> = serde_json::from_str(contents_json)
-        .ok()
-        .and_then(|value: Value| value.as_array().cloned())
-        .ok_or_else(|| CloudError::new("invalid_input", "contents_json 必须是 JSON 数组"))?;
-    if contents.is_empty() {
-        return Err(CloudError::new("invalid_input", "contents_json 不能为空"));
-    }
-
-    let cache_directory = PathBuf::from(cache_directory);
-    fs::create_dir_all(&cache_directory)
-        .map_err(|error| CloudError::new("io_error", format!("创建缓存目录失败: {error}")))?;
-    let default_cdn = config_guard().cdn_base_url.clone();
-    let base_url = if base_url.trim().is_empty() {
-        default_cdn
-    } else {
-        base_url.replace("http://", "https://")
-    };
-    let mut tasks = Vec::new();
-    let mut resources = Vec::new();
-    let mut failures = Vec::new();
-
-    for (order, item) in contents.iter().enumerate() {
-        let group_name = item
-            .get("group_name")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        let source_url = item.get("url").and_then(Value::as_str).unwrap_or_default();
-        if source_url.is_empty() {
-            failures.push(json!({"group_name": group_name, "error": {"code": "invalid_input", "message": "资源缺少 url"}}));
-            continue;
-        }
-        let download_url = item
-            .get("download_url")
-            .and_then(Value::as_str)
-            .filter(|url| !url.is_empty())
-            .map(str::to_string)
-            .unwrap_or_else(|| resolve_download_url(&base_url, source_url));
-        let filename = safe_resource_filename(&download_url);
-        let path = cache_directory.join(format!(
-            "{:x}_{}",
-            md5::compute(source_url.as_bytes()),
-            filename
-        ));
-        let initially_cached = has_zip_magic(&path).unwrap_or(false);
-        let task_result = if initially_cached {
-            match read_task_jsons_from_zip(&path) {
-                Ok(task) => Ok((task, true)),
-                Err(_) => {
-                    let _ = fs::remove_file(&path);
-                    download_file(&download_url, &path.to_string_lossy())
-                        .and_then(|_| read_task_jsons_from_zip(&path))
-                        .map(|task| (task, false))
-                }
-            }
-        } else {
-            download_file(&download_url, &path.to_string_lossy())
-                .and_then(|_| read_task_jsons_from_zip(&path))
-                .map(|task| (task, false))
-        };
-        match task_result {
-            Ok((task, cached)) => {
-                tasks.push(json!({
-                    "content": task.content,
-                    "info": task.info,
-                    "content2": task.content2,
-                    "order": order
-                }));
-                resources.push(json!({
-                    "group_name": group_name,
-                    "url": source_url,
-                    "download_url": download_url,
-                    "path": path.to_string_lossy(),
-                    "cached": cached
-                }));
-            }
-            Err(error) => {
-                let _ = fs::remove_file(&path);
-                failures.push(json!({
-                    "group_name": group_name,
-                    "url": source_url,
-                    "path": path.to_string_lossy(),
-                    "error": error.to_json()["error"].clone()
-                }));
-            }
-        }
-    }
-
-    if tasks.is_empty() {
-        return Err(CloudError::new(
-            "no_parseable_resource",
-            "没有可解析的云端资源包",
-        ));
-    }
-    let parsed = crate::authorized_parse_batch(
-        &serde_json::to_string(&tasks)
-            .map_err(|_| CloudError::new("invalid_input", "无法构造批量解析任务"))?,
-    );
-    if !parsed.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        let error = parsed
-            .get("error")
-            .cloned()
-            .unwrap_or_else(|| json!({"code": "parse_error", "message": "解析器未返回错误信息"}));
-        let message = error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("答案解析失败");
-        return Err(CloudError::new("resolver_error", message));
-    }
-    Ok(json!({
-        "parse": parsed.get("result").cloned().unwrap_or(Value::Null),
-        "grant": parsed.get("grant").cloned().unwrap_or(Value::Null),
-        "resources": resources,
-        "failures": failures
-    }))
-}
-
-struct ZipTask {
-    content: Value,
-    info: Option<Value>,
-    content2: Option<Value>,
-}
-
-fn read_task_jsons_from_zip(path: &Path) -> Result<ZipTask, CloudError> {
-    const MAX_JSON_BYTES: u64 = 32 * 1024 * 1024;
-    let password = zip_password(path)?;
-    let file = File::open(path)
-        .map_err(|error| CloudError::new("io_error", format!("无法打开资源包: {error}")))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|error| CloudError::new("invalid_zip", format!("无法读取 ZIP: {error}")))?;
-    let mut content = None;
-    let mut info = None;
-    let mut content2 = None;
-
-    for index in 0..archive.len() {
-        let entry_name = archive
-            .by_index_raw(index)
-            .map(|entry| entry.name().replace('\\', "/"))
-            .map_err(|error| {
-                CloudError::new("invalid_zip", format!("无法读取 ZIP 条目: {error}"))
-            })?;
-        let basename = entry_name.rsplit('/').next().unwrap_or_default();
-        if !matches!(basename, "content.json" | "info.json" | "content2.json") {
-            continue;
-        }
-        let mut entry = archive
-            .by_index_decrypt(index, password.as_bytes())
-            .map_err(|error| {
-                CloudError::new("zip_password_error", format!("无法解密 ZIP 条目: {error}"))
-            })?;
-        if entry.size() > MAX_JSON_BYTES {
-            return Err(CloudError::new(
-                "resource_too_large",
-                "ZIP 内 JSON 超过 32 MiB",
-            ));
-        }
-        let mut text = String::new();
-        entry.read_to_string(&mut text).map_err(|error| {
-            CloudError::new("invalid_json", format!("读取 ZIP 内 JSON 失败: {error}"))
-        })?;
-        let value = serde_json::from_str::<Value>(&text)
-            .map_err(|_| CloudError::new("invalid_json", format!("{basename} 不是有效 JSON")))?;
-        match basename {
-            "content.json" => content = Some(value),
-            "info.json" => info = Some(value),
-            "content2.json" => content2 = Some(value),
-            _ => {}
-        }
-    }
-    Ok(ZipTask {
-        content: content
-            .ok_or_else(|| CloudError::new("missing_content", "资源包缺少 content.json"))?,
-        info,
-        content2,
-    })
-}
-
 fn zip_password(path: &Path) -> Result<String, CloudError> {
     let mut file = File::open(path)
         .map_err(|error| CloudError::new("io_error", format!("无法打开 ZIP: {error}")))?;
@@ -1246,31 +1041,6 @@ fn resolve_download_url(base_url: &str, url: &str) -> String {
         base_url.trim_end_matches('/'),
         url.trim_start_matches('/')
     )
-}
-
-fn safe_resource_filename(url: &str) -> String {
-    let raw = url
-        .split('?')
-        .next()
-        .unwrap_or_default()
-        .rsplit('/')
-        .next()
-        .unwrap_or("resource.zip");
-    let safe = raw
-        .chars()
-        .map(|character| {
-            if character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_') {
-                character
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
-    if safe.is_empty() {
-        "resource.zip".to_string()
-    } else {
-        safe
-    }
 }
 
 fn value_as_i64(value: &Value) -> Option<i64> {
@@ -1424,41 +1194,4 @@ mod tests {
         assert_eq!(value["head"]["sign"], expected);
     }
 
-    #[test]
-    fn reads_aes_encrypted_task_json_without_extracting() {
-        let mut footer = [0u8; ZIP_FOOTER_SIZE];
-        footer[0..8].copy_from_slice(b"MSTCHINA");
-        for (index, byte) in footer[16..144].iter_mut().enumerate() {
-            *byte = index as u8;
-        }
-        let password = zip_password_from_footer(&footer).unwrap();
-        let path = std::env::temp_dir().join(format!(
-            "resolver-cloud-test-{}-{}.zip",
-            std::process::id(),
-            now_unix()
-        ));
-        {
-            let file = File::create(&path).unwrap();
-            let mut archive = zip::ZipWriter::new(file);
-            let options = zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated)
-                .with_aes_encryption(zip::AesMode::Aes256, &password);
-            archive.start_file("nested/content.json", options).unwrap();
-            archive
-                .write_all(br#"{"structure_type":"collector.read","info":{"value":"hello"}}"#)
-                .unwrap();
-            archive.finish().unwrap();
-        }
-        File::options()
-            .append(true)
-            .open(&path)
-            .unwrap()
-            .write_all(&footer)
-            .unwrap();
-
-        let task = read_task_jsons_from_zip(&path).unwrap();
-        assert_eq!(task.content["structure_type"], "collector.read");
-        assert_eq!(task.content["info"]["value"], "hello");
-        let _ = fs::remove_file(path);
-    }
 }

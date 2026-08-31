@@ -213,9 +213,9 @@ cargo ndk -t arm64-v8a build --release         # Android arm64: target/aarch64-l
 
 ---
 
-## ETS100 云端模式 SO 接口
+## ETS100 云端模式独立 SO 接口
 
-`libresolver.so` 从 `1.1.0` 开始同时封装 ETS100 手机号密码云端链路：
+云端链路已从解析器拆分为独立 `libcloud.so`。`libresolver.so` 只包含答案解析和 `answer_parser` 授权；`libcloud.so` 只包含 ETS100 云端协议和 `cloud_mode` 授权：
 
 ```text
 生成设备码
@@ -224,14 +224,14 @@ cargo ndk -t arm64-v8a build --release         # Android arm64: target/aarch64-l
   → 获取当前、历史、过期作业
   → HTTPS 下载加密 ZIP
   → 计算 ZIP 密码并在内存中读取 content/info/content2
-  → 内部授权后批量解析答案
+  → 返回云端资源，由 libresolver.so 单独解析答案
 ```
 
 调用方仍负责凭据和 token 的安全持久化，SO 不保存手机号、密码或 ETS100 token。API 和任意第三方下载地址保持完整 TLS 校验。ETS100 默认 CDN 当前返回 `default.chinanetcenter.com` 证书，因此仅对精确主机 `cdn.subject.ets100.com` 使用这个固定证书名校验，证书链、有效期和握手签名仍正常验证；不会全局 trust-all。
 
-每个 `cloud_*` 操作都会先在 SO 内请求并验签 LA Studio `cloud_mode` 功能授权；下载后解析答案还会独立校验 `answer_parser`。两种 grant 按功能键隔离缓存，不能互相替代。后台停用 `cloud_mode` 后，下一次未命中有效短期 grant 的云端操作会立即被阻断。
+每个 `cloud_*` 操作都会在 `libcloud.so` 内请求并验签 LA Studio `cloud_mode` 功能授权；答案解析由 `libresolver.so` 独立校验 `answer_parser`。两个 so 不互相链接，grant 和解析核心不会跨库复用。
 
-所有 `cloud_*` 字符串接口统一返回 JSON，调用方使用 `resolver_free_string` 释放：
+所有 `cloud_*` 字符串接口统一返回 JSON，调用方使用 `cloud_free_string` 释放：
 
 ```json
 {"ok":true,"result":{}}
@@ -255,9 +255,8 @@ cargo ndk -t arm64-v8a build --release         # Android arm64: target/aarch64-l
 | `cloud_get_homework_list(token, parent_id, status)` | `/g/homework/list`；status 为 `1`、`2`、`3`。资源包含绝对 `download_url`。 |
 | `cloud_download_file(url, destination)` | 使用 HTTPS 和 `.part` 文件下载，校验 ZIP magic 后替换目标文件。 |
 | `cloud_zip_password(path)` | 从 ETS100 ZIP 尾部计算 64 字符密码。 |
-| `cloud_download_and_parse_homework(base_url, contents_json, cache_dir)` | 下载全部资源，在内存中解密 JSON，并通过 `parse_batch_authorized` 一次授权后解析。 |
 
-Android `ResolverNative` 对应方法名为 `setCloudConfig`、`cloudAuthorizeFeature`、`cloudGenerateDeviceCode`、`cloudLogin`、`cloudSendDeviceBindingCode`、`cloudBindDevice`、`cloudGetEcardSelection`、`cloudGetHomeworkList`、`cloudDownloadFile`、`cloudZipPassword` 和 `cloudDownloadAndParseHomework`。所有授权、网络和文件接口都是阻塞调用，必须从 `Dispatchers.IO` 调用。
+Android 使用两个 JNI 类：`ResolverNative` 加载 `libresolver.so`，`CloudNative` 加载 `libcloud.so`。所有云端授权、网络和文件接口都是阻塞调用，必须从 `Dispatchers.IO` 调用。
 
 详细输入输出和接入顺序见 [`CLOUD_API.md`](./CLOUD_API.md)。讯飞/畅言页面交互仍由 Android 隔离 WebView 完成；SO 只接收一次性断言并负责 token 交换和账号查询。
 
