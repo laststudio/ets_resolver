@@ -1,6 +1,7 @@
 /target
 /answer
-/__pycache__
+**/__pycache__/
+*.py[cod]
 /*.txt
 /*.dll
 /log

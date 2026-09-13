@@ -18,6 +18,8 @@ crate-type = ["cdylib"]   # 编译为动态链接库: libresolver.so / resolver.
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+obfstr = "0.4"
+sha2 = "0.10"
 
 # 内部后端授权 (仅非 wasm 目标)
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]

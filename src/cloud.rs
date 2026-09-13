@@ -127,6 +127,7 @@ fn response(result: Result<Value, CloudError>) -> Value {
 
 /// Override cloud endpoints/protocol keys. Empty strings preserve current values.
 /// Returns 0 on success, 1 for an invalid URL, 2 for an invalid protocol key.
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn set_cloud_config(
     api_base_url: *const c_char,
@@ -170,16 +171,19 @@ pub extern "C" fn set_cloud_config(
     0
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_generate_device_code() -> *mut c_char {
     crate::json_to_ptr(cloud_generate_device_code_json())
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_authorize_feature() -> *mut c_char {
     crate::json_to_ptr(cloud_authorize_feature_json())
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_login(
     phone: *const c_char,
@@ -193,6 +197,7 @@ pub extern "C" fn cloud_login(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_login_changyan(
     login: *const c_char,
@@ -210,11 +215,13 @@ pub extern "C" fn cloud_login_changyan(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_send_device_binding_code(phone: *const c_char) -> *mut c_char {
     crate::json_to_ptr(cloud_send_device_binding_code_json(&crate::read_str(phone)))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_bind_device(
     phone: *const c_char,
@@ -230,6 +237,7 @@ pub extern "C" fn cloud_bind_device(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_get_ecard_selection(
     token: *const c_char,
@@ -241,6 +249,7 @@ pub extern "C" fn cloud_get_ecard_selection(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_get_homework_list(
     token: *const c_char,
@@ -254,6 +263,7 @@ pub extern "C" fn cloud_get_homework_list(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_download_file(
     url: *const c_char,
@@ -265,6 +275,7 @@ pub extern "C" fn cloud_download_file(
     ))
 }
 
+#[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_zip_password(path: *const c_char) -> *mut c_char {
     crate::json_to_ptr(cloud_zip_password_json(&crate::read_str(path)))

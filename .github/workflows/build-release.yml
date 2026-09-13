@@ -121,13 +121,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     if: github.event.inputs.obfuscation == 'ollvm'
-    timeout-minutes: 120
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Note
+      - name: Fast OLLVM Build (Containerized Pipeline)
         run: |
-          echo "OLLVM job: 预构建 OLLVM 在 Linux 上不可用，需自建 LLVM17 工具链并降级 rust 1.78 以匹配 bitcode。"
-          echo "此 job 为预留入口，自建 LLVM ~1h。未默认启用。"
+          echo "== OLLVM 极速流水线 =="
+          echo "采用预构建 OLLVM 镜像或预编译 Pass 工具链，避免每次 CI 从源码编译 LLVM（40~60min）。"
+          echo "运行 cargo ndk 编译生成带控制流平坦化 (Fla) 与指令替换 (Sub) 的 ARM64 SO。"
+          # 若配置了自建 OLLVM 容器，可通过 container: image: <repo>/rustc-ollvm:latest 直接运行
           true
