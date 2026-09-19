@@ -45,7 +45,18 @@ def extract_meta(content_str):
         stype = "word_pk"
     elif isinstance(content, dict):
         stid = _stid_of(content) or content.get("id") or content.get("word_id")
-        stype = content.get("structure_type", "word_pk" if ("word_questions" in content or "data" in content) else "")
+        stype = content.get(
+            "structure_type",
+            "word_pk"
+            if (
+                "word_question" in content
+                or "word_questions" in content
+                or "data" in content
+                or "word" in content
+                or "words" in content
+            )
+            else "",
+        )
     else:
         stid = None
         stype = ""

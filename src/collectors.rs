@@ -483,10 +483,12 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
 
     // 3. 提取扁平列表格式
     if !is_nested {
-        let qs = root.get("word_questions")
+        let qs = root.get("word_question")
+            .or_else(|| root.get("word_questions"))
             .or_else(|| root.get("questions"))
             .or_else(|| root.get("list"))
             .or_else(|| root.as_array().map(|_| root))
+            .or_else(|| content.get("word_question"))
             .or_else(|| content.get("word_questions"))
             .or_else(|| content.get("questions"));
         if let Some(qs_arr) = qs.and_then(|v| v.as_array()) {
@@ -607,13 +609,23 @@ pub fn collect_generic(
     }
     let info_obj = content.get("info");
     if !info_obj.map_or(false, |v| v.is_object()) {
-        if content.get("word_questions").is_some() || content.get("data").is_some() || content.get("word_id").is_some() {
+        if content.get("word_question").is_some()
+            || content.get("word_questions").is_some()
+            || content.get("data").is_some()
+            || content.get("word_id").is_some()
+            || content.get("words").is_some()
+            || content.get("word").is_some()
+        {
             return collect_word_pk(content);
         }
         return Vec::new();
     }
     let info_obj = info_obj.unwrap();
-    if info_obj.get("word_questions").is_some() || info_obj.get("words").is_some() {
+    if info_obj.get("word_question").is_some()
+        || info_obj.get("word_questions").is_some()
+        || info_obj.get("words").is_some()
+        || info_obj.get("word").is_some()
+    {
         return collect_word_pk(content);
     }
     if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
@@ -640,7 +652,12 @@ pub fn collect_generic(
     if info_obj.get("value").map_or(false, |v| !v.is_null()) {
         return collect_read(content, content2, info);
     }
-    if content.get("word_questions").is_some() || content.get("data").is_some() {
+    if content.get("word_question").is_some()
+        || content.get("word_questions").is_some()
+        || content.get("data").is_some()
+        || content.get("words").is_some()
+        || content.get("word").is_some()
+    {
         return collect_word_pk(content);
     }
     Vec::new()
@@ -659,6 +676,9 @@ pub fn parse_content(content: &Value, content2: Option<&Value>, info: Option<&Va
         return collect_repeat_essay(content, content2, info);
     }
     if st.contains("pk") || st.contains("word_pk") || st.contains("vocabulary") || st.contains("word_homework") {
+        return collect_word_pk(content);
+    }
+    if content.get("word_question").is_some() || content.get("word_questions").is_some() {
         return collect_word_pk(content);
     }
     if st.contains("read") || st.contains("word") {
@@ -809,4 +829,40 @@ mod tests {
         assert_eq!(qs[1]["question"], "Good morning.");
         assert_eq!(qs[0]["type"], TYPE_REPEAT_ESSAY);
     }
+
+    #[test]
+    fn test_collect_word_pk_homework_struct() {
+        let content = json!({
+            "word": [
+                {"id": 635560, "content": "apple", "translate": "苹果"},
+                {"id": 635561, "content": "banana", "translate": "香蕉"}
+            ],
+            "word_question": [
+                {
+                    "id": 1722562,
+                    "word_id": 635560,
+                    "question_type": 6,
+                    "answer": "B",
+                    "option": "[{\"option_name\":\"A\",\"option_value\":\"香蕉\"},{\"option_name\":\"B\",\"option_value\":\"苹果\"}]",
+                    "translate": "苹果"
+                },
+                {
+                    "id": 1722563,
+                    "word_id": 635561,
+                    "question_type": 19,
+                    "answer": "",
+                    "translate": "香蕉"
+                }
+            ]
+        });
+        let qs = parse_content(&content, None, None);
+        assert_eq!(qs.len(), 2);
+        assert_eq!(qs[0]["type"], TYPE_PK_CHOOSE);
+        assert_eq!(qs[0]["answers"][0], "B");
+        assert_eq!(qs[0]["options"][0], "A. 香蕉");
+        assert_eq!(qs[0]["options"][1], "B. 苹果");
+        assert_eq!(qs[1]["type"], TYPE_PK_EN_CN);
+        assert_eq!(qs[1]["answers"][0], "香蕉");
+    }
 }
+

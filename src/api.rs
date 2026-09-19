@@ -32,7 +32,13 @@ pub fn extract_meta(content: &Value) -> Value {
             .or_else(|| content.get("id").and_then(|v| v.as_i64()))
             .or_else(|| content.get("word_id").and_then(|v| v.as_i64()));
         let mut stype = content.get("structure_type").map(|v| get_str(v)).unwrap_or_default();
-        if stype.is_empty() && (content.get("word_questions").is_some() || content.get("data").is_some()) {
+        if stype.is_empty() && (
+            content.get("word_question").is_some()
+            || content.get("word_questions").is_some()
+            || content.get("data").is_some()
+            || content.get("word").is_some()
+            || content.get("words").is_some()
+        ) {
             stype = "word_pk".to_string();
         }
         json!({

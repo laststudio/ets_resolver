@@ -328,3 +328,38 @@ def test_repeat_essay_sublist():
     assert qs[0]["question"] == "Hello world."
     assert qs[1]["question"] == "Good morning."
     assert qs[0]["type"] == "collector.repeat_essay"
+
+
+def test_word_pk_homework_struct_format():
+    """测试 homework/struct 的 word 与 word_question 解析"""
+    content = {
+        "word": [
+            {"id": 635560, "content": "apple", "translate": "苹果"},
+            {"id": 635561, "content": "banana", "translate": "香蕉"}
+        ],
+        "word_question": [
+            {
+                "id": 1722562,
+                "word_id": 635560,
+                "question_type": 6,
+                "answer": "B",
+                "option": json.dumps([{"option_name": "A", "option_value": "香蕉"}, {"option_name": "B", "option_value": "苹果"}]),
+                "translate": "苹果"
+            },
+            {
+                "id": 1722563,
+                "word_id": 635561,
+                "question_type": 19,
+                "answer": "",
+                "translate": "香蕉"
+            }
+        ]
+    }
+    qs = parse_task(json.dumps(content))
+    assert len(qs) == 2
+    assert qs[0]["type"] == "word.choice"
+    assert qs[0]["answers"] == ["B"]
+    assert qs[0]["options"] == ["A. 香蕉", "B. 苹果"]
+    assert qs[1]["type"] == "word.translate_en_cn"
+    assert qs[1]["answers"] == ["香蕉"]
+

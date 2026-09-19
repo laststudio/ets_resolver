@@ -424,11 +424,11 @@ def collect_word_pk(content, content2=None, info=None):
     if not raw_questions:
         qs = None
         if isinstance(root, dict):
-            qs = root.get("word_questions") or root.get("questions") or root.get("list")
+            qs = root.get("word_question") or root.get("word_questions") or root.get("questions") or root.get("list")
         elif isinstance(root, list):
             qs = root
         if qs is None and isinstance(content, dict):
-            qs = content.get("word_questions") or content.get("questions")
+            qs = content.get("word_question") or content.get("word_questions") or content.get("questions")
         if isinstance(qs, list):
             for q in qs:
                 if isinstance(q, dict):
@@ -511,10 +511,22 @@ def collect_generic(content, content2=None, info=None, qtype=None):
         return collect_word_pk(content, content2, info)
     info_obj = content.get("info") if isinstance(content, dict) else {}
     if not isinstance(info_obj, dict):
-        if isinstance(content, dict) and ("word_questions" in content or "data" in content or "word_id" in content):
+        if isinstance(content, dict) and (
+            "word_question" in content
+            or "word_questions" in content
+            or "data" in content
+            or "word_id" in content
+            or "words" in content
+            or "word" in content
+        ):
             return collect_word_pk(content, content2, info)
         return []
-    if info_obj.get("word_questions") or info_obj.get("words"):
+    if (
+        info_obj.get("word_question")
+        or info_obj.get("word_questions")
+        or info_obj.get("words")
+        or info_obj.get("word")
+    ):
         return collect_word_pk(content, content2, info)
     if info_obj.get("question") or info_obj.get("questions"):
         return collect_question_based(content, content2, info, qtype=qtype)
@@ -529,7 +541,13 @@ def collect_generic(content, content2=None, info=None, qtype=None):
         return collect_choose(content, content2, info)
     if info_obj.get("value"):
         return collect_read(content, content2, info)
-    if isinstance(content, dict) and ("word_questions" in content or "data" in content):
+    if isinstance(content, dict) and (
+        "word_question" in content
+        or "word_questions" in content
+        or "data" in content
+        or "words" in content
+        or "word" in content
+    ):
         return collect_word_pk(content, content2, info)
     return []
 
@@ -561,6 +579,9 @@ def parse_content(content, content2=None, info=None):
     """解析单个 content.json 或词汇作业结构, 返回题目列表"""
     if isinstance(content, list):
         return collect_word_pk(content, content2, info)
+    if isinstance(content, dict) and ("word_question" in content or "word_questions" in content):
+        return collect_word_pk(content, content2, info)
     structure_type = (content or {}).get("structure_type", "")
     collector = dispatch(structure_type)
     return collector(content, content2, info)
+
