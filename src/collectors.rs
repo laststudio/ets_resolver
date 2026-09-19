@@ -1,6 +1,7 @@
 // -*- coding: utf-8 -*-
 // 各题型解析器 (与 resolver_py/collectors.py 行为一致)
 
+use std::collections::HashMap;
 use serde_json::{json, Map, Value};
 
 use crate::cleaner::{
@@ -12,17 +13,37 @@ pub const TYPE_CHOOSE: &str = "collector.choose";
 pub const TYPE_READ: &str = "collector.read";
 #[allow(dead_code)]
 pub const TYPE_WORD: &str = "collector.word";
+pub const TYPE_REPEAT_ESSAY: &str = "collector.repeat_essay";
 pub const TYPE_ROLE: &str = "collector.role";
 pub const TYPE_PICTURE: &str = "collector.picture";
 pub const TYPE_FILL: &str = "collector.fill";
 pub const TYPE_3Q5A: &str = "collector.3q5a";
 
-pub const QUESTION_TYPES: [&str; 8] = [
+// 单词 PK 与词汇作业题型 (逆向自 SyncWordQuestionBean)
+pub const TYPE_PK_CHOOSE: &str = "word.choice";            // 6: 听选/词义选择
+pub const TYPE_PK_WRITE: &str = "word.write";              // 16: 看释义写单词 (拼写)
+pub const TYPE_PK_READ: &str = "word.read";                // 17: 朗读单词
+pub const TYPE_PK_DICTATION: &str = "word.dictation";      // 18: 听写单词
+pub const TYPE_PK_EN_CN: &str = "word.translate_en_cn";    // 19: 英译中
+pub const TYPE_PK_CN_EN: &str = "word.translate_cn_en";    // 20: 中译英
+
+pub fn pk_type_str(qtype: i64) -> &'static str {
+    match qtype {
+        6 => TYPE_PK_CHOOSE,
+        16 => TYPE_PK_WRITE,
+        17 => TYPE_PK_READ,
+        18 => TYPE_PK_DICTATION,
+        19 => TYPE_PK_EN_CN,
+        20 => TYPE_PK_CN_EN,
+        _ => "word.unknown",
+    }
+}
+
+pub const QUESTION_TYPES: [&str; 7] = [
     TYPE_ROLE,
     "collector.dialogue",
     TYPE_3Q5A,
     "collector.repeat",
-    "collector.repeat_essay",
     "collector.repeat_dialogue",
     "collector.essay",
     "collector.dialogue",
@@ -334,17 +355,270 @@ pub fn collect_read(content: &Value, _content2: Option<&Value>, _info: Option<&V
     )]
 }
 
+pub fn parse_pk_options(opt_val: &Value) -> Vec<String> {
+    let arr = match opt_val {
+        Value::Array(a) => a.clone(),
+        Value::String(s) => {
+            if s.trim().is_empty() {
+                return Vec::new();
+            }
+            serde_json::from_str::<Vec<Value>>(s).unwrap_or_default()
+        }
+        _ => return Vec::new(),
+    };
+    let mut options = Vec::new();
+    for opt in arr {
+        if let Value::Object(o) = opt {
+            let name = clean(&get_str(o.get("option_name").or_else(|| o.get("name")).unwrap_or(&Value::Null)));
+            let val = clean(&get_str(o.get("option_value").or_else(|| o.get("value")).unwrap_or(&Value::Null)));
+            if !name.is_empty() && !val.is_empty() {
+                options.push(format!("{}. {}", name, val));
+            } else if !val.is_empty() {
+                options.push(val);
+            } else if !name.is_empty() {
+                options.push(name);
+            }
+        }
+    }
+    options
+}
+
+pub fn collect_repeat_essay(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
+    let stid = stid_of(content);
+    let info_obj = content.get("info");
+    if let Some(sublist) = info_obj.and_then(|o| o.get("sublist")).and_then(|v| v.as_array()) {
+        let mut questions = Vec::new();
+        for (i, sub) in sublist.iter().enumerate() {
+            let text = clean_lines(&get_str(sub.get("text").or_else(|| sub.get("value")).or_else(|| sub.get("content")).unwrap_or(&Value::Null)));
+            if !text.is_empty() {
+                questions.push(make_question(
+                    Some((i + 1) as i64),
+                    Some("local"),
+                    TYPE_REPEAT_ESSAY,
+                    stid,
+                    text,
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                ));
+            }
+        }
+        if !questions.is_empty() {
+            return questions;
+        }
+    }
+    if let Some(io) = info_obj {
+        if io.get("question").map_or(false, |v| v.is_array()) || io.get("questions").map_or(false, |v| v.is_array()) {
+            return collect_question_based(content, content2, info, Some(TYPE_REPEAT_ESSAY));
+        }
+    }
+    collect_read(content, content2, info)
+}
+
+pub fn collect_word_pk(content: &Value) -> Vec<Value> {
+    let root = if let Some(info) = content.get("info") {
+        if info.is_object() || info.is_array() {
+            info
+        } else {
+            content
+        }
+    } else {
+        content
+    };
+
+    let mut word_map: HashMap<i64, (String, String)> = HashMap::new();
+    let mut raw_questions: Vec<Value> = Vec::new();
+
+    // 1. 提取 words 字典
+    let words = root.get("words").or_else(|| root.get("word")).or_else(|| content.get("words")).or_else(|| content.get("word"));
+    if let Some(words_arr) = words.and_then(|v| v.as_array()) {
+        for w in words_arr {
+            let wid = get_i64(w.get("id").unwrap_or(&Value::Null))
+                .or_else(|| w.get("struct").and_then(|s| get_i64(s.get("id").unwrap_or(&Value::Null))));
+            if let Some(id) = wid {
+                let cnt = clean(&get_str(w.get("content").or_else(|| w.get("struct").and_then(|s| s.get("content"))).unwrap_or(&Value::Null)));
+                let trs = clean(&get_str(w.get("translate").or_else(|| w.get("struct").and_then(|s| s.get("translate"))).unwrap_or(&Value::Null)));
+                word_map.insert(id, (cnt, trs));
+            }
+        }
+    }
+
+    // 2. 提取 word/struct 嵌套格式
+    let data_arr = root.get("data").and_then(|v| v.as_array()).or_else(|| root.as_array());
+    let mut is_nested = false;
+    if let Some(data) = data_arr {
+        if let Some(first) = data.first() {
+            if first.get("question").map_or(false, |q| q.is_array()) {
+                is_nested = true;
+                for item in data {
+                    let wid = get_i64(item.get("id").unwrap_or(&Value::Null));
+                    let cnt = clean(&get_str(item.get("content").unwrap_or(&Value::Null)));
+                    let trs = clean(&get_str(item.get("translate").unwrap_or(&Value::Null)));
+                    if let Some(id) = wid {
+                        word_map.insert(id, (cnt.clone(), trs.clone()));
+                    }
+                    if let Some(qs) = item.get("question").and_then(|v| v.as_array()) {
+                        for q in qs {
+                            if let Value::Object(mut q_map) = q.clone() {
+                                if let Some(id) = wid {
+                                    if !q_map.contains_key("word_id") {
+                                        q_map.insert("word_id".into(), json!(id));
+                                    }
+                                }
+                                if !cnt.is_empty() && !q_map.contains_key("word") {
+                                    q_map.insert("word".into(), Value::String(cnt.clone()));
+                                }
+                                if !trs.is_empty() && !q_map.contains_key("translate") {
+                                    q_map.insert("translate".into(), Value::String(trs.clone()));
+                                }
+                                raw_questions.push(Value::Object(q_map));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. 提取扁平列表格式
+    if !is_nested {
+        let qs = root.get("word_questions")
+            .or_else(|| root.get("questions"))
+            .or_else(|| root.get("list"))
+            .or_else(|| root.as_array().map(|_| root))
+            .or_else(|| content.get("word_questions"))
+            .or_else(|| content.get("questions"));
+        if let Some(qs_arr) = qs.and_then(|v| v.as_array()) {
+            for q in qs_arr {
+                if q.is_object() {
+                    raw_questions.push(q.clone());
+                }
+            }
+        }
+    }
+
+    // 4. 构建题目结构
+    let mut questions = Vec::new();
+    for (i, q) in raw_questions.iter().enumerate() {
+        let qtype_num = get_i64(q.get("question_type").or_else(|| q.get("type")).or_else(|| q.get("q_type")).unwrap_or(&Value::Null)).unwrap_or(0);
+        let qtype_str = pk_type_str(qtype_num);
+        let word_id = get_i64(q.get("word_id").unwrap_or(&Value::Null)).unwrap_or(0);
+        let q_id = get_i64(q.get("id").or_else(|| q.get("q_id")).or_else(|| q.get("question_id")).unwrap_or(&Value::Null)).unwrap_or(0);
+
+        let ans = clean(&get_str(q.get("answer").unwrap_or(&Value::Null)));
+        let word_info = word_map.get(&word_id);
+        let w_content = word_info.map(|x| x.0.clone()).unwrap_or_else(|| clean(&get_str(q.get("word").or_else(|| q.get("content")).unwrap_or(&Value::Null))));
+        let w_trans = word_info.map(|x| x.1.clone()).unwrap_or_else(|| clean(&get_str(q.get("translate").unwrap_or(&Value::Null))));
+
+        let ans_text = match qtype_num {
+            6 => ans.clone(),
+            16 | 17 | 18 | 20 => if !w_content.is_empty() { w_content.clone() } else { ans.clone() },
+            19 => if !w_trans.is_empty() { w_trans.clone() } else { ans.clone() },
+            _ => if !ans.is_empty() { ans.clone() } else { w_content.clone() },
+        };
+
+        let question_text = match qtype_num {
+            19 => if !w_content.is_empty() { w_content.clone() } else { "英译中".to_string() },
+            20 => if !w_trans.is_empty() { w_trans.clone() } else { "中译英".to_string() },
+            16 => if !w_trans.is_empty() { w_trans.clone() } else { "拼写单词".to_string() },
+            17 => if !w_content.is_empty() { w_content.clone() } else { "朗读单词".to_string() },
+            18 => if !w_trans.is_empty() { w_trans.clone() } else { "听写单词".to_string() },
+            6 => {
+                let q_custom = clean(&get_str(q.get("xt_nr").or_else(|| q.get("question")).unwrap_or(&Value::Null)));
+                if !q_custom.is_empty() {
+                    q_custom
+                } else if !w_content.is_empty() && !w_trans.is_empty() {
+                    format!("{} ({})", w_content, w_trans)
+                } else if !w_content.is_empty() {
+                    w_content.clone()
+                } else if !w_trans.is_empty() {
+                    w_trans.clone()
+                } else {
+                    "选择题".to_string()
+                }
+            }
+            _ => {
+                let q_custom = clean(&get_str(q.get("question").or_else(|| q.get("xt_nr")).unwrap_or(&Value::Null)));
+                if !q_custom.is_empty() {
+                    q_custom
+                } else if !w_content.is_empty() {
+                    w_content.clone()
+                } else {
+                    w_trans.clone()
+                }
+            }
+        };
+
+        let options = if qtype_num == 6 || q.get("option").is_some() || q.get("options").is_some() {
+            let opt_val = q.get("option").or_else(|| q.get("options")).unwrap_or(&Value::Null);
+            parse_pk_options(opt_val)
+        } else {
+            Vec::new()
+        };
+
+        let mut important = Vec::new();
+        if !w_trans.is_empty() && qtype_num != 19 {
+            important.push(w_trans.clone());
+        } else if !w_content.is_empty() && qtype_num != 20 {
+            important.push(w_content.clone());
+        }
+
+        let mut extra = Map::new();
+        if word_id > 0 {
+            extra.insert("word_id".into(), json!(word_id));
+        }
+        if q_id > 0 {
+            extra.insert("question_id".into(), json!(q_id));
+        }
+        if !w_content.is_empty() {
+            extra.insert("word".into(), Value::String(w_content));
+        }
+        if !w_trans.is_empty() {
+            extra.insert("translate".into(), Value::String(w_trans));
+        }
+
+        let answers = if !ans_text.is_empty() { vec![ans_text] } else { Vec::new() };
+
+        questions.push(make_question(
+            Some((i + 1) as i64),
+            Some("local"),
+            qtype_str,
+            if word_id > 0 { Some(word_id) } else { None },
+            question_text,
+            answers,
+            options,
+            important,
+            if extra.is_empty() { None } else { Some(extra) },
+        ));
+    }
+
+    questions
+}
+
 pub fn collect_generic(
     content: &Value,
     content2: Option<&Value>,
     info: Option<&Value>,
     qtype: Option<&str>,
 ) -> Vec<Value> {
+    if content.is_array() {
+        return collect_word_pk(content);
+    }
     let info_obj = content.get("info");
     if !info_obj.map_or(false, |v| v.is_object()) {
+        if content.get("word_questions").is_some() || content.get("data").is_some() || content.get("word_id").is_some() {
+            return collect_word_pk(content);
+        }
         return Vec::new();
     }
     let info_obj = info_obj.unwrap();
+    if info_obj.get("word_questions").is_some() || info_obj.get("words").is_some() {
+        return collect_word_pk(content);
+    }
+    if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
+        return collect_repeat_essay(content, content2, info);
+    }
     if info_obj.get("question").map_or(false, |v| v.is_array())
         || info_obj.get("questions").map_or(false, |v| v.is_array())
     {
@@ -366,14 +640,26 @@ pub fn collect_generic(
     if info_obj.get("value").map_or(false, |v| !v.is_null()) {
         return collect_read(content, content2, info);
     }
+    if content.get("word_questions").is_some() || content.get("data").is_some() {
+        return collect_word_pk(content);
+    }
     Vec::new()
 }
 
 pub fn parse_content(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
+    if content.is_array() {
+        return collect_word_pk(content);
+    }
     let structure_type = content.get("structure_type").map(|v| get_str(v)).unwrap_or_default();
     let st = structure_type.as_str();
     if st.contains("choose") {
         return collect_choose(content, content2, info);
+    }
+    if st == TYPE_REPEAT_ESSAY {
+        return collect_repeat_essay(content, content2, info);
+    }
+    if st.contains("pk") || st.contains("word_pk") || st.contains("vocabulary") || st.contains("word_homework") {
+        return collect_word_pk(content);
     }
     if st.contains("read") || st.contains("word") {
         return collect_read(content, content2, info);
@@ -423,5 +709,104 @@ mod tests {
         assert_eq!(qs.len(), 2);
         assert_eq!(qs[0]["answers"][0], "v1");
         assert_eq!(qs[0]["no"], 1);
+    }
+
+    #[test]
+    fn test_collect_word_pk_nested() {
+        let content = json!({
+            "data": [
+                {
+                    "id": 101,
+                    "content": "apple",
+                    "translate": "苹果",
+                    "question": [
+                        {
+                            "id": 1001,
+                            "question_type": 19,
+                            "answer": "苹果"
+                        },
+                        {
+                            "id": 1002,
+                            "question_type": 20,
+                            "answer": "apple"
+                        }
+                    ]
+                },
+                {
+                    "id": 102,
+                    "content": "banana",
+                    "translate": "香蕉",
+                    "question": [
+                        {
+                            "id": 1003,
+                            "question_type": 6,
+                            "answer": "B",
+                            "option": "[{\"option_name\":\"A\",\"option_value\":\"苹果\"},{\"option_name\":\"B\",\"option_value\":\"香蕉\"}]"
+                        }
+                    ]
+                }
+            ]
+        });
+        let qs = parse_content(&content, None, None);
+        assert_eq!(qs.len(), 3);
+        assert_eq!(qs[0]["type"], TYPE_PK_EN_CN);
+        assert_eq!(qs[0]["question"], "apple");
+        assert_eq!(qs[0]["answers"][0], "苹果");
+        assert_eq!(qs[0]["word_id"], 101);
+
+        assert_eq!(qs[1]["type"], TYPE_PK_CN_EN);
+        assert_eq!(qs[1]["question"], "苹果");
+        assert_eq!(qs[1]["answers"][0], "apple");
+
+        assert_eq!(qs[2]["type"], TYPE_PK_CHOOSE);
+        assert_eq!(qs[2]["answers"][0], "B");
+        assert_eq!(qs[2]["options"][1], "B. 香蕉");
+    }
+
+    #[test]
+    fn test_collect_word_pk_flat() {
+        let content = json!({
+            "word_questions": [
+                {"id": 1, "question_type": 6, "word": "dog", "translate": "狗", "answer": "A", "option": [{"name": "A", "value": "狗"}]},
+                {"id": 2, "question_type": 16, "word": "cat", "translate": "猫", "answer": ""},
+                {"id": 3, "question_type": 17, "word": "bird", "translate": "鸟", "answer": ""},
+                {"id": 4, "question_type": 18, "word": "fish", "translate": "鱼", "answer": ""},
+                {"id": 5, "question_type": 19, "word": "book", "translate": "书", "answer": ""},
+                {"id": 6, "question_type": 20, "word": "pen", "translate": "钢笔", "answer": ""},
+            ]
+        });
+        let qs = parse_content(&content, None, None);
+        assert_eq!(qs.len(), 6);
+        assert_eq!(qs[0]["type"], TYPE_PK_CHOOSE);
+        assert_eq!(qs[0]["answers"][0], "A");
+        assert_eq!(qs[1]["type"], TYPE_PK_WRITE);
+        assert_eq!(qs[1]["answers"][0], "cat");
+        assert_eq!(qs[2]["type"], TYPE_PK_READ);
+        assert_eq!(qs[2]["answers"][0], "bird");
+        assert_eq!(qs[3]["type"], TYPE_PK_DICTATION);
+        assert_eq!(qs[3]["answers"][0], "fish");
+        assert_eq!(qs[4]["type"], TYPE_PK_EN_CN);
+        assert_eq!(qs[4]["answers"][0], "书");
+        assert_eq!(qs[5]["type"], TYPE_PK_CN_EN);
+        assert_eq!(qs[5]["answers"][0], "pen");
+    }
+
+    #[test]
+    fn test_collect_repeat_essay_sublist() {
+        let content = json!({
+            "structure_type": "collector.repeat_essay",
+            "info": {
+                "stid": 1234,
+                "sublist": [
+                    {"text": "Hello world."},
+                    {"text": "Good morning."}
+                ]
+            }
+        });
+        let qs = parse_content(&content, None, None);
+        assert_eq!(qs.len(), 2);
+        assert_eq!(qs[0]["question"], "Hello world.");
+        assert_eq!(qs[1]["question"], "Good morning.");
+        assert_eq!(qs[0]["type"], TYPE_REPEAT_ESSAY);
     }
 }

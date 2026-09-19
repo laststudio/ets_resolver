@@ -20,11 +20,27 @@ pub fn parse_task(content: &Value, content2: Option<&Value>, info: Option<&Value
 /// 元信息: {stid, structure_type, question_count}
 pub fn extract_meta(content: &Value) -> Value {
     let questions = parse_content(content, None, None);
-    json!({
-        "stid": stid_of(content),
-        "structure_type": content.get("structure_type").map(|v| get_str(v)).unwrap_or_default(),
-        "question_count": questions.len(),
-    })
+    if let Some(arr) = content.as_array() {
+        let stid = arr.first().and_then(|item| item.get("word_id").or_else(|| item.get("id"))).and_then(|v| v.as_i64());
+        json!({
+            "stid": stid,
+            "structure_type": "word_pk",
+            "question_count": questions.len(),
+        })
+    } else {
+        let stid = stid_of(content)
+            .or_else(|| content.get("id").and_then(|v| v.as_i64()))
+            .or_else(|| content.get("word_id").and_then(|v| v.as_i64()));
+        let mut stype = content.get("structure_type").map(|v| get_str(v)).unwrap_or_default();
+        if stype.is_empty() && (content.get("word_questions").is_some() || content.get("data").is_some()) {
+            stype = "word_pk".to_string();
+        }
+        json!({
+            "stid": stid,
+            "structure_type": stype,
+            "question_count": questions.len(),
+        })
+    }
 }
 
 fn assign_fallback_numbers(questions: &mut Vec<Value>) {
@@ -210,5 +226,19 @@ mod tests {
         assert_eq!(qs.len(), 2);
         assert_eq!(qs[0]["no"], 1);
         assert_eq!(qs[1]["no"], 2);
+    }
+
+    #[test]
+    fn test_extract_meta_pk() {
+        let pk_data = json!({
+            "word_questions": [
+                {"id": 1, "question_type": 19, "word": "book", "translate": "书", "answer": ""}
+            ],
+            "id": 555
+        });
+        let meta = extract_meta(&pk_data);
+        assert_eq!(meta["stid"], 555);
+        assert_eq!(meta["structure_type"], "word_pk");
+        assert_eq!(meta["question_count"], 1);
     }
 }

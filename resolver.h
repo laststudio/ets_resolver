@@ -22,6 +22,7 @@ RESOLVER_EXPORT void nofile_mode(bool mode);
 
 /* 纯 JSON 解析接口，返回值均由 resolver_free_string 释放。 */
 RESOLVER_EXPORT char* parse_task(const char* content, const char* info, const char* content2);
+RESOLVER_EXPORT char* parse_word_pk(const char* pk_data);
 RESOLVER_EXPORT char* parse_batch(const char* tasks_json);
 RESOLVER_EXPORT char* group_by_time(const char* items_json, int64_t threshold_ms);
 RESOLVER_EXPORT char* extract_meta(const char* content);

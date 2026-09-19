@@ -14,26 +14,44 @@
 """
 import json
 
-from .collectors import parse_content, _stid_of
+from .collectors import (
+    parse_content, _stid_of, collect_word_pk,
+    build_pk_answer, build_pk_wrong_choice, build_pk_answer_text,
+)
 
 DEFAULT_TIME_THRESHOLD_MS = 2000
 
 
 def parse_task(content_str, info_str=None, content2_str=None):
-    """单任务解析: 输入 JSON 字符串, 返回题目列表 (list[dict])"""
+    """单任务解析: 输入 JSON 字符串或对象/数组, 返回题目列表 (list[dict])"""
     content = json.loads(content_str) if isinstance(content_str, str) else content_str
     content2 = json.loads(content2_str) if content2_str else None
     info = json.loads(info_str) if info_str else None
     return parse_content(content, content2, info)
 
 
+def parse_word_pk(content_data):
+    """词汇作业与单词 PK 解析: 输入 JSON 字符串或数据对象/列表, 返回题目列表"""
+    data = json.loads(content_data) if isinstance(content_data, str) else content_data
+    return collect_word_pk(data)
+
+
 def extract_meta(content_str):
     """元信息: {stid, structure_type, question_count}, 供前端排序/聚类参考"""
     content = json.loads(content_str) if isinstance(content_str, str) else content_str
     questions = parse_content(content, None, None)
+    if isinstance(content, list):
+        stid = content[0].get("word_id") or content[0].get("id") if (content and isinstance(content[0], dict)) else None
+        stype = "word_pk"
+    elif isinstance(content, dict):
+        stid = _stid_of(content) or content.get("id") or content.get("word_id")
+        stype = content.get("structure_type", "word_pk" if ("word_questions" in content or "data" in content) else "")
+    else:
+        stid = None
+        stype = ""
     return {
-        "stid": _stid_of(content),
-        "structure_type": content.get("structure_type", ""),
+        "stid": stid,
+        "structure_type": stype,
         "question_count": len(questions),
     }
 

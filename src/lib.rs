@@ -47,6 +47,19 @@ pub extern "C" fn parse_task(
     json_to_ptr(Value::Array(questions))
 }
 
+/// 单词 PK / 词汇作业解析: parse_word_pk(pk_data_json) -> 题目列表 JSON
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn parse_word_pk(pk_data: *const c_char) -> *mut c_char {
+    let pk_data = read_str(pk_data);
+    let data_val = match parse_json(&pk_data) {
+        Some(v) => v,
+        None => return json_to_ptr(Value::Null),
+    };
+    let questions = collectors::collect_word_pk(&data_val);
+    json_to_ptr(Value::Array(questions))
+}
+
 /// 批量解析: parse_batch("[{content, info?, content2?, order?}, ...]") -> {sections: [...]}
 #[cfg(not(target_os = "android"))]
 #[no_mangle]

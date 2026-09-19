@@ -8,7 +8,12 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from resolver_py import parse_task, parse_batch, extract_meta, group_by_time
+from resolver_py import (
+    parse_task, parse_batch, extract_meta, group_by_time, parse_word_pk,
+    build_pk_answer, build_pk_wrong_choice, build_pk_answer_text,
+    TYPE_PK_CHOOSE, TYPE_PK_WRITE, TYPE_PK_READ, TYPE_PK_DICTATION,
+    TYPE_PK_EN_CN, TYPE_PK_CN_EN,
+)
 from resolver_py.cleaner import strip_html, clean, split_br, split_keywords, \
     extract_ets_th, strip_ets_th, extract_global_no, strip_global_no
 
@@ -203,3 +208,123 @@ def test_parse_generic_std_based():
     qs = parse_task(json.dumps(content))
     assert len(qs) == 2
     assert qs[0]["answers"] == ["v1"]
+
+
+# ============ 单词 PK 与词汇作业 ============
+
+def test_pk_word_struct_nested():
+    """测试 word/struct 嵌套形态解析"""
+    data = {
+        "data": [
+            {
+                "id": 101,
+                "content": "apple",
+                "translate": "苹果",
+                "question": [
+                    {
+                        "id": 1001,
+                        "question_type": 19,
+                        "answer": "苹果",
+                        "translate": "苹果",
+                    },
+                    {
+                        "id": 1002,
+                        "question_type": 20,
+                        "answer": "apple",
+                        "word": "apple",
+                    }
+                ]
+            },
+            {
+                "id": 102,
+                "content": "banana",
+                "translate": "香蕉",
+                "question": [
+                    {
+                        "id": 1003,
+                        "question_type": 6,
+                        "answer": "B",
+                        "option": '[{"option_name":"A","option_value":"苹果"},{"option_name":"B","option_value":"香蕉"}]'
+                    }
+                ]
+            }
+        ]
+    }
+    qs = parse_word_pk(data)
+    assert len(qs) == 3
+    # 题 1: 英译中
+    assert qs[0]["type"] == TYPE_PK_EN_CN
+    assert qs[0]["question"] == "apple"
+    assert qs[0]["answers"] == ["苹果"]
+    assert qs[0]["word_id"] == 101
+    # 题 2: 中译英
+    assert qs[1]["type"] == TYPE_PK_CN_EN
+    assert qs[1]["question"] == "苹果"
+    assert qs[1]["answers"] == ["apple"]
+    # 题 3: 选择题
+    assert qs[2]["type"] == TYPE_PK_CHOOSE
+    assert qs[2]["answers"] == ["B"]
+    assert qs[2]["options"] == ["A. 苹果", "B. 香蕉"]
+
+
+def test_pk_types_all_coverage():
+    """测试各 PK 题型（6, 16, 17, 18, 19, 20）答案与题干提取"""
+    questions = [
+        {"id": 1, "question_type": 6, "word": "dog", "translate": "狗", "answer": "A", "option": [{"name": "A", "value": "狗"}]},
+        {"id": 2, "question_type": 16, "word": "cat", "translate": "猫", "answer": ""},
+        {"id": 3, "question_type": 17, "word": "bird", "translate": "鸟", "answer": ""},
+        {"id": 4, "question_type": 18, "word": "fish", "translate": "鱼", "answer": ""},
+        {"id": 5, "question_type": 19, "word": "book", "translate": "书", "answer": ""},
+        {"id": 6, "question_type": 20, "word": "pen", "translate": "钢笔", "answer": ""},
+    ]
+    qs = parse_word_pk({"word_questions": questions})
+    assert len(qs) == 6
+    assert qs[0]["type"] == TYPE_PK_CHOOSE and qs[0]["answers"] == ["A"]
+    assert qs[1]["type"] == TYPE_PK_WRITE and qs[1]["answers"] == ["cat"] and qs[1]["question"] == "猫"
+    assert qs[2]["type"] == TYPE_PK_READ and qs[2]["answers"] == ["bird"] and qs[2]["question"] == "bird"
+    assert qs[3]["type"] == TYPE_PK_DICTATION and qs[3]["answers"] == ["fish"] and qs[3]["question"] == "鱼"
+    assert qs[4]["type"] == TYPE_PK_EN_CN and qs[4]["answers"] == ["书"] and qs[4]["question"] == "book"
+    assert qs[5]["type"] == TYPE_PK_CN_EN and qs[5]["answers"] == ["pen"] and qs[5]["question"] == "钢笔"
+
+
+def test_pk_helpers():
+    """测试 build_pk_answer 与 build_pk_wrong_choice"""
+    q_info = {
+        "id": 888,
+        "word_id": 999,
+        "word": "orange",
+        "translate": "橙子",
+        "answer": "B",
+        "option": '[{"option_name":"A","option_value":"苹果"},{"option_name":"B","option_value":"橙子"}]'
+    }
+    ans = build_pk_answer(6, q_info)
+    assert ans == {"point": 1, "answer": "B", "word_id": 999, "question_id": 888}
+
+    wrong = build_pk_wrong_choice(q_info)
+    assert wrong == "A"
+
+    # 测试 option_value 匹配的错题生成
+    q_val_match = {
+        "answer": "橙子",
+        "option": [{"name": "A", "value": "苹果"}, {"name": "B", "value": "橙子"}]
+    }
+    assert build_pk_wrong_choice(q_val_match) == "苹果"
+
+
+def test_repeat_essay_sublist():
+    """测试 collector.repeat_essay 对 sublist 的逐句解析"""
+    content = {
+        "structure_type": "collector.repeat_essay",
+        "info": {
+            "stid": 1234,
+            "sublist": [
+                {"text": "Hello world."},
+                {"text": "Good morning."}
+            ]
+        }
+    }
+    qs = parse_task(json.dumps(content))
+    assert len(qs) == 2
+    assert qs[0]["question"] == "Hello world."
+    assert qs[1]["question"] == "Good morning."
+    assert qs[0]["type"] == "collector.repeat_essay"
