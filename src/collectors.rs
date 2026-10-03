@@ -582,8 +582,20 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
 
         let answers = if !ans_text.is_empty() { vec![ans_text] } else { Vec::new() };
 
+        // 题号：载荷里显式给了就用它（有些端会把全局题号带下来），否则用本任务内的下标。
+        // 关键点是 no_source 保持 "local"：parse_batch 合并多任务时会按任务顺序 _order 重排，
+        // 局部编号不会把不同任务的题目搅在一起。
+        let explicit_no = get_i64(
+            q.get("no")
+                .or_else(|| q.get("order"))
+                .or_else(|| q.get("sort"))
+                .unwrap_or(&Value::Null),
+        )
+        .filter(|n| *n > 0)
+        .unwrap_or((i + 1) as i64);
+
         questions.push(make_question(
-            Some((i + 1) as i64),
+            Some(explicit_no),
             Some("local"),
             qtype_str,
             if word_id > 0 { Some(word_id) } else { None },

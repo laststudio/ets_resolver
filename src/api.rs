@@ -75,13 +75,35 @@ fn assign_fallback_numbers(questions: &mut Vec<Value>) {
 
 fn order_questions_in_section(questions: &mut Vec<Value>) {
     let mut indexed: Vec<(usize, Value)> = questions.drain(..).enumerate().collect();
+
+    // word 类题型（单词 PK / 词汇）才启用"任务顺序优先"。
+    //
+    // 原因：PK 的 no 是**各任务内部**的局部编号（一个任务一道题时全是 1），
+    // 多个任务的题会被合并进同一个分节，只按 no 排就会退化成"按原始下标交叉"，
+    // 顺序看起来完全乱掉。其它题型（collector.*）的 no 是全局题号，且由
+    // assign_fallback_numbers 按数组顺序补号，改用任务顺序会和补号顺序打架，
+    // 所以它们维持原有行为不动。
+    let word_like = questions
+        .iter()
+        .any(|q| is_word_type(&get_str(q.get("type").unwrap_or(&Value::Null))));
+
     indexed.sort_by_key(|(i, q)| {
+        let task_order = if word_like {
+            q.get("_order").and_then(|v| v.as_i64()).unwrap_or(i64::MAX)
+        } else {
+            0
+        };
         match q.get("no").and_then(|v| v.as_i64()) {
-            Some(no) => (0, no, *i as i64),
-            None => (1, 0, *i as i64),
+            Some(no) => (0, task_order, no, *i as i64),
+            None => (1, task_order, 0, *i as i64),
         }
     });
     *questions = indexed.into_iter().map(|(_, q)| q).collect();
+}
+
+/// 是否为单词 PK / 词汇类题型（这些题型的 stid 是 word_id，不代表卷面结构顺序）
+fn is_word_type(qtype: &str) -> bool {
+    qtype.starts_with("word.") || qtype == crate::collectors::TYPE_WORD
 }
 
 /// 批量解析: tasks = [{content, info?, content2?, order?}, ...]
@@ -123,18 +145,38 @@ pub fn parse_batch(tasks: &[Value], sort_by_stid: bool) -> Value {
     }
     if sort_by_stid {
         parsed.sort_by_key(|(questions, order)| {
-            let stid = questions
-                .first()
+            let first = questions.first();
+            let stid = first
                 .and_then(|q| q.get("stid"))
                 .and_then(|v| v.as_i64())
                 .unwrap_or(i64::MAX);
-            (stid, *order)
+            let qtype = first
+                .and_then(|q| q.get("type"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if is_word_type(qtype) {
+                // 单词 PK / 词汇：stid 是 word_id，跟卷面顺序无关。
+                // 用调用方给的任务顺序，否则用户会看到"顺序完全乱了"。
+                (*order, stid)
+            } else {
+                // 其它题型：stid 是官方结构 id，用它还原卷面分节顺序。
+                (stid, *order)
+            }
         });
     }
 
     let mut sections: Vec<Value> = Vec::new();
-    for (questions, _) in &parsed {
+    for (questions, task_order) in &parsed {
         for q in questions {
+            // 打上来源任务序号，供分节内排序使用（解析结束时会被清掉）
+            let q = {
+                let mut q = q.clone();
+                if let Some(o) = q.as_object_mut() {
+                    o.insert("_order".into(), json!(*task_order));
+                }
+                q
+            };
+            let q = &q;
             let qtype = get_str(q.get("type").unwrap_or(&Value::Null));
             let last_is_same = sections
                 .last()
@@ -232,6 +274,84 @@ mod tests {
         assert_eq!(qs.len(), 2);
         assert_eq!(qs[0]["no"], 1);
         assert_eq!(qs[1]["no"], 2);
+    }
+
+    /// 单词 PK：调用方给的任务顺序必须胜出。
+    /// 回归背景：stid 在 PK 里是 word_id，早期用 (stid, order) 排序会把对战顺序打乱，
+    /// 用户看到的是"按 word_id 从小到大"而不是实际对战顺序。
+    #[test]
+    fn test_parse_batch_pk_keeps_caller_order() {
+        let mk = |wid: i64, word: &str| {
+            json!({
+                "content": {"data": [{"id": wid, "content": word, "translate": "译",
+                    "question": [{"id": wid + 100, "question_type": 6, "word": word,
+                                  "answer": "A", "option": [{"name": "A", "value": "甲"}]}]}]},
+                "order": 0
+            })
+        };
+        // 对战顺序故意不是 word_id 升序
+        let order = [(1003, "orange"), (1001, "apple"), (1005, "grape"), (1002, "banana")];
+        let mut tasks = Vec::new();
+        for (i, (wid, word)) in order.iter().enumerate() {
+            let mut t = mk(*wid, word);
+            t["order"] = json!(i);
+            tasks.push(t);
+        }
+        let result = parse_batch(&tasks, true);
+        let qs = result["sections"][0]["questions"].as_array().unwrap();
+        let got: Vec<i64> = qs.iter().map(|q| q["word_id"].as_i64().unwrap()).collect();
+        assert_eq!(got, vec![1003, 1001, 1005, 1002]);
+        // word_id / question_id 必须都在，提交时要按它们对应
+        assert_eq!(qs[0]["question_id"], 1103);   // wid + 100
+    }
+
+    /// 同一任务内部的题号顺序仍然生效（不能被 _order 抹平）。
+    #[test]
+    fn test_parse_batch_pk_keeps_intra_task_numbering() {
+        let tasks = vec![json!({
+            "content": {"word_questions": [
+                {"id": 11, "question_type": 6, "word": "a", "no": 2, "answer": "A", "option": [{"name": "A", "value": "x"}]},
+                {"id": 12, "question_type": 6, "word": "b", "no": 1, "answer": "A", "option": [{"name": "A", "value": "y"}]},
+            ]},
+            "order": 0
+        })];
+        let result = parse_batch(&tasks, true);
+        let qs = result["sections"][0]["questions"].as_array().unwrap();
+        assert_eq!(qs[0]["question_id"], 12);   // no=1 的在前
+        assert_eq!(qs[1]["question_id"], 11);
+    }
+
+    /// 非 word 题型维持原有行为：分节内按 stid 还原的卷面顺序，不受任务顺序影响。
+    #[test]
+    fn test_parse_batch_non_word_keeps_stid_order() {
+        let tasks = json!([
+            {"content": {"structure_type": "collector.fill", "info": {"stid": "30", "std": [{"xth": "1", "value": "c"}]}}, "order": 0},
+            {"content": {"structure_type": "collector.fill", "info": {"stid": "10", "std": [{"xth": "1", "value": "a"}]}}, "order": 1},
+            {"content": {"structure_type": "collector.fill", "info": {"stid": "20", "std": [{"xth": "1", "value": "b"}]}}, "order": 2},
+        ]);
+        let result = parse_batch(tasks.as_array().unwrap(), true);
+        let sections = result["sections"].as_array().unwrap();
+        assert_eq!(sections.len(), 1);   // 同类型合并成一个分节
+        let stids: Vec<i64> = sections[0]["questions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|q| q["stid"].as_i64().unwrap())
+            .collect();
+        assert_eq!(stids, vec![10, 20, 30]);   // 仍按 stid 还原卷面顺序
+    }
+
+    /// 合并后 _order 必须被清掉，不能泄漏给调用方。
+    #[test]
+    fn test_parse_batch_strips_internal_order_field() {
+        let tasks = vec![json!({
+            "content": {"word_questions": [{"id": 1, "question_type": 6, "word": "a", "answer": "A", "option": [{"name": "A", "value": "x"}]}]},
+            "order": 0
+        })];
+        let result = parse_batch(&tasks, true);
+        let q = &result["sections"][0]["questions"][0];
+        assert!(q.get("_order").is_none());
+        assert!(q.get("_no_source").is_none());
     }
 
     #[test]
