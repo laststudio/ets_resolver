@@ -204,7 +204,65 @@ fn split_on_br(text: &str) -> Vec<&str> {
 
 /// 剥 HTML 后 trim, 去零宽空格
 pub fn clean(text: &str) -> String {
-    strip_html(text).replace('\u{200b}', "").trim().to_string()
+    // 与后端 Python 的 clean_html_text 对齐：
+    //   1) <br> / <p> 这类换行标签 -> 空格（直接删掉会把前后单词粘在一起）
+    //   2) 其余标签去掉
+    //   3) 去掉零宽字符、折叠连续空白
+    // 之前只是 strip_html + trim，题干里残留的 "<br>" 会原样显示给用户。
+    let spaced = breaks_to_spaces(text);
+    let stripped = strip_html(&spaced);
+    let no_zw = stripped.replace('\u{200b}', "").replace('\u{feff}', "");
+    collapse_whitespace(&no_zw)
+}
+
+/// 把 <br> / <br/> / </br> / <p> / </p>（大小写与空格随意）换成空格
+fn breaks_to_spaces(input: &str) -> String {
+    if !input.contains('<') {
+        return input.to_string();
+    }
+    let chars: Vec<char> = input.chars().collect();
+    let n = chars.len();
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0usize;
+    while i < n {
+        if chars[i] == '<' {
+            if let Some(end) = chars[i..].iter().position(|c| *c == '>') {
+                let inner: String = chars[i + 1..i + end].iter().collect();
+                let name = inner
+                    .trim()
+                    .trim_start_matches('/')
+                    .trim_end_matches('/')
+                    .trim()
+                    .to_ascii_lowercase();
+                if name == "br" || name == "p" {
+                    out.push(' ');
+                    i += end + 1;
+                    continue;
+                }
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// 折叠所有连续空白（含换行/制表）为单个空格，并 trim
+fn collapse_whitespace(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut pending = false;
+    for ch in input.chars() {
+        if ch.is_whitespace() {
+            pending = !out.is_empty();
+            continue;
+        }
+        if pending {
+            out.push(' ');
+            pending = false;
+        }
+        out.push(ch);
+    }
+    out
 }
 
 /// 剥 HTML 后按行 trim 去空, 换行连接 (与 Python 一致: 先 strip_html)

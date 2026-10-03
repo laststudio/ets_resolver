@@ -88,7 +88,9 @@ fn make_question(
     q.insert("no".into(), no.map_or(Value::Null, |n| json!(n)));
     q.insert("type".into(), Value::String(qtype.to_string()));
     q.insert("stid".into(), stid.map_or(Value::Null, |s| json!(s)));
-    q.insert("question".into(), Value::String(question));
+    // 题干统一在这里清洗：早期只有部分题型走了 clean()，导致题干里残留 <br>，
+    // 而后端 Python 侧统一 clean_html_text —— 两边解析同一份资源会得到不同文本。
+    q.insert("question".into(), Value::String(clean(&question)));
     q.insert("answers".into(), json!(answers));
     q.insert("options".into(), json!(options));
     q.insert("important".into(), json!(important));
@@ -265,6 +267,38 @@ pub fn collect_question_based(
     result
 }
 
+/// `info.std[]` 直接成题的兜底（用于 info.question 缺失的 3q5a 等题型）。
+fn collect_std_only(content: &Value, qtype: &str) -> Vec<Value> {
+    let stid = stid_of(content);
+    let info = content.get("info").and_then(|v| v.as_object());
+    let std = info
+        .and_then(|o| o.get("std"))
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut result = Vec::new();
+    for (i, s) in std.iter().enumerate() {
+        let value = clean(&get_str(s.get("value").unwrap_or(&Value::Null)));
+        if value.is_empty() {
+            continue;
+        }
+        let no = get_i64(s.get("xth").unwrap_or(&Value::Null)).unwrap_or(i as i64 + 1);
+        result.push(make_question(
+            Some(no),
+            Some("local"),
+            qtype,
+            stid,
+            format!("问题 {}", i + 1),
+            vec![value],
+            Vec::new(),
+            Vec::new(),
+            None,
+        ));
+    }
+    result
+}
+
 pub fn collect_fill(content: &Value, _content2: Option<&Value>, _info: Option<&Value>) -> Vec<Value> {
     let stid = stid_of(content);
     let info = content.get("info").and_then(|v| v.as_object());
@@ -342,17 +376,58 @@ pub fn collect_read(content: &Value, _content2: Option<&Value>, _info: Option<&V
     let stid = stid_of(content);
     let info = content.get("info").and_then(|v| v.as_object());
     let important = split_br(&get_str(info.and_then(|o| o.get("analyze")).unwrap_or(&Value::Null)));
-    vec![make_question(
-        None,
-        None,
-        TYPE_READ,
-        stid,
-        clean_lines(&get_str(info.and_then(|o| o.get("value")).unwrap_or(&Value::Null))),
-        Vec::new(),
-        Vec::new(),
-        important,
-        None,
-    )]
+
+    // 朗读/复述类：答案就是朗读文本本身。
+    // 早期只把文本放进 question、answers 留空，后端（依赖 answers 取朗读文本）切换过来会
+    // 直接把"模仿朗读"的答案丢空 —— 双解析比对时就是这么发现的。
+    let mut texts: Vec<String> = Vec::new();
+    for key in ["sublist", "subList", "sentences"] {
+        if let Some(arr) = info.and_then(|o| o.get(key)).and_then(|v| v.as_array()) {
+            for item in arr {
+                let raw = match item {
+                    Value::Object(o) => o
+                        .get("text")
+                        .or_else(|| o.get("value"))
+                        .or_else(|| o.get("sentence"))
+                        .map(|v| get_str(v))
+                        .unwrap_or_default(),
+                    Value::String(s) => s.clone(),
+                    _ => String::new(),
+                };
+                let cleaned = clean(&raw);
+                if !cleaned.is_empty() {
+                    texts.push(cleaned);
+                }
+            }
+            if !texts.is_empty() {
+                break;
+            }
+        }
+    }
+    if texts.is_empty() {
+        // 单篇朗读：正文在 info.value
+        texts.push(clean(
+            &get_str(info.and_then(|o| o.get("value")).unwrap_or(&Value::Null)),
+        ));
+    }
+
+    texts
+        .into_iter()
+        .enumerate()
+        .map(|(i, text)| {
+            make_question(
+                Some((i + 1) as i64),
+                Some("local"),
+                TYPE_READ,
+                stid,
+                text.clone(),
+                vec![text],
+                Vec::new(),
+                important.clone(),
+                None,
+            )
+        })
+        .collect()
 }
 
 pub fn parse_pk_options(opt_val: &Value) -> Vec<String> {
@@ -396,8 +471,9 @@ pub fn collect_repeat_essay(content: &Value, content2: Option<&Value>, info: Opt
                     Some("local"),
                     TYPE_REPEAT_ESSAY,
                     stid,
-                    text,
-                    Vec::new(),
+                    text.clone(),
+                    vec![text],   // 复述题的答案就是复述文本
+
                     Vec::new(),
                     Vec::new(),
                     None,
@@ -900,7 +976,13 @@ pub fn parse_content(content: &Value, content2: Option<&Value>, info: Option<&Va
         return collect_picture(content, content2, info);
     }
     if QUESTION_TYPES.contains(&st) {
-        return collect_question_based(content, content2, info, Some(st));
+        let parsed = collect_question_based(content, content2, info, Some(st));
+        if !parsed.is_empty() {
+            return parsed;
+        }
+        // 有些资源包把题目直接放在 info.std[]（没有 info.question[]），
+        // 早期这里会整个题型解析为空 —— 补一个兜底，答案取 std[].value。
+        return collect_std_only(content, st);
     }
     if st.contains("repeat") || st.contains("essay") || st.contains("dialogue") || st.contains("role") {
         return collect_question_based(content, content2, info, Some(st));

@@ -480,6 +480,62 @@ mod tests {
         assert_eq!(got, vec![1001, 1002, 1003]);
     }
 
+    /// 朗读/复述题的答案必须带上朗读文本（后端靠 answers 取文本，早期这里是空的）。
+    #[test]
+    fn test_read_and_repeat_essay_emit_answer_text() {
+        let passage = "Hello, this is the reading passage.";
+        for stype in ["collector.read", "collector.repeat_essay"] {
+            let content = json!({"structure_type": stype, "info": {"stid": 11, "value": passage}});
+            let qs = crate::collectors::collect_word_pk(&content); // 走通用入口不方便，这里直接验 collect_read/essay
+            let _ = qs;
+        }
+        let read = json!({"structure_type": "collector.read", "info": {"stid": 11, "value": passage}});
+        let qs = crate::collectors::collect_read(&read, None, None);
+        assert_eq!(qs.len(), 1);
+        assert_eq!(qs[0]["answers"][0], passage);
+        assert_eq!(qs[0]["question"], passage);
+
+        let essay = json!({"structure_type": "collector.repeat_essay",
+                           "info": {"stid": 12, "sublist": [{"text": passage}]}});
+        let qs2 = crate::collectors::collect_repeat_essay(&essay, None, None);
+        assert_eq!(qs2.len(), 1);
+        assert_eq!(qs2[0]["answers"][0], passage);
+    }
+
+    /// collector.read 带 sublist 时一个条目一题（与后端 Python 实现一致）。
+    #[test]
+    fn test_read_sublist_produces_one_question_per_item() {
+        let content = json!({"structure_type": "collector.read",
+                             "info": {"stid": 13, "sublist": [{"text": "First."}, {"text": "Second."}]}});
+        let qs = crate::collectors::collect_read(&content, None, None);
+        assert_eq!(qs.len(), 2);
+        assert_eq!(qs[0]["answers"][0], "First.");
+        assert_eq!(qs[1]["answers"][0], "Second.");
+        assert_eq!(qs[0]["no"], 1);
+        assert_eq!(qs[1]["no"], 2);
+    }
+
+    /// 3q5a 这类只有 info.std[] 的资源包不能整个题型解析为空。
+    #[test]
+    fn test_3q5a_falls_back_to_info_std() {
+        let content = json!({"structure_type": "collector.3q5a",
+                             "info": {"stid": 17, "std": [{"xth": 1, "value": "Answer one."},
+                                                          {"xth": 2, "value": "Answer two."}]}});
+        let qs = parse_task(&content, None, None);
+        assert_eq!(qs.len(), 2);
+        assert_eq!(qs[0]["answers"][0], "Answer one.");
+        assert_eq!(qs[0]["question"], "问题 1");
+    }
+
+    /// 题干清洗：<br>/<p> 变空格、折叠空白 —— 不能残留标签，也不能把单词粘一起。
+    #[test]
+    fn test_question_text_cleans_break_tags() {
+        let content = json!({"structure_type": "collector.role", "info": {"stid": 21, "question": [
+            {"ask": "ets_th1 What is Lisa reading?<br>(A / B / C)", "std": [{"value": "A"}]}]}});
+        let qs = parse_task(&content, None, None);
+        assert_eq!(qs[0]["question"], "What is Lisa reading? (A / B / C)");
+    }
+
     #[test]
     fn test_extract_meta_pk() {
         let pk_data = json!({
