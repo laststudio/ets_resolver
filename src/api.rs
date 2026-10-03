@@ -354,6 +354,56 @@ mod tests {
         assert!(q.get("_no_source").is_none());
     }
 
+    /// 载荷带显式 word_ids / question_ids 时，以它为准（客户端对战顺序的权威来源）。
+    #[test]
+    fn test_pk_honours_explicit_word_ids_sequence() {
+        let data = (1001..=1005)
+            .map(|wid| {
+                json!({"id": wid, "content": format!("w{}", wid), "translate": "译",
+                       "question": [{"id": wid + 100, "question_type": 6, "word": format!("w{}", wid),
+                                     "answer": "A", "option": [{"name": "A", "value": "甲"}]}]})
+            })
+            .collect::<Vec<_>>();
+        // 服务端按 id 升序返回，但真实对战顺序是 1003_1001_1005_1002_1004
+        let content = json!({
+            "data": data,
+            "word_ids": "1003_1001_1005_1002_1004",
+            "question_ids": "203_201_205_202_204",
+        });
+        let questions = crate::collectors::collect_word_pk(&content);
+        let got: Vec<i64> = questions.iter().map(|q| q["word_id"].as_i64().unwrap()).collect();
+        assert_eq!(got, vec![1003, 1001, 1005, 1002, 1004]);
+        // 重排后题号重新连续编号
+        let nos: Vec<i64> = questions.iter().map(|q| q["no"].as_i64().unwrap()).collect();
+        assert_eq!(nos, vec![1, 2, 3, 4, 5]);
+    }
+
+    /// 数组形式也认；且对不上号时不能把顺序搞得更乱。
+    #[test]
+    fn test_pk_explicit_order_array_form_and_safe_fallback() {
+        let data = (7..=8)
+            .map(|wid| {
+                json!({"id": wid, "content": format!("w{}", wid), "translate": "译",
+                       "question": [{"id": wid + 100, "question_type": 6, "word": format!("w{}", wid),
+                                     "answer": "A", "option": [{"name": "A", "value": "甲"}]}]})
+            })
+            .collect::<Vec<_>>();
+        let ok = json!({"data": data.clone(), "word_ids": [8, 7]});
+        let got: Vec<i64> = crate::collectors::collect_word_pk(&ok)
+            .iter()
+            .map(|q| q["word_id"].as_i64().unwrap())
+            .collect();
+        assert_eq!(got, vec![8, 7]);
+
+        // 序列里的 id 跟题目完全对不上：保持原顺序，不重排
+        let bad = json!({"data": data, "word_ids": "999_998"});
+        let got2: Vec<i64> = crate::collectors::collect_word_pk(&bad)
+            .iter()
+            .map(|q| q["word_id"].as_i64().unwrap())
+            .collect();
+        assert_eq!(got2, vec![7, 8]);
+    }
+
     #[test]
     fn test_extract_meta_pk() {
         let pk_data = json!({

@@ -607,7 +607,76 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
         ));
     }
 
+    apply_explicit_pk_order(&mut questions, content, root);
     questions
+}
+
+/// 按载荷里显式给出的 id 顺序重排（客户端对战顺序的权威来源）。
+///
+/// 依据逆向出的 PK 链路：`/g/pk/start-word-pk` 用 `word_ids` / `question_ids`
+/// （下划线或逗号拼接，也接受数组）确定本轮对战顺序；服务端 `/word/struct` 返回的
+/// data 顺序并不保证与之相同，所以只要载荷带了这个序列，就以它为准。
+fn apply_explicit_pk_order(questions: &mut Vec<Value>, content: &Value, root: &Value) {
+    let pick_seq = |key: &str| -> Vec<i64> {
+        for holder in [content, root] {
+            if let Some(v) = holder.get(key) {
+                if let Some(arr) = v.as_array() {
+                    let ids: Vec<i64> = arr.iter().filter_map(|x| get_i64(x)).collect();
+                    if !ids.is_empty() {
+                        return ids;
+                    }
+                }
+                if let Some(s) = v.as_str() {
+                    let ids: Vec<i64> = s
+                        .split(|c| c == '_' || c == ',' || c == ' ')
+                        .filter_map(|t| t.trim().parse::<i64>().ok())
+                        .collect();
+                    if !ids.is_empty() {
+                        return ids;
+                    }
+                }
+            }
+        }
+        Vec::new()
+    };
+
+    let word_order = pick_seq("word_ids");
+    let question_order = pick_seq("question_ids");
+    if word_order.is_empty() && question_order.is_empty() {
+        return;
+    }
+
+    let rank_of = |id: i64, seq: &[i64]| -> i64 {
+        seq.iter().position(|x| *x == id).map(|p| p as i64).unwrap_or(i64::MAX)
+    };
+
+    let mut keyed: Vec<(i64, i64, usize, Value)> = questions
+        .drain(..)
+        .enumerate()
+        .map(|(i, q)| {
+            let wid = q.get("word_id").and_then(|v| v.as_i64()).unwrap_or(0);
+            let qid = q.get("question_id").and_then(|v| v.as_i64()).unwrap_or(0);
+            let w_rank = if word_order.is_empty() { 0 } else { rank_of(wid, &word_order) };
+            let q_rank = if question_order.is_empty() { 0 } else { rank_of(qid, &question_order) };
+            (w_rank, q_rank, i, q)
+        })
+        .collect();
+    keyed.sort_by_key(|(w_rank, q_rank, i, _)| (*w_rank, *q_rank, *i));
+
+    // 只有真的能对上号（不是所有 rank 都是 MAX）才采用，避免用了错字段把顺序搞得更乱
+    let matched = keyed
+        .iter()
+        .any(|(w, q, _, _)| *w != i64::MAX || *q != i64::MAX);
+    if !matched {
+        return;
+    }
+
+    *questions = keyed.into_iter().map(|(_, _, _, q)| q).collect();
+    for (i, q) in questions.iter_mut().enumerate() {
+        if let Some(o) = q.as_object_mut() {
+            o.insert("no".into(), json!((i + 1) as i64));
+        }
+    }
 }
 
 pub fn collect_generic(
