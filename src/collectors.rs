@@ -608,7 +608,135 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
     }
 
     apply_explicit_pk_order(&mut questions, content, root);
+    apply_pk_type_filter(&mut questions, content, root);
+    apply_deterministic_pk_order(&mut questions, content, root);
     questions
+}
+
+/// 没有显式顺序时的确定性排序。
+///
+/// `/word/struct` 在服务端是按 id 集合（WHERE id IN …）或缓存切片批量取的，
+/// **不承诺与传入顺序一致**；官方客户端自己也只把它当 Map 用（SyncWordResourceHelper.o）
+/// 再按本地列表回填。所以这里给一个稳定可复现的顺序（word_id → question_id），
+/// 免得同一份数据两次解析给出不同顺序，看起来就像"乱序"。
+fn apply_deterministic_pk_order(questions: &mut Vec<Value>, content: &Value, root: &Value) {
+    if has_explicit_pk_order(content, root) {
+        return;   // 调用方给了顺序就别覆盖
+    }
+    let mut keyed: Vec<(i64, i64, usize, Value)> = questions
+        .drain(..)
+        .enumerate()
+        .map(|(i, q)| {
+            let wid = q.get("word_id").and_then(|v| v.as_i64()).unwrap_or(i64::MAX);
+            let qid = q.get("question_id").and_then(|v| v.as_i64()).unwrap_or(i64::MAX);
+            (wid, qid, i, q)
+        })
+        .collect();
+    keyed.sort_by_key(|(wid, qid, i, _)| (*wid, *qid, *i));
+    *questions = keyed.into_iter().map(|(_, _, _, q)| q).collect();
+}
+
+fn has_explicit_pk_order(content: &Value, root: &Value) -> bool {
+    for holder in [content, root] {
+        for key in ["word_ids", "question_ids"] {
+            if let Some(v) = holder.get(key) {
+                let non_empty = match v {
+                    Value::Array(a) => !a.is_empty(),
+                    Value::String(s) => !s.trim().is_empty(),
+                    _ => false,
+                };
+                if non_empty {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// PK 模式：官方客户端 `WordBattleViewModel.B0()` 里 `this.k`（是否比赛模式）
+fn pk_is_match_mode(content: &Value, root: &Value) -> bool {
+    for holder in [content, root] {
+        if let Some(v) = holder.get("pk_mode").or_else(|| holder.get("mode")) {
+            if let Some(s) = v.as_str() {
+                if s.eq_ignore_ascii_case("match") || s.eq_ignore_ascii_case("battle_match") {
+                    return true;
+                }
+                if s.eq_ignore_ascii_case("homework") || s.eq_ignore_ascii_case("pk") {
+                    return false;
+                }
+            }
+        }
+        if let Some(v) = holder.get("is_match").and_then(|v| v.as_bool()) {
+            return v;
+        }
+        // start-word-pk 的 source：1 = 普通/词汇作业，3 = 竞赛
+        if let Some(src) = get_i64(holder.get("source").unwrap_or(&Value::Null)) {
+            return src == 3;
+        }
+    }
+    false
+}
+
+/// 是否处于"对战 PK"场景（只有对战才做题型过滤，词汇作业不能过滤）。
+fn pk_is_battle(content: &Value, root: &Value) -> bool {
+    for holder in [content, root] {
+        if let Some(v) = holder.get("pk_mode").or_else(|| holder.get("mode")).and_then(|v| v.as_str()) {
+            let v = v.to_ascii_lowercase();
+            if v.contains("battle") || v.contains("pk") || v == "match" || v == "homework" {
+                return true;
+            }
+        }
+        // pk-info 的响应特征：有 serialId / opponent 就是对战
+        if holder.get("serialId").is_some()
+            || holder.get("serial_id").is_some()
+            || holder.get("opponent").is_some()
+            || holder.get("mine").is_some()
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// 按官方客户端一致的口径过滤 PK 题型。
+///
+/// `WordBattleViewModel.B0()` 对 structList 做了强行过滤：
+///   普通 PK 作业：只保留 `isTypeEnToCn`（题型 19 英选汉），听选 6 / 拼写 16 / 听读 17/18
+///                 直接从题目列表 `it2.remove()` 移除 —— 它们**根本不会出现在 PK 里**；
+///   竞赛模式（this.k）：保留 19（英选汉）+ 20（汉选英）。
+///
+/// 不过滤的后果：解析出来的题量比官方 PK 实际问的更多，题号/顺序自然对不上，
+/// 用户看到的就是"顺序完全乱了"。词汇作业（非对战）不做过滤。
+fn apply_pk_type_filter(questions: &mut Vec<Value>, content: &Value, root: &Value) {
+    if !pk_is_battle(content, root) {
+        return;
+    }
+    let is_match = pk_is_match_mode(content, root);
+    let keep = |q: &Value| -> bool {
+        let qtype = get_i64(q.get("question_type").unwrap_or(&Value::Null))
+            .or_else(|| {
+                // 解析后 question_type 可能已经不在，退回看 type 字符串
+                match q.get("type").and_then(|v| v.as_str()) {
+                    Some(TYPE_PK_EN_CN) => Some(19),
+                    Some(TYPE_PK_CN_EN) => Some(20),
+                    _ => None,
+                }
+            })
+            .unwrap_or(0);
+        if is_match {
+            qtype == 19 || qtype == 20
+        } else {
+            qtype == 19
+        }
+    };
+
+    let filtered: Vec<Value> = questions.iter().filter(|q| keep(q)).cloned().collect();
+    // 安全阀：过滤后一条不剩说明判断有误（例如纯拼写词汇作业被当成对战），
+    // 此时保持原样，宁可多解析也不能把整份作业清空。
+    if !filtered.is_empty() {
+        *questions = filtered;
+    }
 }
 
 /// 按载荷里显式给出的 id 顺序重排（客户端对战顺序的权威来源）。

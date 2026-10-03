@@ -404,6 +404,82 @@ mod tests {
         assert_eq!(got2, vec![7, 8]);
     }
 
+    /// 对战 PK 只保留题型 19（英选汉）——官方 B0() 对听选 6 / 拼写 16 / 听读 17/18 直接 remove。
+    /// 不过滤就会解析出官方 PK 根本不问的题，题量/顺序全对不上。
+    #[test]
+    fn test_pk_battle_filters_to_en_to_cn_only() {
+        let content = json!({
+            "pk_mode": "battle",
+            "data": [{"id": 1001, "content": "abandon", "translate": "放弃",
+                "question": [
+                    {"id": 2001, "question_type": 19, "word": "abandon", "translate": "放弃",
+                     "answer": "放弃", "option": [{"name": "A", "value": "放弃"}]},
+                    {"id": 2002, "question_type": 16, "word": "abandon", "translate": "放弃", "answer": "abandon"},
+                    {"id": 2003, "question_type": 6, "word": "abandon", "translate": "放弃",
+                     "answer": "放弃", "option": [{"name": "A", "value": "放弃"}]},
+                    {"id": 2004, "question_type": 17, "word": "abandon", "translate": "放弃", "answer": "abandon"}
+                ]}]
+        });
+        let qs = crate::collectors::collect_word_pk(&content);
+        let ids: Vec<i64> = qs.iter().map(|q| q["question_id"].as_i64().unwrap()).collect();
+        assert_eq!(ids, vec![2001]);           // 只剩英选汉
+    }
+
+    /// 竞赛模式保留 19 + 20（isTypeEnToCn() || isTypeCnToEn()）。
+    #[test]
+    fn test_pk_match_mode_keeps_both_translate_types() {
+        let content = json!({
+            "pk_mode": "match",
+            "data": [{"id": 1, "content": "book", "translate": "书",
+                "question": [
+                    {"id": 11, "question_type": 19, "word": "book", "translate": "书", "answer": "书"},
+                    {"id": 12, "question_type": 20, "word": "book", "translate": "书", "answer": "book"},
+                    {"id": 13, "question_type": 16, "word": "book", "translate": "书", "answer": "book"}
+                ]}]
+        });
+        let qs = crate::collectors::collect_word_pk(&content);
+        let ids: Vec<i64> = qs.iter().map(|q| q["question_id"].as_i64().unwrap()).collect();
+        assert_eq!(ids, vec![11, 12]);
+    }
+
+    /// 词汇作业（非对战）绝不能过滤：拼写/朗读/听写正是它的正题。
+    #[test]
+    fn test_vocabulary_homework_is_not_filtered() {
+        let content = json!({
+            "data": [{"id": 1, "content": "book", "translate": "书",
+                "question": [
+                    {"id": 11, "question_type": 16, "word": "book", "translate": "书", "answer": "book"},
+                    {"id": 12, "question_type": 17, "word": "book", "translate": "书", "answer": "book"},
+                    {"id": 13, "question_type": 19, "word": "book", "translate": "书", "answer": "书"}
+                ]}]
+        });
+        let qs = crate::collectors::collect_word_pk(&content);
+        assert_eq!(qs.len(), 3);
+    }
+
+    /// 过滤后一条不剩时不许把题目清空（安全阀）。
+    #[test]
+    fn test_pk_filter_keeps_original_when_everything_would_be_removed() {
+        let content = json!({
+            "pk_mode": "battle",
+            "data": [{"id": 1, "content": "book", "translate": "书",
+                "question": [{"id": 11, "question_type": 16, "word": "book", "translate": "书", "answer": "book"}]}]
+        });
+        let qs = crate::collectors::collect_word_pk(&content);
+        assert_eq!(qs.len(), 1);   // 宁可不过滤，也不能返回空
+    }
+
+    /// 没有显式顺序时给确定性排序（/word/struct 不承诺顺序，两次调用不该不同）。
+    #[test]
+    fn test_pk_deterministic_order_without_explicit_ids() {
+        let mk = |wid: i64| json!({"id": wid, "content": "w", "translate": "译",
+            "question": [{"id": wid * 10, "question_type": 19, "word": "w", "translate": "译", "answer": "译"}]});
+        let content = json!({"pk_mode": "battle", "data": [mk(1003), mk(1001), mk(1002)]});
+        let qs = crate::collectors::collect_word_pk(&content);
+        let got: Vec<i64> = qs.iter().map(|q| q["word_id"].as_i64().unwrap()).collect();
+        assert_eq!(got, vec![1001, 1002, 1003]);
+    }
+
     #[test]
     fn test_extract_meta_pk() {
         let pk_data = json!({
