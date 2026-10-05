@@ -42,6 +42,12 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "tag=v${VER}-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up JDK 21 (for the host JNI smoke test)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install Rust (stable) + Android target
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -49,6 +55,12 @@ jobs:
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
+
+      - name: Host JNI smoke test (no device required)
+        run: |
+          # 验证 JNI_OnLoad 动态注册、方法签名与全部 JNI 方法体（含完整性校验）
+          # 该步骤不依赖 Android 设备，用宿主 so + argv[0] 伪装通过 cmdline 校验
+          ./tools/jni_probe/run.sh
 
       - name: Build Android arm64 resolver/cloud SOs (strong hardening)
         run: |

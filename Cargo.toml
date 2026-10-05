@@ -10,6 +10,9 @@ resolver = "2"
 [features]
 default = []
 cloud-library = []
+# 仅用于**宿主侧 JNI 冒烟测试**（tools/jni_probe）：让 Android JNI 桥在 x86_64 上也能编译。
+# 发布流程（CI / cargo ndk）从不启用它，因此产物里的 Android so 完全不受影响。
+_jni-host-test = ["dep:jni"]
 
 [lib]
 name = "resolver"
@@ -33,6 +36,11 @@ getrandom = "0.2"
 # Android JNI 桥 (Fe-pro 调用)
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
+
+# 宿主侧 JNI 冒烟测试（tools/jni_probe）：仅在显式启用 _jni-host-test 时拉 jni。
+# 该 feature 不参与任何发布构建，Android/iOS/后端产物完全不受影响。
+[target.'cfg(not(target_os = "android"))'.dependencies]
+jni = { version = "0.21", optional = true }
 
 [profile.release]
 #opt-level = "z"

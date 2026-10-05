@@ -365,7 +365,8 @@ pub extern "C" fn parse_batch_authorized(tasks_json: *const c_char) -> *mut c_ch
 
 // ============== Android JNI 桥 ==============
 
-#[cfg(target_os = "android")]
+// Android 走 JNI；宿主侧用 `--features _jni-host-test` 也能编译，仅用于 tools/jni_probe 冒烟测试
+#[cfg(any(target_os = "android", feature = "_jni-host-test"))]
 mod jni_bridge;
 
 // ============== 工具 ==============
