@@ -53,15 +53,32 @@ fn every_official_collect_family_is_known_to_spec() {
         );
         seen.insert(collect.to_string());
     }
-    // 实测这批模板覆盖到 9 个家族；数量变化说明官方题库结构变了，值得看一眼
+    // 实测 469 套真实模板覆盖到 10 个家族（数量变化说明官方题库结构变了，值得看一眼）
     assert_eq!(
         seen.len(),
-        9,
+        10,
         "官方 collect 家族数量变化（现在 {seen:?}），请核对 fixture 与 spec"
     );
-    assert!(seen.contains("collector.choose"));
-    assert!(seen.contains("collector.picture"));
-    assert!(seen.contains("collector.repeat_essay"));
+    for family in [
+        "collector.choose",
+        "collector.read",
+        "collector.role",
+        "collector.picture",
+        "collector.fill",
+        "collector.dialogue",
+        "collector.word",
+        "collector.repeat",
+        "collector.repeat_dialogue",
+        "collector.repeat_essay",
+    ] {
+        assert!(seen.contains(family), "缺少家族 {family}");
+    }
+    // 最近一次宽扫（248 套）新增 29 组映射；映射总数应随抽样持续增长
+    assert!(
+        map["pairs"].as_array().unwrap().len() >= 150,
+        "实证映射至少应有 150 组（两次抽样合并后）"
+    );
+    assert_eq!(map["templates_parsed"], 469, "模板解析总数（两次抽样合计）");
 }
 
 #[test]
