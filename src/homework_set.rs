@@ -76,11 +76,58 @@ fn read_packages(value: &Value) -> Vec<Package> {
         .collect()
 }
 
-/// 把某个包挂到模板的哪一节：先按 `exam_type_collect` 精确匹配，
-/// 再按官方题型表的 handler 家族兜底（例如 `read_passage_standard` 与 `collector.read`
-/// 同属朗读家族，可挂到同一大题）。
+/// 归一化大题名，用于"无模板时按大题分组"与"有模板时按中文名挂载"。
+///
+/// 真实数据形态：同一个大题会被拆成多个包，名字带序号 ——
+/// 广东 30 分卷的 `听选信息1/听选信息2/听选信息3` 同属"听选信息"大题（各 2 题，合计 6 题）。
+/// 因此必须去掉尾部序号与空白后比较，否则要么把三个包拆成三节，要么按 structure_type
+/// 把"听选信息/回答问题/询问信息"（同为 `collector.role`）错误地并成一节。
+pub fn normalize_section_name(raw: &str) -> String {
+    let trimmed = raw
+        .trim()
+        .trim_matches(|c: char| c == '\u{3000}' || c.is_whitespace());
+    // 去掉尾部序号：阿拉伯数字、全角数字、以及 `_1` / `-1` / `(1)` 之类的收尾
+    let mut s: String = trimmed
+        .trim_end_matches(|c: char| c.is_ascii_digit() || ('０'..='９').contains(&c))
+        .trim_end_matches(['_', '-', ' ', '（', '('])
+        .trim()
+        .to_string();
+    if s.is_empty() {
+        s = trimmed.to_string();
+    }
+    s
+}
+
+fn package_key(pkg: &Package) -> String {
+    let normalized = normalize_section_name(&pkg.group_name);
+    if !normalized.is_empty() {
+        return normalized;
+    }
+    if !pkg.structure_type.is_empty() {
+        return pkg.structure_type.clone();
+    }
+    format!("#{}", pkg.index)
+}
+
+/// 把某个包挂到模板的哪一节。匹配优先级（真实数据标定）：
+///   1. 归一化大题名 == `exam_type_name`（广东卷的 group_name 就是官方大题中文名，最可靠）
+///   2. `structure_type` == `exam_type_collect`
+///   3. handler 家族相同（例如 read_passage_standard 与 collector.read 同属朗读家族）
 fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
     let sections = template.get("sections")?.as_array()?;
+
+    let pkg_name = normalize_section_name(&pkg.group_name);
+    if !pkg_name.is_empty() {
+        if let Some(idx) = sections.iter().position(|s| {
+            s.get("exam_type_name")
+                .and_then(|v| v.as_str())
+                .map(|n| normalize_section_name(n) == pkg_name)
+                .unwrap_or(false)
+        }) {
+            return Some(idx);
+        }
+    }
+
     if !pkg.structure_type.is_empty() {
         if let Some(idx) = sections.iter().position(|s| {
             s.get("exam_type_collect")
@@ -91,6 +138,7 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
             return Some(idx);
         }
     }
+
     // 家族兜底：拿两边的 handler
     let pkg_family = crate::spec::find_structure_type(&pkg.structure_type)
         .and_then(|s| s.handler)
@@ -214,11 +262,10 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
         None => {
             sorted.sort_by_key(|p| (p.order, p.index));
             for pkg in sorted.iter() {
-                let key = if pkg.structure_type.is_empty() {
-                    pkg.group_name.clone()
-                } else {
-                    pkg.structure_type.clone()
-                };
+                // 无模板时按"归一化大题名"分组：同一大题被拆成多个包（听选信息1/2/3）
+                // 要合并成一节；不同大题即使是同一个 structure_type（collector.role）
+                // 也必须分开。
+                let key = package_key(pkg);
                 if let Some(existing) = sections.iter_mut().find(|s| s.key == key) {
                     existing.packages.push(pkg.clone());
                 } else {
@@ -227,7 +274,7 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                         caption: if pkg.group_name.is_empty() {
                             key.clone()
                         } else {
-                            pkg.group_name.clone()
+                            normalize_section_name(&pkg.group_name)
                         },
                         structure_type: pkg.structure_type.clone(),
                         template_index: None,

@@ -1,0 +1,73 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 49066,
+      "question": "请你准备第一个问题。 1. 我们将会在哪里吃午餐？",
+      "answers": [
+        "Where will we have lunch?",
+        "Where are we going to have lunch?",
+        "Which place will we have lunch in?",
+        "Which place are we going to have lunch in?",
+        "Where will we plan to have lunch?",
+        "Where are we planning to have lunch?",
+        "Where shall we have lunch?",
+        "Where shall we eat lunch?"
+      ],
+      "options": [],
+      "important": [
+        "Where will we have lunch",
+        "Where are we going to have lunch",
+        "Which place will we have lunch in",
+        "Which place are we going to have lunch in",
+        "Where will we plan to have lunch",
+        "Where are we planing to have lunch"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.role",
+      "stid": 49066,
+      "question": "请你准备第二个问题。 2. 我们将会在博物馆参观多长时间？",
+      "answers": [
+        "How long will we visit in the museum?",
+        "How much time will we spend visiting in the museum?",
+        "How long will we spend visiting in the museum?",
+        "How much time will we visit the museum?",
+        "How long will we take a visit in the museum?",
+        "How much time will we take a visit in the museum?",
+        "How long are we going to stay in the museum for a visit?",
+        "How long will we stay in the museum for a visit?",
+        "How long will we spend in visiting the museum?",
+        "How long will we spend visiting the museum?",
+        "How much time will we spend in visiting the museum?",
+        "How much time will we spend visiting the museum??",
+        "How long will we spend on the visit to the museum?",
+        "How much time will we spend on the visit to the museum?"
+      ],
+      "options": [],
+      "important": [
+        "How long visit museum",
+        "How much time spend visiting museum",
+        "How long spend visiting museum",
+        "How much time visit museum",
+        "How long visit museum",
+        "How much time visit museum",
+        "How long stay museum visit",
+        "How long spend visiting museum",
+        "How much time spend visiting museum",
+        "How long spend visit museum",
+        "How much time spend visit museum"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ],
+  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+}

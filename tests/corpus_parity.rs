@@ -41,6 +41,10 @@ const OFFICIAL_SOURCES: [&str; 4] = [
     "manual_reviewed",
 ];
 
+/// 与官方无关、但**有独立参照物**的 golden：目前是"后端 Python 兜底实现"的产出。
+/// 它锁的是"两个实现是否一致"，不等于"与官方 UI 一致"，所以单独统计。
+const REFERENCE_SOURCES: [&str; 1] = ["python_reference"];
+
 fn corpus_root() -> PathBuf {
     std::env::var("PARITY_CORPUS")
         .map(PathBuf::from)
@@ -233,6 +237,8 @@ fn corpus_parity() {
                         ("failed", Some(source))
                     } else if OFFICIAL_SOURCES.contains(&source.as_str()) {
                         ("verified", Some(source))
+                    } else if REFERENCE_SOURCES.contains(&source.as_str()) {
+                        ("reference_diff", Some(source))
                     } else {
                         // 自录的 golden 与 resolver 输出当然一致，不能当一致性证据。
                         ("self_recorded", Some(source))
@@ -286,12 +292,16 @@ fn corpus_parity() {
         .iter()
         .filter(|o| o.status == "self_recorded")
         .count();
+    let reference_diff = outcomes
+        .iter()
+        .filter(|o| o.status == "reference_diff")
+        .count();
     let updated = outcomes.iter().filter(|o| o.status == "updated").count();
     let missing = outcomes.iter().filter(|o| o.status == "missing_golden").count();
     let failed = outcomes.iter().filter(|o| o.status == "failed").count();
     println!(
-        "\n合计: verified={verified} self_recorded={self_recorded} updated={updated} \
-         missing_golden={missing} failed={failed}"
+        "\n合计: verified={verified} reference_diff={reference_diff} self_recorded={self_recorded} \
+         updated={updated} missing_golden={missing} failed={failed}"
     );
     let official_ratio = if outcomes.is_empty() {
         0.0
@@ -318,6 +328,7 @@ fn corpus_parity() {
             "corpus": root.to_string_lossy(),
             "total": outcomes.len(),
             "verified": verified,
+            "reference_diff": reference_diff,
             "self_recorded": self_recorded,
             "official_ratio_percent": (official_ratio * 10.0).round() / 10.0,
             "updated": updated,

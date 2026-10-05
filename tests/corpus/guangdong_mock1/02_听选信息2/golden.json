@@ -1,0 +1,51 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 3,
+      "type": "collector.role",
+      "stid": 49067,
+      "question": "From whom is the telephone? (Mr. Brown. / Mr. Brown’s wife. / Tim Black.)",
+      "answers": [
+        "It is from Tim Black.",
+        "The telephone is from Tim Black.",
+        "It’s from Tim Black.",
+        "From Tim Black.",
+        "Tim Black."
+      ],
+      "options": [],
+      "important": [
+        "Tim Black"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    },
+    {
+      "no": 4,
+      "type": "collector.role",
+      "stid": 49067,
+      "question": "When will the man go to Britain? (This Monday. / Next Sunday. / Next Monday.)",
+      "answers": [
+        "He will go to Britain next Monday.",
+        "The man will go to Britain next Monday.",
+        "He’ll go to Britain next Monday.",
+        "He will go there next Monday.",
+        "He’ll go there next Monday.",
+        "The man will go there next Monday.",
+        "He will leave for Britain next Monday.",
+        "He’ll leave for Britain next Monday.",
+        "The man will leave for Britain next Monday.",
+        "Next Monday."
+      ],
+      "options": [],
+      "important": [
+        "Next Monday"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    }
+  ],
+  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+}

@@ -1,0 +1,133 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 7,
+      "type": "collector.role",
+      "stid": 49064,
+      "question": "When did Frank learn how to ride a bike?",
+      "answers": [
+        "When he was only three years old.",
+        "When Frank was three years old.",
+        "When he was three.",
+        "When Frank was three.",
+        "When he was three years old.",
+        "When Frank was only three years old.",
+        "He learnt how to ride a bike at the age of three.",
+        "He learnt it at the age of three.",
+        "Frank learnt how to ride a bike at the age of three.",
+        "Frank learnt it at the age of three.",
+        "He learnt how to ride a bike when he was three.",
+        "Frank learnt how to ride a bike when he was three.",
+        "He learnt it when he was three.",
+        "Frank learnt it when he was three.",
+        "He learnt how to ride a bike when he was three years old.",
+        "Frank learnt how to ride a bike when he was three years old.",
+        "He learnt it when he was three years old.",
+        "Frank learnt it when he was three years old.",
+        "Three years old.",
+        "At the age of three."
+      ],
+      "options": [],
+      "important": [
+        "three",
+        "three years old"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    },
+    {
+      "no": 8,
+      "type": "collector.role",
+      "stid": 49064,
+      "question": "How many bikes has Frank broken?",
+      "answers": [
+        "He has broken four bikes.",
+        "He broke four bikes.",
+        "Frank broke four bikes.",
+        "Frank has broken four bikes.",
+        "Four.",
+        "Four bikes."
+      ],
+      "options": [],
+      "important": [
+        "four"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    },
+    {
+      "no": 9,
+      "type": "collector.role",
+      "stid": 49064,
+      "question": "What did Frank do to make money?",
+      "answers": [
+        "He worked as a waiter.",
+        "He did a job as a waiter.",
+        "He worked as a waiter in a restaurant.",
+        "Frank worked as a waiter in a restaurant.",
+        "He worked as a waiter in a restaurant to make money.",
+        "Frank worked as a waiter in a restaurant to make money.",
+        "He did a job as a waiter in a restaurant.",
+        "Frank did a job as a waiter in a restaurant.",
+        "He did a job as a waiter in a restaurant to make money.",
+        "Frank did a job as a waiter in a restaurant to make money.",
+        "Worked as a waiter.",
+        "He took a job as a waiter.",
+        "Frank took a job as a waiter.",
+        "He took a job as a waiter to make money.",
+        "Frank took a job as a waiter to make money.",
+        "He took a job as a waiter in a restaurant to make money.",
+        "Frank took a job as a waiter in a restaurant to make money."
+      ],
+      "options": [],
+      "important": [
+        "worked waiter",
+        "did job waiter",
+        "worked waiter restaurant",
+        "Frank worked waiter restaurant",
+        "worked waiter restaurant make money",
+        "Frank worked waiter restaurant make money",
+        "did job waiter restaurant",
+        "Frank did job waiter restaurant",
+        "did a job waiter restaurant money",
+        "Frank waiter restaurant money",
+        "Worked as waiter",
+        "took a job waiter",
+        "Frank took a job waiter",
+        "job waiter money",
+        "Frank job waiter money",
+        "job waiter restaurant money",
+        "Frank took a job waiter restaurant money"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    },
+    {
+      "no": 10,
+      "type": "collector.role",
+      "stid": 49064,
+      "question": "Did Frank buy a new bike himself finally?",
+      "answers": [
+        "Yes, he did.",
+        "Yes, he bought a new bike himself finally.",
+        "Yes, he finally bought a new bike himself.",
+        "Yes, Frank finally bought a new bike himself.",
+        "Yes, he bought it.",
+        "Yes, Frank bought it.",
+        "Yes, he bought it finally.",
+        "Yes, Frank bought it finally.",
+        "Yes."
+      ],
+      "options": [],
+      "important": [
+        "Yes"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    }
+  ],
+  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+}

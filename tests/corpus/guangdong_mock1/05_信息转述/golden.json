@@ -1,0 +1,30 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "structure_type": "collector.picture",
+  "questions": [
+    {
+      "no": null,
+      "type": "collector.picture",
+      "stid": 49065,
+      "question": "The School Trip",
+      "answers": [
+        "Here’s the notice about our school trip. We’re going to visit the Space Museum on September 5th, this Friday. We’ll have to leave school at 8:30, so don’t be late. We’ll get there by bus. The cost will be 40 yuan each student. And I will give you some work to do at the museum. So please remember to take a pen and a notebook.",
+        "Here’s the notice about our school trip. We’re going to visit the Space Museum on 5th September, this Friday. We’ll have to leave school at 8:30, so we shouldn’t be late. We’ll get there by bus. The cost will be 40 yuan each student. And I will give you some work to do at the museum. So please remember to take a pen and a notebook to write something down. Thank you and have a good time.",
+        "Here’s the notice about our school trip. We’re going to visit the Space Museum on September 5th, this Friday. We’ll have to leave school at 8:30, so don’t be late. We’ll get there by bus. What’s next? Oh, yes, the cost. It’ll be 40 yuan each student. And I will give you some work to do at the museum. So please remember to take a pen and a notebook to write down something. That’s all. Thank you and have a nice day."
+      ],
+      "options": [],
+      "important": [
+        "1. Here’s the notice about our school trip.",
+        "2. We’re going to visit the Space Museum on September 5th, this Friday.",
+        "3. We’ll have to leave school at 8:30,",
+        "4. so don’t be late.",
+        "5. We’ll get there by bus.",
+        "6. The cost will be 40 yuan each student.",
+        "7. And I will give you some work to do at the museum.",
+        "8. So please remember to take a pen and a notebook."
+      ]
+    }
+  ],
+  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+}

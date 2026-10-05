@@ -16,23 +16,30 @@ use serde_json::{json, Value};
 /// 词汇 / 单词 PK 类：走词汇通道（word/struct、pk-info、score-detail），不是听说卷。
 const VOCAB_NAME_KEYS: [&str; 5] = ["词汇", "单词", "默写", "pk", "word"];
 
-/// 模拟卷 / 机考套卷关键词（后端 ets100.py 的既有口径，保持一致）。
-const MOCK_NAME_KEYS: [&str; 11] = [
-    "套题",
+/// 模拟卷 / 机考套卷关键词。
+///
+/// 依据真实作业列表标定（广东 2026 账号 76 个作业）：
+///   * `set_type=1` **不能**作为模拟卷标记 —— 真实数据里它对几乎每个作业都成立
+///     （`Unit 1 Reading_短文 朗读`、`U1 综合提升` 全是 1）；
+///   * 真正的强信号是 `kind=mock` / `mock=1` / `exam=1`（如 `模拟试题40` 的 mock=1）；
+///   * 名字关键词是有效的中信号，但需配合"多包"才足以判为套卷。
+const MOCK_NAME_KEYS: [&str; 15] = [
+    "模拟",
     "模考",
     "模拟考",
-    "机房模考",
+    "模拟卷",
+    "模拟试题",
     "仿真",
     "中考英语听说",
     "听说模拟",
     "听说测试",
-    "期末听说",
+    "期中测试",
+    "期末测试",
     "期中听说",
-    "模拟考试",
+    "期末听说",
+    "机考",
+    "套题",
 ];
-
-/// 多卷套题的次级关键词（需要 contents >= 3 才成立）。
-const MULTI_PAPER_KEYS: [&str; 3] = ["机考", "综合", "套题"];
 
 /// 作文类（Fe_web 的 kind === 'composition'）。
 const COMPOSITION_NAME_KEYS: [&str; 2] = ["作文", "composition"];
@@ -182,9 +189,9 @@ pub fn classify_homework(item: &Value) -> Value {
     }
 
     // ---- 3. 模拟考 / 机考套卷 ----
-    // 只信官方显式字段（kind/mock/exam/set_type）。名字关键词与"包数>=3"这类启发式
-    // 历史上把普通作业误判成模拟考（后端 418cf99 的真实故障），所以降级为
-    // `mock_suspected_by_name` 告警 + `mock_suspected` 字段，由调用方决定是否采信。
+    // 强信号只认官方显式字段（kind/mock/exam）。`set_type=1` **刻意不采信**：
+    // 真实数据里它出现在几乎所有作业上（含单包朗读作业），采信它会把 76 个作业里的
+    // 64 个误判成模拟卷。名字关键词配合"多包"作为中信号，并进 warnings 供排查。
     let mut is_mock_suite = false;
     let mut mock_suspected = false;
     if !is_vocab_pk && !is_composition {
@@ -200,22 +207,22 @@ pub fn classify_homework(item: &Value) -> Value {
             is_mock_suite = true;
             reasons.push("exam:1".into());
         }
-        if set_type == 1 {
-            is_mock_suite = true;
-            reasons.push("set_type:1".into());
-        }
         if !is_mock_suite {
             if let Some(hit) = contains_any(&name, &MOCK_NAME_KEYS) {
                 mock_suspected = true;
                 reasons.push(format!("mock_suspected_name_keyword:{hit}"));
-                warnings.push("mock_suspected_by_name".into());
-            } else if package_count >= 3 {
-                if let Some(hit) = contains_any(&name, &MULTI_PAPER_KEYS) {
-                    mock_suspected = true;
-                    reasons.push(format!("mock_suspected_multi_paper_keyword:{hit}"));
+                // 名字像模考 + 多包 => 判为套卷（广东 30 分卷 / 九年级模拟卷都是这个形态）
+                if package_count >= 2 {
+                    is_mock_suite = true;
+                    reasons.push(format!("mock_from_name_and_packages:{package_count}"));
+                } else {
                     warnings.push("mock_suspected_by_name".into());
                 }
             }
+        }
+        if set_type == 1 && !is_mock_suite {
+            // 保留为可观测信号，但不作为判定依据
+            reasons.push("set_type:1_not_used_for_mock".into());
         }
     }
 
@@ -229,12 +236,12 @@ pub fn classify_homework(item: &Value) -> Value {
     }
 
     // ---- 5. 老师布置的一整套多卷（习题集）----
-    // 判据：非词汇/非作文，且需要把多个资源包合并成一张卷。
-    // 模拟套卷同样为 true —— 下游要的是"要不要合并多包"，不是"是不是考试"。
+    // 判据收紧为"**确实需要合并多个包**"：真实数据里单包朗读作业也带 set_id，
+    // 若把 set_id 当作习题集信号，会把大量单卷作业误标成习题集。
     let is_exercise_set = !is_vocab_pk
         && !is_composition
         && !is_online
-        && (package_count >= 2 || (!set_id.is_empty() && package_count >= 1));
+        && package_count >= 2;
     if is_exercise_set {
         reasons.push(format!("packages:{package_count}"));
         if !set_id.is_empty() {
@@ -442,22 +449,42 @@ mod tests {
     }
 
     #[test]
-    fn mock_name_keyword_alone_is_only_a_suspicion() {
-        // 名字像模考但没有官方标记：只给 suspected 告警，不擅自判成模拟考
-        // （后端曾因这类启发式把普通作业误判成"模拟考封存"，见 418cf99）
-        let hw = json!({
+    fn mock_name_keyword_requires_multiple_packages() {
+        // 名字像套卷 + 多包 => 判为套卷（真实数据：' 模拟试题1' 7 包、'（新）九年级模拟卷01' 7 包）
+        let multi = json!({
             "id": "3b", "name": "第八周机房套题训练",
             "contents": [pkg("模仿朗读"), pkg("听选信息"), pkg("回答问题")]
         });
-        let c = classify_homework(&hw);
+        let c = classify_homework(&multi);
+        assert_eq!(c["is_mock_suite"], true);
+        assert_eq!(c["category"], CATEGORY_MOCK_SUITE);
+        assert_eq!(c["is_mock_suspected"], true);
+        assert!(c["reasons"].as_array().unwrap().iter().any(|r| r.as_str().unwrap().starts_with("mock_from_name_and_packages")));
+
+        // 名字像模考但只有单包 => 只给 suspected 告警，不擅自判成模拟考
+        let single = json!({
+            "id": "3c", "name": "模拟考题型讲解",
+            "contents": [pkg("模仿朗读")]
+        });
+        let c = classify_homework(&single);
         assert_eq!(c["is_mock_suite"], false);
         assert_eq!(c["is_mock_suspected"], true);
-        assert_eq!(c["category"], CATEGORY_PAPER_SET);
-        assert!(c["warnings"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|w| w == "mock_suspected_by_name"));
+        assert!(c["warnings"].as_array().unwrap().iter().any(|w| w == "mock_suspected_by_name"));
+    }
+
+    #[test]
+    fn set_type_one_alone_never_means_mock_suite() {
+        // 真实数据校准：set_type=1 出现在几乎所有作业上（含单包朗读），不能当模拟卷标记
+        let hw = json!({
+            "id": "3d", "name": "Unit 1 Reading_短文 朗读", "set_type": 1, "set_id": "546848",
+            "resource_id": "67",
+            "contents": [pkg("短文")]
+        });
+        let c = classify_homework(&hw);
+        assert_eq!(c["is_mock_suite"], false);
+        assert_eq!(c["category"], CATEGORY_ORAL);
+        assert_eq!(c["is_exercise_set"], false, "单包作业不是习题集，即使带 set_id");
+        assert!(c["reasons"].as_array().unwrap().iter().any(|r| r == "set_type:1_not_used_for_mock"));
     }
 
     #[test]

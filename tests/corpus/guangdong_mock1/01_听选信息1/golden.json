@@ -1,0 +1,51 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 49063,
+      "question": "Where did Jimmy go? (Paris. / Guangzhou. / London.)",
+      "answers": [
+        "He went to Paris.",
+        "Jimmy went to Paris.",
+        "The place he went to was Paris.",
+        "The place Jimmy went to was Paris.",
+        "Paris."
+      ],
+      "options": [],
+      "important": [
+        "Paris"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    },
+    {
+      "no": 2,
+      "type": "collector.role",
+      "stid": 49063,
+      "question": "How’s the weather in Guangzhou now? (Hot. / Cool. / Rainy.)",
+      "answers": [
+        "It is hot now.",
+        "The weather in Guangzhou is hot now.",
+        "Guangzhou is hot now.",
+        "It’s hot.",
+        "It’s hot now.",
+        "The weather is hot.",
+        "The weather is hot now.",
+        "It’s hot in Guangzhou now.",
+        "It is hot in Guangzhou now.",
+        "Hot."
+      ],
+      "options": [],
+      "important": [
+        "Hot"
+      ],
+      "role": "b",
+      "_no_source": "global"
+    }
+  ],
+  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+}

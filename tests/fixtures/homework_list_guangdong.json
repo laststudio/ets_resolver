@@ -1,0 +1,1981 @@
+{
+  "note": "真实 ETS100 作业列表（广东 2026 测试账号，76 个作业，status 1/2/3），仅保留分类判定相关字段；用于锁定 classify_homework 口径",
+  "captured_at": "2026-10-05",
+  "homeworks": [
+    {
+      "id": "106966841",
+      "name": "（新）九年级模拟卷01",
+      "set_type": 1,
+      "set_id": "675802",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "106966829",
+      "name": "（新）九年级模拟卷02",
+      "set_type": 1,
+      "set_id": "675803",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "106966816",
+      "name": "9年级(上)期中测试A",
+      "set_type": 1,
+      "set_id": "25302",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "106966804",
+      "name": "(新教材)9年级(上)U2D",
+      "set_type": 1,
+      "set_id": "865594",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "106966785",
+      "name": "(新教材)9年级(上)U2C",
+      "set_type": 1,
+      "set_id": "865820",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "106364718",
+      "name": "9年级(上)U3",
+      "set_type": 1,
+      "set_id": "874380",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "听短对话选图片"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听短文选答案"
+        },
+        {
+          "group_name": "听短文填表格"
+        }
+      ]
+    },
+    {
+      "id": "106364716",
+      "name": "(新教材)9年级(上)U1A",
+      "set_type": 1,
+      "set_id": "864302",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "105361873",
+      "name": "Unit 2 朗读文章 逐句跟读",
+      "set_type": 1,
+      "set_id": "786402",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "105361871",
+      "name": "Unit 2 Vocabulary 看音标跟读",
+      "set_type": 1,
+      "set_id": "886315",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        },
+        {
+          "group_name": "Vocabulary"
+        }
+      ]
+    },
+    {
+      "id": "105361869",
+      "name": "Unit 1 朗读文章 朗读",
+      "set_type": 1,
+      "set_id": "781860",
+      "resource_id": "46",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "99829247",
+      "name": "假期练习",
+      "set_type": 1,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "98186857",
+      "name": " 模拟试题1",
+      "set_type": 1,
+      "set_id": "4030",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "97507600",
+      "name": " 模拟试题40",
+      "set_type": 1,
+      "set_id": "142566",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 1.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "96558812",
+      "name": "Unit 7 Reading_Before you read_2_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "718274",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "95872907",
+      "name": " 8年级(下)\nU6",
+      "set_type": 1,
+      "set_id": "762930",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "听短对话选图片"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听短文选答案"
+        },
+        {
+          "group_name": "听短文填表格"
+        }
+      ]
+    },
+    {
+      "id": "95872905",
+      "name": "Unit 6 Reading_Before you read_2_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "718322",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "95872903",
+      "name": "Unit 6 Words 跟读",
+      "set_type": 1,
+      "set_id": "730921",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        },
+        {
+          "group_name": "单词或短语"
+        }
+      ]
+    },
+    {
+      "id": "95505911",
+      "name": "Unit 5 综合提升",
+      "set_type": 1,
+      "set_id": "728671",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "95505905",
+      "name": "Unit 6 Reading_Before you read_2_短文 分句练习",
+      "set_type": 1,
+      "set_id": "718322",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "95505899",
+      "name": "Unit 5 Reading_Before you read_2_短文 分句练习",
+      "set_type": 1,
+      "set_id": "714477",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "91904921",
+      "name": " (新教材)8年级(下)U3C",
+      "set_type": 1,
+      "set_id": "732996",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "90978524",
+      "name": "3月27日 Unit 3 词汇训练(39题) 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "90978520",
+      "name": "Unit 3 听力强化",
+      "set_type": 1,
+      "set_id": "728663",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "图片听选"
+        },
+        {
+          "group_name": "图片听选"
+        },
+        {
+          "group_name": "图片听选"
+        },
+        {
+          "group_name": "对话听力"
+        },
+        {
+          "group_name": "对话听力"
+        },
+        {
+          "group_name": "对话听力"
+        },
+        {
+          "group_name": "听短文填信息"
+        }
+      ]
+    },
+    {
+      "id": "90978515",
+      "name": "Unit 3 Reading_Before you read_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "705386",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "90180375",
+      "name": " 8年级(下)\nU2",
+      "set_type": 1,
+      "set_id": "727253",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "听短对话选图片"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听短文选答案"
+        },
+        {
+          "group_name": "听短文填表格"
+        }
+      ]
+    },
+    {
+      "id": "90180362",
+      "name": "Unit 2 Focusing on culture_1_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "703507",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "90180349",
+      "name": "Unit 2 Reading_Before you read_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "703485",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "89490138",
+      "name": "(新教材)8年级(下)U2A周末作业",
+      "set_type": 1,
+      "set_id": "731797",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 1.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "88768694",
+      "name": "Unit 1 综合提升",
+      "set_type": 1,
+      "set_id": "728659",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "88768687",
+      "name": "Unit 1 Reading_Before you read_短文 背诵",
+      "set_type": 1,
+      "set_id": "701324",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "85411259",
+      "name": "八年级假期练习",
+      "set_type": 1,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "82902542",
+      "name": "1月16日 Unit 1 词汇训练(28题) 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "82902540",
+      "name": "1月16日 Unit 8 词汇训练(30题) 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "81984409",
+      "name": " (新教材)8年级(上)期末测试B（音标）",
+      "set_type": 1,
+      "set_id": "688217",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "81984402",
+      "name": " (新教材)8年级(上)期末测试A（音标）",
+      "set_type": 1,
+      "set_id": "688203",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "识读音标"
+        },
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "听选信息"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "81127506",
+      "name": " (新教材)8年级(上)U6B",
+      "set_type": 1,
+      "set_id": "649697",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "80261467",
+      "name": " (新教材)8年级(上)U6A",
+      "set_type": 1,
+      "set_id": "649443",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 1.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "79564772",
+      "name": " (新教材)8年级(上)U5A",
+      "set_type": 1,
+      "set_id": "629463",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "78788887",
+      "name": "12月5日 Unit 6 词汇训练(18题) 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "78788884",
+      "name": "12月5日 Unit 6 单词PK(18题) 单词PK",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 1,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "77565995",
+      "name": "Unit 5 综合提升",
+      "set_type": 1,
+      "set_id": "603344",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "77565993",
+      "name": "Unit 5 Reading_Before you read_短文 朗读",
+      "set_type": 1,
+      "set_id": "576721",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "77565991",
+      "name": "Unit 5 Reading_Before you read_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "576720",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "76204481",
+      "name": " (新教材)8年级(上)期中测试A",
+      "set_type": 1,
+      "set_id": "629136",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "75116686",
+      "name": " 8年级(上)\nU3",
+      "set_type": 1,
+      "set_id": "586753",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "听短对话选图片"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听短文选答案"
+        },
+        {
+          "group_name": "听短文填表格"
+        }
+      ]
+    },
+    {
+      "id": "74383085",
+      "name": "Unit 3 综合提升",
+      "set_type": 1,
+      "set_id": "587256",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "74383083",
+      "name": "Unit 3 Reading_Before you read_对话_2 背诵",
+      "set_type": 1,
+      "set_id": "554858",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "对话跟读"
+        }
+      ]
+    },
+    {
+      "id": "74059920",
+      "name": "U2作文",
+      "set_type": 8,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "73768568",
+      "name": "10月11日 Unit 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "73768560",
+      "name": "Unit 3 Reading_Before you read_对话_2 分句练习",
+      "set_type": 1,
+      "set_id": "554781",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "对话跟读"
+        }
+      ]
+    },
+    {
+      "id": "73768556",
+      "name": "Unit 3 Reading_Before you read_对话_2 逐句跟读",
+      "set_type": 1,
+      "set_id": "554781",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "对话跟读"
+        }
+      ]
+    },
+    {
+      "id": "73768553",
+      "name": "Unit 3 Reading_Before you read_对话 逐句跟读",
+      "set_type": 1,
+      "set_id": "554779",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "对话跟读"
+        }
+      ]
+    },
+    {
+      "id": "73161832",
+      "name": " (新教材)8年级(上)U1C",
+      "set_type": 1,
+      "set_id": "603307",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "73161822",
+      "name": " (新教材)8年级(上)U2B",
+      "set_type": 1,
+      "set_id": "593113",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "73161813",
+      "name": " (新教材)8年级(上)U2A",
+      "set_type": 1,
+      "set_id": "586892",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "73161801",
+      "name": " (新教材)8年级(上)U1B",
+      "set_type": 1,
+      "set_id": "570165",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "72340969",
+      "name": " (新教材)8年级(上)U1A",
+      "set_type": 1,
+      "set_id": "568907",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "听选信息1"
+        },
+        {
+          "group_name": "听选信息2"
+        },
+        {
+          "group_name": "听选信息3"
+        },
+        {
+          "group_name": "回答问题"
+        },
+        {
+          "group_name": "信息转述"
+        },
+        {
+          "group_name": "询问信息"
+        }
+      ]
+    },
+    {
+      "id": "71824555",
+      "name": " 8年级(上)\nU1",
+      "set_type": 1,
+      "set_id": "585797",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "听短对话选图片"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听长对话选答案"
+        },
+        {
+          "group_name": "听短文选答案"
+        },
+        {
+          "group_name": "听短文填表格"
+        }
+      ]
+    },
+    {
+      "id": "72028252",
+      "name": "9月23日 Unit 词汇训练",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "72028250",
+      "name": "9月23日 Unit 单词PK",
+      "set_type": 6,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 1,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "72028248",
+      "name": "Unit 2 综合提升",
+      "set_type": 1,
+      "set_id": "587253",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "71207364",
+      "name": "U1 综合提升",
+      "set_type": 1,
+      "set_id": "20703",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "71207362",
+      "name": "Unit 1 Writing_短文 朗读",
+      "set_type": 1,
+      "set_id": "546872",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "71471423",
+      "name": "U1作文",
+      "set_type": 8,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 1,
+      "status": "2",
+      "contents": []
+    },
+    {
+      "id": "70663905",
+      "name": "Unit 1 Reading_短文_2 分句练习",
+      "set_type": 1,
+      "set_id": "546849",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "70663903",
+      "name": "Unit 1 Reading_短文 分句练习",
+      "set_type": 1,
+      "set_id": "546847",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "70663901",
+      "name": "Unit 1 Reading_短文_2 朗读",
+      "set_type": 1,
+      "set_id": "546850",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "70663899",
+      "name": "Unit 1 Reading_短文_2 逐句跟读",
+      "set_type": 1,
+      "set_id": "546849",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "70663897",
+      "name": "Unit 1 Reading_短文 背诵",
+      "set_type": 1,
+      "set_id": "547107",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "70663895",
+      "name": "Unit 1 Reading_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "546847",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "70663893",
+      "name": "Unit 1 Reading_短文 朗读",
+      "set_type": 1,
+      "set_id": "546848",
+      "resource_id": "67",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "2",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "85879662",
+      "name": "2026南沙寒假词汇达人活动-八年级",
+      "set_type": 1,
+      "set_id": "",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 1,
+      "status": "3",
+      "contents": []
+    },
+    {
+      "id": "78788880",
+      "name": "Unit 6 综合提升",
+      "set_type": 1,
+      "set_id": "603347",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "3",
+      "contents": [
+        {
+          "group_name": "模仿朗读"
+        },
+        {
+          "group_name": "情景问答"
+        },
+        {
+          "group_name": "听后回答1"
+        },
+        {
+          "group_name": "听后回答2"
+        },
+        {
+          "group_name": "口头表达"
+        },
+        {
+          "group_name": "信息转述"
+        }
+      ]
+    },
+    {
+      "id": "71824561",
+      "name": "Unit 2 Reading_Before you read_短文 朗读",
+      "set_type": 1,
+      "set_id": "548285",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "3",
+      "contents": [
+        {
+          "group_name": "短文"
+        }
+      ]
+    },
+    {
+      "id": "71824559",
+      "name": "Unit 2 Reading_Before you read_短文 逐句跟读",
+      "set_type": 1,
+      "set_id": "548283",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "3",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    },
+    {
+      "id": "71824557",
+      "name": "Unit 2 Reading_Before you read_短文 分句练习",
+      "set_type": 1,
+      "set_id": "548283",
+      "resource_id": "58",
+      "pk": 0,
+      "kind": null,
+      "mock": 0.0,
+      "exam": 0,
+      "status": "3",
+      "contents": [
+        {
+          "group_name": "短文跟读"
+        }
+      ]
+    }
+  ]
+}
