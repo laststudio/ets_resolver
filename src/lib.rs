@@ -11,18 +11,18 @@
 //   输出: 以 '\0' 结尾的 UTF-8 C 字符串 (JSON 文本), 调用方用 resolver_free_string 释放
 //   错误: 返回 "null"
 
-mod api;
-mod cleaner;
-mod collectors;
-mod contract;
-mod diagnose;
-mod homework;
-mod homework_set;
-mod spec;
-mod template;
+pub mod api;
+pub mod cleaner;
+pub mod collectors;
+pub mod contract;
+pub mod diagnose;
+pub mod homework;
+pub mod homework_set;
+pub mod spec;
+pub mod template;
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
-mod auth;
+pub mod auth;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

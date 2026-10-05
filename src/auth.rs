@@ -99,7 +99,53 @@ fn state() -> &'static Mutex<AuthState> {
     STATE.get_or_init(|| Mutex::new(AuthState::default()))
 }
 
-// ============== 配置 / 令牌 (FFI) ==============
+// ============== 配置 / 令牌 (FFI & Rust) ==============
+
+#[allow(dead_code)]
+pub fn configure_auth(
+    base_url: &str,
+    software_key: &str,
+    feature_key: &str,
+    public_key_b64: Option<&str>,
+    app_version_code: i64,
+) -> Result<(), AuthError> {
+    let base_url = base_url.trim_end_matches('/').to_string();
+    let software_key = software_key.trim().to_lowercase();
+    let feature_key = feature_key.trim().to_lowercase();
+
+    if base_url.is_empty() {
+        return Err(AuthError::new("invalid_config", "base_url 不能为空"));
+    }
+    if software_key.len() < 2 || feature_key.len() < 2 {
+        return Err(AuthError::new("invalid_config", "key 长度过短"));
+    }
+    let mut st = state().lock().unwrap();
+    let pk_str = if let Some(pk) = public_key_b64 {
+        if !pk.trim().is_empty() {
+            pk.trim().to_string()
+        } else {
+            st.public_key_b64.clone()
+        }
+    } else {
+        st.public_key_b64.clone()
+    };
+    st.base_url = base_url;
+    st.software_key = software_key;
+    st.feature_key = feature_key;
+    st.app_version_code = app_version_code;
+    st.public_key_b64 = pk_str;
+    st.cached_grants.clear();
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn set_token(token: &str) {
+    let mut st = state().lock().unwrap();
+    if st.access_token != token {
+        st.access_token = token.to_string();
+        st.cached_grants.clear();
+    }
+}
 
 /// 配置内部授权: base_url / software_key / feature_key / 服务器公钥 / version_code。
 /// public_key_b64 可传 NULL 或空串以保留内置默认公钥。

@@ -17,7 +17,7 @@ _jni-host-test = ["dep:jni"]
 [lib]
 name = "resolver"
 # cdylib: libresolver.so / resolver.dll（下游 FFI/JNI 用）
-# rlib:   供 tests/ 集成测试与未来的 CLI 直接 use（不改变 .so 的导出符号）
+# rlib:   供 fepc / tests/ 集成测试直接 use（不改变 .so 的导出符号）
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
