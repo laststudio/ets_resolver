@@ -203,6 +203,22 @@ pub const STRUCTURE_TYPES: &[StructureTypeSpec] = &[
         note: "每条 sublist 一项成题",
     },
     StructureTypeSpec {
+        id: "collector.repeat_dialogue",
+        official_name: "对话角色扮演（跟读）",
+        model: "DialoguePaperItemBean",
+        scenario: "角色扮演、对话交际（模板 exam_type_collect 实测取值）",
+        handler: Some("repeat_dialogue"),
+        note: "官方模板里以 collector.repeat_dialogue 出现（对话跟读类）",
+    },
+    StructureTypeSpec {
+        id: "collector.essay",
+        official_name: "篇章朗读/背诵",
+        model: "TextEssayBean",
+        scenario: "长篇故事、散文背诵（模板 exam_type_collect 实测取值）",
+        handler: Some("essay"),
+        note: "",
+    },
+    StructureTypeSpec {
         id: "word_pk",
         official_name: "词汇 / PK 在线题",
         model: "SyncWordQuestionBean",
@@ -307,6 +323,27 @@ pub const DISPLAY_ELEMENTS: &[DisplayElements] = &[
     DisplayElements { group: "单词PK/拼写类", question: false, audio: true, image: "no", options: true, answers: true, ref_text: false, keypoints: false, analyze: true, answer_kind: "text" },
 ];
 
+/// `question_list[].evaluation_type` 的官方取值域（实测自 221 套真实模板）。
+///
+/// 用途：客户端据此选择展示/评分通道（朗读类给原文、选择题给选项…），
+/// 解析器只做搬运与归一，不解释评分。
+pub const EVALUATION_TYPES: [&str; 11] = [
+    "read_word",              // 单词朗读
+    "read_sentence",          // 句子朗读
+    "read_chapter",           // 篇章朗读
+    "read_choice",            // 看读选择
+    "choose",                 // 选择题
+    "Fill_in_the_blanks",     // 填空/听后记录（注意官方首字母大写）
+    "simple_expression",      // 简答/口头表达
+    "simple_expression_ufk",  // 简答变体（口语评分引擎分组）
+    "simple_expression_ufi",
+    "simple_expression_ufj",
+    "topic",                  // 话题/转述
+];
+
+/// `question_list[].engine_type` 的官方取值域（实测）。
+pub const ENGINE_TYPES: [&str; 2] = ["study", "Simulation"];
+
 /// res.json 模板的权威字段路径（★P0-4）。
 pub const RES_JSON_PATHS: &[(&str, &str)] = &[
     ("section_order", "exam_type_list[] 数组下标顺序"),
@@ -398,12 +435,22 @@ pub fn taxonomy() -> Value {
             "answer_kind": d.answer_kind,
         })).collect::<Vec<_>>(),
         "res_json_authority": RES_JSON_PATHS.iter().map(|(k, v)| json!({"key": k, "path": v})).collect::<Vec<_>>(),
+        "evaluation_types": EVALUATION_TYPES,
+        "engine_types": ENGINE_TYPES,
+        "type_name_inventory": {
+            "note": "官方题库实测：2157 个不同大题名 / 167 个 type_name（数据源 laststudio/ets100_resources）",
+            "fixture": "tests/fixtures/official_type_inventory.json",
+            "exam_type_map_fixture": "tests/fixtures/official_exam_type_map.json",
+        },
         "boundary_rules": {
             "multi_answer_order": "原样不排序：保持与 JSON 数组原序一致（源码中只有 append，无 sort）",
             "blank_number_source": "小题/空格号取 info.std[].xth；卷面大题号取 th；exam_info[].value 是指示文本不是题号",
             "reading_answers": "朗读类 answers 直接给朗读原文（官方界面不展示参考答案面板）",
             "score_authority": "逐题满分取 res.json 的 question_list[].question_score，不用 group_name 权重推算",
-            "order_authority": "大题顺序取 exam_type_list 下标；小题按 question_order 结合 xth/th 递增",
+            "order_authority": "大题顺序取 exam_type_list 下标（并用 exam_type_order 校验）；小题按 question_order 结合 xth/th 递增",
+            "collect_authority": "解析家族必须取自模板的 exam_type_collect（或 contents[].code_id ↔ exam_list[].exam_id 挂载），**不能靠中文大题名推断**：实测 118 个官方大题名里有 9 个在不同卷型下归属不同家族（如「回答问题」→ dialogue/role、「情景反应」→ dialogue/role）",
+            "name_space_reality": "官方库共 2157 个不同的大题名（group_name），其中 924 个只出现 1 次 —— 按名字适配不可行，正解是 9 个 exam_type_collect 家族 + 结构嗅探",
+            "total_score_authority": "卷面总分优先 res.json 的 set_score；模板覆盖不全时用已合并大题之和并告警",
         },
         "coverage": coverage(),
     })

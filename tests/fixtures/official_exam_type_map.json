@@ -1,0 +1,1310 @@
+{
+ "source": "laststudio/ets100_resources：221 套真实套题的官方模板包 res.json × DB contents(code_id↔group_name) 关联",
+ "method": "模板 exam_list[].exam_id（{{st1}}…）↔ contents[].code_id（st1…）→ 得到 官方大题名↔解析家族 的实证映射",
+ "captured_at": "2026-10-05",
+ "templates_parsed": 221,
+ "templates_failed": {},
+ "collect_counts": {
+  "collector.word": 3,
+  "collector.repeat_dialogue": 3,
+  "collector.repeat_essay": 3,
+  "collector.choose": 110,
+  "collector.fill": 25,
+  "collector.read": 42,
+  "collector.dialogue": 20,
+  "collector.role": 40,
+  "collector.picture": 37
+ },
+ "evaluation_types": {
+  "read_word": 61,
+  "read_sentence": 105,
+  "read_chapter": 30,
+  "choose": 260,
+  "Fill_in_the_blanks": 26,
+  "simple_expression": 142,
+  "simple_expression_ufk": 6,
+  "topic": 37,
+  "read_choice": 12,
+  "simple_expression_ufi": 37,
+  "simple_expression_ufj": 10
+ },
+ "engine_types": {
+  "study": 195,
+  "Simulation": 521,
+  "": 10
+ },
+ "pairs": [
+  {
+   "group_name": "听后选择2",
+   "collect": "collector.choose",
+   "count": 30
+  },
+  {
+   "group_name": "Vocabulary",
+   "collect": "collector.word",
+   "count": 27
+  },
+  {
+   "group_name": "听后选择1",
+   "collect": "collector.choose",
+   "count": 24
+  },
+  {
+   "group_name": "听后选择",
+   "collect": "collector.choose",
+   "count": 19
+  },
+  {
+   "group_name": "单词或短语",
+   "collect": "collector.word",
+   "count": 17
+  },
+  {
+   "group_name": "听后记录",
+   "collect": "collector.fill",
+   "count": 14
+  },
+  {
+   "group_name": "情景应答",
+   "collect": "collector.choose",
+   "count": 13
+  },
+  {
+   "group_name": "听长对话或独白回答",
+   "collect": "collector.choose",
+   "count": 12
+  },
+  {
+   "group_name": "朗读句子",
+   "collect": "collector.read",
+   "count": 12
+  },
+  {
+   "group_name": "听后转述",
+   "collect": "collector.picture",
+   "count": 11
+  },
+  {
+   "group_name": "听短对话回答问题",
+   "collect": "collector.choose",
+   "count": 11
+  },
+  {
+   "group_name": "听长对话选答案",
+   "collect": "collector.choose",
+   "count": 10
+  },
+  {
+   "group_name": "听长对话或独白选答案",
+   "collect": "collector.choose",
+   "count": 10
+  },
+  {
+   "group_name": "短文朗读",
+   "collect": "collector.read",
+   "count": 10
+  },
+  {
+   "group_name": "看音标读单词",
+   "collect": "collector.read",
+   "count": 10
+  },
+  {
+   "group_name": "句子理解",
+   "collect": "collector.choose",
+   "count": 10
+  },
+  {
+   "group_name": "朗读语块",
+   "collect": "collector.read",
+   "count": 10
+  },
+  {
+   "group_name": "朗读",
+   "collect": "collector.read",
+   "count": 9
+  },
+  {
+   "group_name": "听对话选图片",
+   "collect": "collector.choose",
+   "count": 8
+  },
+  {
+   "group_name": "第三节 长对话",
+   "collect": "collector.choose",
+   "count": 8
+  },
+  {
+   "group_name": "短对话理解",
+   "collect": "collector.choose",
+   "count": 8
+  },
+  {
+   "group_name": "长对话理解",
+   "collect": "collector.choose",
+   "count": 8
+  },
+  {
+   "group_name": "情景反应",
+   "collect": "collector.dialogue",
+   "count": 7
+  },
+  {
+   "group_name": "朗读短文",
+   "collect": "collector.read",
+   "count": 7
+  },
+  {
+   "group_name": "听较长对话选择",
+   "collect": "collector.choose",
+   "count": 6
+  },
+  {
+   "group_name": "回答问题",
+   "collect": "collector.dialogue",
+   "count": 6
+  },
+  {
+   "group_name": "听选信息",
+   "collect": "collector.role",
+   "count": 6
+  },
+  {
+   "group_name": "信息获取",
+   "collect": "collector.choose",
+   "count": 6
+  },
+  {
+   "group_name": "听对话选择答案",
+   "collect": "collector.choose",
+   "count": 6
+  },
+  {
+   "group_name": "对话理解",
+   "collect": "collector.choose",
+   "count": 5
+  },
+  {
+   "group_name": "听后回答",
+   "collect": "collector.role",
+   "count": 5
+  },
+  {
+   "group_name": "单词",
+   "collect": "collector.read",
+   "count": 5
+  },
+  {
+   "group_name": "听短文选答案",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "group_name": "模仿朗读",
+   "collect": "collector.read",
+   "count": 4
+  },
+  {
+   "group_name": "情景反应",
+   "collect": "collector.role",
+   "count": 4
+  },
+  {
+   "group_name": "情景回答",
+   "collect": "collector.role",
+   "count": 4
+  },
+  {
+   "group_name": "短文理解",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "group_name": "询问信息",
+   "collect": "collector.role",
+   "count": 4
+  },
+  {
+   "group_name": "单词和短语",
+   "collect": "collector.read",
+   "count": 4
+  },
+  {
+   "group_name": "听对话填空",
+   "collect": "collector.fill",
+   "count": 4
+  },
+  {
+   "group_name": "短对话问答",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "group_name": "听对话回答问题",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "group_name": "对话跟读",
+   "collect": "collector.repeat_dialogue",
+   "count": 3
+  },
+  {
+   "group_name": "短文跟读",
+   "collect": "collector.repeat_essay",
+   "count": 3
+  },
+  {
+   "group_name": "听短对话选图片",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "篇章朗读",
+   "collect": "collector.read",
+   "count": 3
+  },
+  {
+   "group_name": "信息转述",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "group_name": "听短对话选答案",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "听长对话或独白选择",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "听对话或独白选答案",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "听对话",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "group_name": "听长对话回答问题",
+   "collect": "collector.dialogue",
+   "count": 3
+  },
+  {
+   "group_name": "关键词语选择",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "回答问题",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "group_name": "话题简述",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "group_name": "听长对话或独白回答问题",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "朗读词组",
+   "collect": "collector.read",
+   "count": 3
+  },
+  {
+   "group_name": "听句子选择答案",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "口语表达",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "group_name": "读后回答",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "group_name": "情景问答",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "group_name": "听对话和短文答题",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "group_name": "听短文填表格",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "情景提问",
+   "collect": "collector.dialogue",
+   "count": 2
+  },
+  {
+   "group_name": "口头表达",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "句子填空",
+   "collect": "collector.fill",
+   "count": 2
+  },
+  {
+   "group_name": "信息记录",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "说话",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "话题表达",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "听短文回答问题",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "拼读单词",
+   "collect": "collector.read",
+   "count": 2
+  },
+  {
+   "group_name": "口头作文",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "听较长对话回答问题",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "短文转述",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "听独白回答问题",
+   "collect": "collector.role",
+   "count": 2
+  },
+  {
+   "group_name": "语篇朗读",
+   "collect": "collector.read",
+   "count": 2
+  },
+  {
+   "group_name": "听对话选择",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "听小对话选答案",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "听较长对话选答案",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "听填信息",
+   "collect": "collector.fill",
+   "count": 2
+  },
+  {
+   "group_name": "听句子选图片",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "group_name": "转述信息",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "group_name": "日常对话",
+   "collect": "collector.role",
+   "count": 2
+  },
+  {
+   "group_name": "1 Thud, thud, thud",
+   "collect": "collector.word",
+   "count": 1
+  },
+  {
+   "group_name": "听短文填表格",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "group_name": "情景提问",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "情景问答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听后回答1",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听后回答2",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "对话填空",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "group_name": "故事填空",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "group_name": "交际问答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听录音，选图画",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "第一节 听句选图",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "第二节 短对话",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "听对话选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "信息转换",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "group_name": "听短文回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听选信息1",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听选信息2",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听选信息3",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "短文理解 ",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "话题表述",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "group_name": "提问",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听对话回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "快速应答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听独白选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "信息交流",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听对话1",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听对话2",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听对话3",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听长对话回答问题",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "对话或短文朗读",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "group_name": "句子",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "group_name": "信息表达",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "group_name": "情境对话",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "情景对话",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听句子选择图片",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "听后回答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "group_name": "听录音判断",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "情景表达",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "group_name": "复述",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "group_name": "听后应答",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "听短文口头回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "group_name": "看图说话",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "group_name": "听句子选择关键信息",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "group_name": "情境提问",
+   "collect": "collector.dialogue",
+   "count": 1
+  }
+ ],
+ "name_to_collect": [
+  {
+   "exam_type_name": "听后记录",
+   "collect": "collector.fill",
+   "count": 14
+  },
+  {
+   "exam_type_name": "听后转述",
+   "collect": "collector.picture",
+   "count": 11
+  },
+  {
+   "exam_type_name": "短文朗读",
+   "collect": "collector.read",
+   "count": 10
+  },
+  {
+   "exam_type_name": "朗读短文",
+   "collect": "collector.read",
+   "count": 7
+  },
+  {
+   "exam_type_name": "听后选择2",
+   "collect": "collector.choose",
+   "count": 6
+  },
+  {
+   "exam_type_name": "听后选择1",
+   "collect": "collector.choose",
+   "count": 6
+  },
+  {
+   "exam_type_name": "回答问题",
+   "collect": "collector.dialogue",
+   "count": 6
+  },
+  {
+   "exam_type_name": "听长对话选答案",
+   "collect": "collector.choose",
+   "count": 5
+  },
+  {
+   "exam_type_name": "听后选择",
+   "collect": "collector.choose",
+   "count": 5
+  },
+  {
+   "exam_type_name": "听短文选答案",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "exam_type_name": "模仿朗读",
+   "collect": "collector.read",
+   "count": 4
+  },
+  {
+   "exam_type_name": "听对话选图片",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "exam_type_name": "情景回答",
+   "collect": "collector.role",
+   "count": 4
+  },
+  {
+   "exam_type_name": "短文理解",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "exam_type_name": "短对话理解",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "exam_type_name": "长对话理解",
+   "collect": "collector.choose",
+   "count": 4
+  },
+  {
+   "exam_type_name": "询问信息",
+   "collect": "collector.role",
+   "count": 4
+  },
+  {
+   "exam_type_name": "听对话填空",
+   "collect": "collector.fill",
+   "count": 4
+  },
+  {
+   "exam_type_name": "对话跟读",
+   "collect": "collector.repeat_dialogue",
+   "count": 3
+  },
+  {
+   "exam_type_name": "短文跟读",
+   "collect": "collector.repeat_essay",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听短对话选图片",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "篇章朗读",
+   "collect": "collector.read",
+   "count": 3
+  },
+  {
+   "exam_type_name": "信息转述",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听较长对话选择",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听短对话选答案",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "关键词语选择",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "回答问题",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "exam_type_name": "话题简述",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听短对话回答问题",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听长对话或独白回答",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "朗读句子",
+   "collect": "collector.read",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听句子选择答案",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "口语表达",
+   "collect": "collector.picture",
+   "count": 3
+  },
+  {
+   "exam_type_name": "朗读",
+   "collect": "collector.read",
+   "count": 3
+  },
+  {
+   "exam_type_name": "情景应答",
+   "collect": "collector.choose",
+   "count": 3
+  },
+  {
+   "exam_type_name": "读后回答",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "exam_type_name": "情景问答",
+   "collect": "collector.role",
+   "count": 3
+  },
+  {
+   "exam_type_name": "听短文填表格",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听长对话或独白选答案",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "情景反应",
+   "collect": "collector.dialogue",
+   "count": 2
+  },
+  {
+   "exam_type_name": "情景提问",
+   "collect": "collector.dialogue",
+   "count": 2
+  },
+  {
+   "exam_type_name": "口头表达",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "信息记录",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "说话",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "话题表达",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "对话理解",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "第三节 长对话",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听短文回答问题",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听选信息",
+   "collect": "collector.role",
+   "count": 2
+  },
+  {
+   "exam_type_name": "信息获取",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "拼读单词",
+   "collect": "collector.read",
+   "count": 2
+  },
+  {
+   "exam_type_name": "口头作文",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "短文转述",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听独白回答问题",
+   "collect": "collector.role",
+   "count": 2
+  },
+  {
+   "exam_type_name": "语篇朗读",
+   "collect": "collector.read",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听对话选择",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听小对话选答案",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听长对话回答问题",
+   "collect": "collector.dialogue",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听填信息",
+   "collect": "collector.fill",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听句子选图片",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "短对话问答",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "句子理解",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "转述信息",
+   "collect": "collector.picture",
+   "count": 2
+  },
+  {
+   "exam_type_name": "朗读语块",
+   "collect": "collector.read",
+   "count": 2
+  },
+  {
+   "exam_type_name": "日常对话",
+   "collect": "collector.role",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听对话选择答案",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "听对话回答问题",
+   "collect": "collector.choose",
+   "count": 2
+  },
+  {
+   "exam_type_name": "单词或短语",
+   "collect": "collector.word",
+   "count": 1
+  },
+  {
+   "exam_type_name": "Vocabulary",
+   "collect": "collector.word",
+   "count": 1
+  },
+  {
+   "exam_type_name": "1 Thud, thud, thud",
+   "collect": "collector.word",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听短文填表格",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情景反应",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情景提问",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情景问答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听后回答1",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听后回答2",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "句子填空",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "exam_type_name": "对话填空",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "exam_type_name": "故事填空",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "exam_type_name": "交际问答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听录音，选图画",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "第一节 听句选图",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "第二节 短对话",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "信息转换",
+   "collect": "collector.fill",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听短文回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听选信息1",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听选信息2",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听选信息3",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "短文理解 ",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听长对话或独白选择",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话或独白选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听较长对话回答问题",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "话题表述",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "exam_type_name": "提问",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听后回答",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "快速应答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听独白选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "信息交流",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话1",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话2",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话3",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听长对话回答问题",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "对话或短文朗读",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听较长对话选答案",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "单词和短语",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "看音标读单词",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "句子",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "信息表达",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情境对话",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情景对话",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "单词",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听句子选择图片",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听长对话或独白回答问题",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听后回答",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听录音判断",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情景表达",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "exam_type_name": "复述",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "exam_type_name": "朗读词组",
+   "collect": "collector.read",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听后应答",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听短文口头回答问题",
+   "collect": "collector.role",
+   "count": 1
+  },
+  {
+   "exam_type_name": "看图说话",
+   "collect": "collector.picture",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听句子选择关键信息",
+   "collect": "collector.choose",
+   "count": 1
+  },
+  {
+   "exam_type_name": "情境提问",
+   "collect": "collector.dialogue",
+   "count": 1
+  },
+  {
+   "exam_type_name": "听对话和短文答题",
+   "collect": "collector.choose",
+   "count": 1
+  }
+ ]
+}

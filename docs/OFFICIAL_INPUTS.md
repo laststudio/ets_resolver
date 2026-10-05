@@ -22,6 +22,26 @@
 
 ---
 
+## 📊 官方题库盘点已完成（数据源：laststudio/ets100_resources）
+
+收到 `ets100_resources` 后一次性解决了两件大事：
+
+| 项 | 结果 |
+|---|---|
+| 规模 | 139,314 套题 / **441,931 条小题明细** / 37,100 套有效套题 |
+| 全量"大题名" | **2,157 种**（其中 924 种只出现 1 次）—— 按名字适配不可行 |
+| 官方解析家族 `exam_type_collect` | **只有 9 种，且全部已被 spec 收录** ✅ |
+| `res.json` 跨地区兼容性 | 抽样 **221 套真实模板，221/221 解析成功、零失败**，卷面分全部取自官方 `set_score` |
+| 新发现 | `collector.repeat_dialogue` / `collector.essay` 是官方模板真实取值，已补录 spec |
+| 重要结论 | 118 个官方大题名里 **9 个跨家族**（「回答问题」→ dialogue/role 等）→ **中文名不可单独用于推断解析器** |
+| 新取值域 | `evaluation_type` 11 种、`engine_type` 2 种（含 `Simulation`/`study`），已登记进 spec |
+
+产物：`tests/fixtures/official_type_inventory.json`、`tests/fixtures/official_exam_type_map.json`、
+可复现脚本 `tools/mine_official_map.py`、分析报告 [OFFICIAL_TYPE_INVENTORY.md](./OFFICIAL_TYPE_INVENTORY.md)、
+门禁测试 `tests/official_inventory.rs`（官方新增家族 → CI 立刻失败）。
+
+---
+
 ## 📍 res.json 在哪里获取（链路已在你后端里，无需去客户端找）
 
 **结论：不用去官方客户端找，你后端已经实现了这条链路** ——

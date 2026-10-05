@@ -302,6 +302,7 @@ Android 使用两个 JNI 类：`ResolverNative` 加载 `libresolver.so`，`Cloud
 ## 诊断、形状指纹与作业分类（parity 工具）
 
 > 方法论与采集管道见 [`docs/PARITY.md`](./docs/PARITY.md)；
+> **官方题型全量盘点见 [`docs/OFFICIAL_TYPE_INVENTORY.md`](./docs/OFFICIAL_TYPE_INVENTORY.md)**（2157 个大题名 / 9 个解析家族 / 221 套模板实测）；
 > **跨平台固定接口契约见 [`docs/INTERFACE.md`](./docs/INTERFACE.md)**；
 > 需要官方提供哪些素材见 [`docs/OFFICIAL_INPUTS.md`](./docs/OFFICIAL_INPUTS.md)。
 
@@ -397,7 +398,7 @@ Android 端对应 `ResolverNative.resolveRequest(json)` 与 `ResolverNative.capa
 
 Rust 核心测试（CI 与本地都应保持全绿）：
 ```bash
-cargo test --workspace          # 113 个用例：解析分发、PK 顺序/过滤与双通道、清洗、诊断指纹、作业分类、res.json 模板、契约层、授权签名校验
+cargo test --workspace          # 117 个用例：解析分发、PK 顺序/过滤与双通道、清洗、诊断指纹、作业分类、res.json 模板、契约层、授权签名校验
 ```
 
 一致性回归（与官方客户端对齐的门禁，方法论见 [`docs/PARITY.md`](./docs/PARITY.md)）：
