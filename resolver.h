@@ -27,6 +27,18 @@ RESOLVER_EXPORT char* parse_batch(const char* tasks_json);
 RESOLVER_EXPORT char* group_by_time(const char* items_json, int64_t threshold_ms);
 RESOLVER_EXPORT char* extract_meta(const char* content);
 
+/* 跨平台固定接口（唯一入口，推荐所有新接入方使用）
+ *
+ * resolve_request: {"version":1,"op":"parse_task","payload":{...}} -> 响应信封
+ *                  成功 {"ok":true,"version":1,"op":"...","result":...,"meta":{...}}
+ *                  失败 {"ok":false,"version":1,"op":"...","error":{"code","message","hint"}}
+ * capabilities:    能力清单（ops / categories / error_codes / notes）
+ *
+ * 平台只需实现这一次 JSON 进出；新能力通过新增 op 交付，不改 ABI。
+ * 详细契约见 docs/INTERFACE.md。 */
+RESOLVER_EXPORT char* resolve_request(const char* request_json);
+RESOLVER_EXPORT char* capabilities(void);
+
 /* 诊断与一致性工具（parity 基础设施），返回值均由 resolver_free_string 释放。
  *
  * diagnose:          这份资源包为什么出题/没出题：命中的路由层、形状指纹、告警。

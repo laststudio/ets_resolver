@@ -301,6 +301,39 @@ Android 使用两个 JNI 类：`ResolverNative` 加载 `libresolver.so`，`Cloud
 
 ## 诊断、形状指纹与作业分类（parity 工具）
 
+> 方法论与采集管道见 [`docs/PARITY.md`](./docs/PARITY.md)；
+> **跨平台固定接口契约见 [`docs/INTERFACE.md`](./docs/INTERFACE.md)**；
+> 需要官方提供哪些素材见 [`docs/OFFICIAL_INPUTS.md`](./docs/OFFICIAL_INPUTS.md)。
+
+### 推荐入口：`resolve_request`（跨平台唯一入口）
+
+新接入方只需实现一次"JSON 进 / JSON 出"，后续新能力通过新增 `op` 交付，不用改 ABI：
+
+```c
+/* 请求: {"version":1,"op":"parse_task","payload":{"content":{...},"info":{...}}} */
+char* resp = resolve_request("{\"op\":\"capabilities\"}");
+resolver_free_string(resp);
+```
+
+```json
+{ "ok": true, "version": 1, "op": "parse_task", "result": [ /* question[] */ ],
+  "meta": { "layer": "explicit", "family": "collector.choose", "shape": "df3956bcdc86ea06" } }
+```
+
+失败时统一为 `{"ok":false,"op":"...","error":{"code","message","hint"}}`，
+错误码：`invalid_input` / `unsupported_version` / `unknown_op` / `not_implemented` / `internal_error`。
+Android 端对应 `ResolverNative.resolveRequest(json)` 与 `ResolverNative.capabilities()`。
+
+| op | 状态 | 说明 |
+| --- | --- | --- |
+| `capabilities` | ✅ | 能力清单（ops / 题型 / 分类 / 错误码） |
+| `parse_task` / `parse_batch` / `parse_word_pk` / `extract_meta` | ✅ | 解析 |
+| `diagnose` / `shape_fingerprint` | ✅ | 诊断与结构指纹（发现官方新题型） |
+| `classify_homework` / `classify_homework_list` | ✅ | 作业分类（含习题集识别） |
+| `parse_homework_set` | ⏳ | 习题集多包合并（见 `docs/PARITY.md` M2） |
+
+### 单独可调的 C FFI（老调用方兼容保留）
+
 这三个能力是"与官方客户端完全一致"的基础设施，Android 端同样有 JNI 入口
 （`ResolverNative.diagnose` / `classifyHomework` / `classifyHomeworkList`）。
 

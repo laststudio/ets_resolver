@@ -14,6 +14,7 @@
 mod api;
 mod cleaner;
 mod collectors;
+mod contract;
 mod diagnose;
 mod homework;
 
@@ -50,6 +51,18 @@ pub fn classify_homework_value(item: &Value) -> Value {
 /// 作业列表批量分类的纯逻辑入口。
 pub fn classify_homework_list_value(list: &Value) -> Value {
     homework::classify_homework_list(list)
+}
+
+/// 跨平台固定契约的统一入口：`{"version":1,"op":"...","payload":{...}}` ->
+/// `{"ok":true,"version":1,"op":"...","result":...,"meta":{...}}`。
+/// 计划外/未实现的 op 返回结构化错误，绝不 panic。
+pub fn handle_request(request: &Value) -> Value {
+    contract::handle(request)
+}
+
+/// 契约能力清单（客户端启动时读一次）。
+pub fn capabilities_value() -> Value {
+    contract::capabilities()
 }
 
 // ============== 新接口: 纯 JSON 字符串 (仅非 Android 目标导出) ==============
@@ -198,6 +211,32 @@ pub extern "C" fn classify_homework_list(list_json: *const c_char) -> *mut c_cha
         None => return json_to_ptr(Value::Null),
     };
     json_to_ptr(classify_homework_list_value(&list))
+}
+
+/// 跨平台固定接口（唯一入口）: resolve_request(request_json) -> 响应信封 JSON
+///
+/// 请求: {"version":1,"op":"parse_task","payload":{"content":{...},"info":{...}}}
+/// 响应: {"ok":true,"version":1,"op":"parse_task","result":...,"meta":{...}}
+/// 错误: {"ok":false,"version":1,"op":"...","error":{"code":"...","message":"...","hint":"..."}}
+///
+/// 平台只需实现这一次 JSON 进 / JSON 出；新能力通过新增 op 交付，不改 ABI。
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn resolve_request(request_json: *const c_char) -> *mut c_char {
+    let request = match parse_json(&read_str(request_json)) {
+        Some(v) => v,
+        None => {
+            return json_to_ptr(contract::handle(&serde_json::json!({})));
+        }
+    };
+    json_to_ptr(handle_request(&request))
+}
+
+/// 能力清单: capabilities() -> {contract_version, ops[], categories[], error_codes[], notes[]}
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn capabilities() -> *mut c_char {
+    json_to_ptr(capabilities_value())
 }
 
 // ============== 旧接口: 兼容 demo.py 调用方 ==============

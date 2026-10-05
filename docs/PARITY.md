@@ -1,5 +1,7 @@
 # 与官方客户端完全一致（Parity）实施蓝图
 
+> 相关文档：[跨平台固定接口契约](./INTERFACE.md) ｜ [需要官方提供的素材清单](./OFFICIAL_INPUTS.md)
+
 > 目标：**解析结果与官方客户端等价，并且这个等价性可被持续验证**。
 > 前提：我们持有官方客户端的接口与实时数据，可以随时取到"官方基准（oracle）"。
 > 原则：所有逻辑只写在 `ets_resolver` 一处，`Fe-pro`（Android）与 `lastudio-platform`（后端）只消费。

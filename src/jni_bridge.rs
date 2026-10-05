@@ -111,6 +111,38 @@ extern "system" fn native_parse_task_authorized(
     )
 }
 
+/// 跨平台固定接口（唯一入口）: {"version":1,"op":"...","payload":{...}} -> 响应信封。
+/// 新能力通过新增 op 交付，客户端无需随解析器升级改 JNI 声明。
+extern "system" fn native_resolve_request(
+    mut env: JNIEnv,
+    _class: JClass,
+    request_json: JString,
+) -> jstring {
+    if !perform_runtime_integrity_check(Some(&mut env)) {
+        return to_jstring(
+            &mut env,
+            &serde_json::json!({"ok": false, "error": {"code": "integrity_check_failed"}}).to_string(),
+        );
+    }
+    let payload = get_string(&mut env, &request_json);
+    let request = match crate::parse_json(&payload) {
+        Some(v) => v,
+        None => return to_jstring(&mut env, "{\"ok\":false,\"error\":{\"code\":\"invalid_input\"}}"),
+    };
+    to_jstring(&mut env, &crate::handle_request(&request).to_string())
+}
+
+/// 能力清单: 客户端启动时读一次，用于决定 UI 与调用面。
+extern "system" fn native_capabilities(mut env: JNIEnv, _class: JClass) -> jstring {
+    if !perform_runtime_integrity_check(Some(&mut env)) {
+        return to_jstring(
+            &mut env,
+            &serde_json::json!({"ok": false, "error": {"code": "integrity_check_failed"}}).to_string(),
+        );
+    }
+    to_jstring(&mut env, &crate::capabilities_value().to_string())
+}
+
 // ============== 诊断与作业分类 (parity 工具, 只做运行时完整性校验) ==============
 
 /// 解析诊断: 返回 {structure_type, layer, family, question_count, shape, warnings}。
@@ -861,6 +893,16 @@ pub extern "system" fn JNI_OnLoad(vm: *mut JavaVM, _reserved: *mut c_void) -> ji
             name: obfstring!("classifyHomeworkList").into(),
             sig: obfstring!("(Ljava/lang/String;)Ljava/lang/String;").into(),
             fn_ptr: native_classify_homework_list as *mut c_void,
+        },
+        NativeMethod {
+            name: obfstring!("resolveRequest").into(),
+            sig: obfstring!("(Ljava/lang/String;)Ljava/lang/String;").into(),
+            fn_ptr: native_resolve_request as *mut c_void,
+        },
+        NativeMethod {
+            name: obfstring!("capabilities").into(),
+            sig: obfstring!("()Ljava/lang/String;").into(),
+            fn_ptr: native_capabilities as *mut c_void,
         },
     ];
 

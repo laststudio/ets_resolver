@@ -1,5 +1,7 @@
 # 语料库（parity corpus）
 
+> 需要哪些官方素材来填充它：见 [`docs/OFFICIAL_INPUTS.md`](../../docs/OFFICIAL_INPUTS.md)
+
 这里放**一致性回归用例**：每个 case 是一份真实的官方资源包，加上"官方结果"作为基准（golden）。
 测试代码见 [`tests/corpus_parity.rs`](../corpus_parity.rs)，方法论见 [`docs/PARITY.md`](../../docs/PARITY.md)。
 
