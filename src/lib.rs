@@ -17,6 +17,7 @@ mod collectors;
 mod contract;
 mod diagnose;
 mod homework;
+mod homework_set;
 mod spec;
 mod template;
 
@@ -85,6 +86,15 @@ pub fn apply_res_template_value(
 ) -> Value {
     let parsed = template::parse(res);
     template::apply_section(&parsed, section_index, questions)
+}
+
+/// 习题集合并：把多份资源包的解析结果合并成"一张卷"（官方 res.json 优先）。
+pub fn parse_homework_set_value(
+    packages: &Value,
+    res: Option<&Value>,
+    homework: Option<&Value>,
+) -> Value {
+    homework_set::merge(packages, res, homework)
 }
 
 // ============== 新接口: 纯 JSON 字符串 (仅非 Android 目标导出) ==============

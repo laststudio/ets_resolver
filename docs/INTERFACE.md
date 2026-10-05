@@ -50,7 +50,7 @@
 ```jsonc
 {
   "structure_types": [ { "id": "listen_choice_standard", "official_name": "标准听力选择题",
-                         "model": "SectionItemBean", "handler": "collector.choose" }, ... ],   // 14 项
+                         "model": "SectionItemBean", "handler": "collector.choose" }, ... ],   // 22 项
   "word_symbols": [ { "question_type": 6, "channel": "sync_pk", "official_name": "听音选词（4选1）",
                       "ambiguous_across_channels": true }, ... ],                            // 20 项
   "exam_type_names": { "authoritative_guangdong": ["模仿朗读","听选信息","回答问题","信息转述","询问信息"],
@@ -66,7 +66,8 @@
     "score_authority": "逐题满分取 res.json 的 question_list[].question_score",
     "order_authority": "大题顺序取 exam_type_list 下标"
   },
-  "coverage": { "total": 14, "explicitly_adapted": 13, "not_explicitly_adapted": 1 }
+  "coverage": { "total": 22, "explicitly_adapted": 21, "not_explicitly_adapted": 1 }
+  // not_explicitly_adapted 里只有 templet_common（模板驱动，靠 res.json 协同）
 }
 ```
 
@@ -91,7 +92,7 @@
 | `spec` | stable | — | 权威规格 | **官方题型全集**、词汇双通道、展示要素、res.json 权威路径、边界规则、覆盖率 |
 | `res_template` | stable | `res` | 规范化模板 | 大题顺序、大题分、逐题满分（E5/E6 权威来源） |
 | `apply_res_template` | stable | `res`, `questions`, `section_index?`/`structure_type?` | 已盖分题目 | 只补题号与满分，不改内容 |
-| `parse_homework_set` | **planned** | `homeworks[]` | `{paper, coverage}` | 习题集多包合并（M2） |
+| `parse_homework_set` | stable | `packages[]`, `res?`, `homework?` | `{paper, coverage, warnings}` | **习题集多包合并**：官方 res.json 定顺序与满分，同大题分包自动合并 |
 
 题库侧（`libcloud.so`）的 op 命名沿用同一信封，前缀 `cloud.`：`cloud.login` / `cloud.homework_list` / `cloud.download` …（M2 统一）。
 

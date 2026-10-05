@@ -783,30 +783,72 @@ fn parse_homework_list(value: &Value, status: &str) -> Result<Value, CloudError>
         .iter()
         .filter_map(Value::as_object)
         .map(|homework| {
-            let contents = homework
-                .get("struct")
-                .and_then(Value::as_object)
+            let struct_obj = homework.get("struct").and_then(Value::as_object);
+            let contents = struct_obj
                 .and_then(|value| value.get("contents"))
                 .and_then(Value::as_array)
                 .map(|contents| {
                     contents
                         .iter()
                         .filter_map(Value::as_object)
-                        .map(|content| {
+                        .enumerate()
+                        .map(|(index, content)| {
                             let url = value_as_string(content.get("url"));
                             json!({
                                 "group_name": value_as_string(content.get("group_name")),
                                 "url": url,
-                                "download_url": resolve_download_url(&base_url, &url)
+                                "download_url": resolve_download_url(&base_url, &url),
+                                // 新增：分节挂载与顺序所需字段（原先被裁掉，导致
+                                // Fe-pro/后端 只能各自重写一份列表解析）
+                                "real_id": value_as_string(
+                                    content.get("real_id").or_else(|| content.get("entity_id"))
+                                ),
+                                "order": content
+                                    .get("order")
+                                    .and_then(value_as_i64)
+                                    .unwrap_or(index as i64),
                             })
                         })
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
+            // 顶层取不到就落到 struct（官方不同接口字段层级不一致）
+            let pick = |key: &str| -> Option<&Value> {
+                homework
+                    .get(key)
+                    .filter(|v| !v.is_null())
+                    .or_else(|| struct_obj.and_then(|s| s.get(key)).filter(|v| !v.is_null()))
+            };
+            let pick_str = |key: &str| -> String { value_as_string(pick(key)) };
+            let pick_i64 = |key: &str| -> i64 { pick(key).and_then(value_as_i64).unwrap_or(0) };
+            let pick_f64 = |key: &str| -> f64 {
+                pick(key)
+                    .and_then(|v| match v {
+                        Value::Number(n) => n.as_f64(),
+                        Value::String(s) => s.trim().parse().ok(),
+                        _ => None,
+                    })
+                    .unwrap_or(0.0)
+            };
             json!({
                 "id": value_as_string(homework.get("id")),
                 "name": value_as_string(homework.get("name")),
-                "contents": contents
+                "contents": contents,
+                // ---- 分类与卷面满分所需的全部字段（与后端/Fe-pro 既有口径对齐）----
+                "subject_name": pick_str("subject_name"),
+                "set_type": pick_i64("set_type"),
+                "set_id": pick_str("set_id"),
+                "resource_id": pick_str("resource_id"),
+                "pk": pick_i64("pk"),
+                "kind": pick_str("kind"),
+                "mock": pick_i64("mock"),
+                "exam": pick_i64("exam"),
+                "status": pick("status").cloned().unwrap_or(Value::Null),
+                "create_time": pick_str("create_time"),
+                "end_time": pick_str("end_time"),
+                "point": pick_f64("point"),
+                "total_point": pick_f64("total_point"),
+                "total_score": pick_f64("total_score"),
             })
         })
         .collect::<Vec<_>>();
@@ -1170,6 +1212,62 @@ mod tests {
             parsed["homeworks"][0]["contents"][0]["download_url"],
             "https://cdn.example.test/a.zip"
         );
+    }
+
+    #[test]
+    fn homework_item_exposes_classification_fields() {
+        // 分类所需字段原先被裁掉，导致各端只能自己重写一份列表解析 —— 这里锁住回归
+        let value = json!({"body": {
+            "base_url": "https://cdn.example.test",
+            "data": [{
+                "id": "9527",
+                "name": "Unit 3 综合练习",
+                "subject_name": "英语",
+                "set_type": 1,
+                "set_id": "set-9981",
+                "resource_id": "58",
+                "pk": 0,
+                "kind": "mock",
+                "mock": 1,
+                "exam": 0,
+                "status": 1,
+                "end_time": "2026-10-10 20:00:00",
+                "point": 22.5,
+                "total_point": 30,
+                "struct": {"contents": [
+                    {"group_name": "模仿朗读", "url": "a.zip", "real_id": "e-1", "order": 0},
+                    {"group_name": "听选信息", "url": "b.zip", "entity_id": "e-2", "order": 1}
+                ]}
+            }]
+        }});
+        let parsed = parse_homework_list(&value, "1").unwrap();
+        let hw = &parsed["homeworks"][0];
+        assert_eq!(hw["set_type"], 1);
+        assert_eq!(hw["set_id"], "set-9981");
+        assert_eq!(hw["resource_id"], "58");
+        assert_eq!(hw["kind"], "mock");
+        assert_eq!(hw["mock"], 1);
+        assert_eq!(hw["total_point"], 30.0);
+        assert_eq!(hw["point"], 22.5);
+        assert_eq!(hw["subject_name"], "英语");
+        // contents 的顺序与挂载键
+        assert_eq!(hw["contents"][0]["real_id"], "e-1");
+        assert_eq!(hw["contents"][0]["order"], 0);
+        assert_eq!(hw["contents"][1]["real_id"], "e-2");
+        assert_eq!(hw["contents"][1]["order"], 1);
+    }
+
+    #[test]
+    fn homework_item_reads_fields_from_struct_fallback() {
+        let value = json!({"body": {
+            "base_url": "https://cdn.example.test",
+            "data": [{"id": "1", "name": "x", "struct": {
+                "set_type": 6, "resource_id": "77", "contents": []
+            }}]
+        }});
+        let parsed = parse_homework_list(&value, "1").unwrap();
+        assert_eq!(parsed["homeworks"][0]["set_type"], 6);
+        assert_eq!(parsed["homeworks"][0]["resource_id"], "77");
     }
 
     #[test]

@@ -22,7 +22,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::collectors::parse_content_routed;
-use crate::{api, diagnose, homework, spec, template};
+use crate::{api, diagnose, homework, homework_set, spec, template};
 
 /// 契约版本。新增 op 不涨版本；**破坏性字段变更**才涨，且旧版本请求必须继续可用。
 pub const CONTRACT_VERSION: u64 = 1;
@@ -148,11 +148,12 @@ pub fn capabilities() -> Value {
              "summary": "把 res.json 的满分与题号盖到已解析题目上（只补不改内容）",
              "payload": {"res": "object|string", "section_index": "int", "questions": "question[]"},
              "result": "{applied, filled_no, filled_score, ...}"},
-            {"op": "parse_homework_set", "status": "planned",
-             "summary": "老师布置的一整套多卷（习题集）：多包下载、合并分节、全局题号、逐题满分",
-             "payload": {"homeworks": "[{url|download_url, group_name, order?, real_id?}]",
-                         "options": "{withAudio?:bool, keepOrder?:bool}"},
-             "result": "{paper: {title, sections[], totalScore}, coverage}"},
+            {"op": "parse_homework_set", "status": "stable",
+             "summary": "老师布置的一整套多卷（习题集）：把多包解析结果合并成一张卷（官方 res.json 优先定顺序与满分）",
+             "payload": {"packages": "[{structure_type, group_name, real_id?, order?, questions[]}]",
+                         "res": "object|string?（官方 res.json，可选但强烈建议）",
+                         "homework": "object|string?（作业 item，用于分类与标题）"},
+             "result": "{paper: {sections[], totalScore, totalScore_source, category, is_exercise_set}, coverage, warnings}"},
         ],
         "layers": {
             "explicit": "structure_type 显式命中",
@@ -338,14 +339,22 @@ pub fn handle(request: &Value) -> Value {
             respond_ok(op_ref, homework::classify_homework_list(&list), None)
         }
 
-        "parse_homework_set" => respond_err(
-            op_ref,
-            error(
-                "not_implemented",
-                "习题集多包合并（parse_homework_set）尚未实现",
-                "见 docs/PARITY.md 的 M2；先用 parse_batch 自行合并",
-            ),
-        ),
+        "parse_homework_set" => {
+            let packages = match required(request, &payload, "packages") {
+                Ok(v) => v,
+                Err(e) => return respond_err(op_ref, e),
+            };
+            let res = field(request, &payload, "res");
+            let homework = field(request, &payload, "homework");
+            let merged = homework_set::merge(&packages, res.as_ref(), homework.as_ref());
+            let meta = json!({
+                "packages": merged["coverage"]["packages"],
+                "merged": merged["coverage"]["merged"],
+                "ordered_by": merged["coverage"]["ordered_by"],
+                "warning_count": merged["warnings"].as_array().map(|a| a.len()).unwrap_or(0),
+            });
+            respond_ok(op_ref, merged, Some(meta))
+        }
 
         "spec" => respond_ok(op_ref, spec::taxonomy(), None),
 
@@ -492,10 +501,42 @@ mod tests {
     }
 
     #[test]
-    fn handle_marks_planned_op_as_not_implemented() {
-        let out = handle(&json!({"op": "parse_homework_set", "payload": {}}));
-        assert_eq!(out["ok"], false);
-        assert_eq!(out["error"]["code"], "not_implemented");
+    fn handle_merges_homework_set_through_contract() {
+        let res = json!({
+            "exam_type_list": [
+                {"exam_type_name": "模仿朗读", "exam_type_collect": "collector.read",
+                 "exam_list": [{"exam_score": "6.0",
+                                "question_list": [{"question_order": "0", "question_score": "6.0"}]}]},
+                {"exam_type_name": "听选信息", "exam_type_collect": "listen_choice_standard",
+                 "exam_list": [{"exam_score": "3.0", "question_list": [
+                    {"question_order": "0", "question_score": "1.5"},
+                    {"question_order": "1", "question_score": "1.5"}]}]}
+            ]
+        });
+        let out = handle(&json!({
+            "op": "parse_homework_set",
+            "payload": {
+                "homework": {"id": "5", "name": "Unit 3 综合练习", "set_id": "s-1",
+                             "contents": [{"group_name": "模仿朗读"}, {"group_name": "听选信息"}]},
+                "res": res,
+                "packages": [
+                    {"structure_type": "listen_choice_standard", "group_name": "听选信息", "order": 1,
+                     "questions": [{"no": 1, "question": "Q1"}, {"no": 2, "question": "Q2"}]},
+                    {"structure_type": "collector.read", "group_name": "模仿朗读", "order": 0,
+                     "questions": [{"no": 1, "question": "Read"}]}
+                ]
+            }
+        }));
+        assert_eq!(out["ok"], true);
+        let paper = &out["result"]["paper"];
+        assert_eq!(paper["section_count"], 2);
+        assert_eq!(paper["sections"][0]["caption"], "模仿朗读");
+        assert_eq!(paper["question_count"], 3);
+        assert_eq!(paper["totalScore"], 9.0);
+        assert_eq!(paper["totalScore_source"], "res_template");
+        assert_eq!(paper["is_exercise_set"], true);
+        assert_eq!(out["meta"]["ordered_by"], "res_template");
+        assert_eq!(out["result"]["coverage"]["merged"], 2);
     }
 
     #[test]

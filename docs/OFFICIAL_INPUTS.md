@@ -26,12 +26,13 @@
 
 ### P0-1 官方题型全集
 
-- **收到**：14 个 `structure_type` / 引擎标识（`collector.read`、`collector.repeat`、`collector.sentence`、
+- **收到**：14 个官方 `structure_type` / 引擎标识（`collector.read`、`collector.repeat`、`collector.sentence`、
   `collector.word`、`repeat`、`repeat_dialogue`、`essay`、`templet_common`、`listen_choice_standard`、
   `listen_fill_standard`、`read_passage_standard`、`read_sentence_standard`、`read_word_standard`、
   `read_and_choose_standard`）；词汇双套系统（`QuestionSymbol` 0~13 + `SyncWordQuestionBean` 6/16~20）。
 - **已落地**：`src/spec.rs` 固化为机器可读注册表；`op: spec` 对外输出；覆盖率自证
-  （14 项里 **13 项已显式适配**，仅 `templet_common` 依赖 res.json 模板）；
+  连同 content.json 长期在用的 `collector.*` 规范性标识一起收录为 **22 项**，其中 **21 项已显式适配**
+  （仅 `templet_common` 依赖 res.json 模板）；
   新增标识全部接入显式路由（`listen_choice`/`sentence`/`read_*_standard`），
   `parse_task.meta.spec_known` 可直接判断"是否官方已知题型"。
 - **顺带解决的真问题**：`question_type=6` 双语义（同步通道=听音选词、超能单词通道=单词跟读），

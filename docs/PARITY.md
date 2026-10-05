@@ -140,15 +140,15 @@ Fe-pro `normalizeCloudParsedSections` 的合并逻辑收口进来（`res.json` �
 | 接口 | 状态 | 说明 |
 |---|---|---|
 | `resolve_request(op)` / `capabilities()` | ✅ 已完成 | 跨平台固定契约（见 [INTERFACE.md](./INTERFACE.md)）：新能力只加 op，不改 ABI |
-| `spec` (op) | ✅ 本次新增 | **官方权威规格**：14 个题型全集的官方名/模型/场景/处理器、词汇双通道（`question_type=6` 双语义）、展示要素表、res.json 权威路径、边界规则、覆盖率自证 |
+| `spec` (op) | ✅ 已完成 | **官方权威规格**：22 个题型全集（引擎标识 14 + content.json 常见 `collector.*` 8）的官方名/模型/场景/处理器、词汇双通道（`question_type=6` 双语义）、展示要素表、res.json 权威路径、边界规则、覆盖率自证 |
 | `diagnose(content, info, content2)` | ✅ 已完成 | 命中层/家族/形状指纹/告警；**不含题目文本**；新增 `structure_type_not_in_official_spec` 告警 |
 | `shape_fingerprint(content, info, content2)` | ✅ 已完成 | 结构指纹（不含取值、不含 `structure_type`）：改名不改结构 → 指纹不变 |
 | `classify_homework` / `classify_homework_list` | ✅ 已完成 | 作业分类 + 卷面总分口径，返回 `exercise_set_ids` |
 | `res_template(res)` | ✅ 本次新增 | 规范化官方 `res.json`：大题顺序（`exam_type_list` 下标）、大题分、**逐题满分** |
 | `apply_res_template(res, questions)` | ✅ 本次新增 | 把满分/题号盖到解析结果（只补不改内容），支持按 `structure_type` 自动定位分节 |
 | 语料库一致性测试 | ✅ 已完成 | `tests/corpus_parity.rs` + `PARITY_*` 环境变量 + 机器可读报告 |
-| `cloud_get_homework_list` 字段透传 | ⏳ M2 | 补 `pk/set_type/set_id/resource_id/kind/mock/exam/order/real_id/point/total_point` |
-| `parse_homework_set(packages[])` | ⏳ M2 | 多包合并（习题集） |
+| `cloud_get_homework_list` 字段透传 | ✅ 已完成 | 已补 `pk/set_type/set_id/resource_id/kind/mock/exam/order/real_id/point/total_point`，三端不再各写一份列表解析 |
+| `parse_homework_set(packages[], res?, homework?)` | ✅ 已完成 | 习题集多包合并：官方 res.json 定大题顺序与逐题满分；同 `exam_type_collect` 的分包合并成一个大题；全局题号连续 |
 | L3 兜底抽取 | ⏳ M2 | 名字与形状都不认识时的最后抢救 + 低置信标记 |
 
 以上能力在 **Android 端统一走 `ResolverNative.resolveRequest(json)`**（新增 op 无需改客户端声明）。

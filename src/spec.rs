@@ -143,6 +143,73 @@ pub const STRUCTURE_TYPES: &[StructureTypeSpec] = &[
         handler: Some("collector.choose"),
         note: "",
     },
+    // ---- content.json 里长期在用的 collector.* 规范取值 ----
+    // 官方 res.json 的 `exam_type_collect` 也会直接用这些名字，所以它们同属权威定义域；
+    // 不收录会导致 `spec_known` 对最常见的题型误报为"未知"。
+    StructureTypeSpec {
+        id: "collector.choose",
+        official_name: "听后选择",
+        model: "InfoArrayBean (xtlist/xxlist)",
+        scenario: "北京初中/高中 听后选择；广东 听选信息",
+        handler: Some("collector.choose"),
+        note: "答案在 info.xtlist[].answer，选项在 xtlist[].xxlist",
+    },
+    StructureTypeSpec {
+        id: "collector.role",
+        official_name: "听选信息 / 回答问题 / 提问",
+        model: "InfoArrayBean (question[].std[])",
+        scenario: "广东初中 听选信息、回答问题、询问信息",
+        handler: Some("collector.role"),
+        note: "同族三题型靠 res.json 的 exam_type_name 区分，无模板时按 askaudio/中文兜底",
+    },
+    StructureTypeSpec {
+        id: "collector.picture",
+        official_name: "信息转述",
+        model: "InfoObjBean (std[].value)",
+        scenario: "各地区 信息转述 / 听后转述",
+        handler: Some("collector.picture"),
+        note: "",
+    },
+    StructureTypeSpec {
+        id: "collector.fill",
+        official_name: "听后记录",
+        model: "InfoArrayBean (std[].xth/value)",
+        scenario: "北京高中 听后记录/填空",
+        handler: Some("collector.fill"),
+        note: "空号权威来源是 std[].xth；卷面大题号另有 th",
+    },
+    StructureTypeSpec {
+        id: "collector.3q5a",
+        official_name: "三问五答",
+        model: "InfoArrayBean (question[].std[])",
+        scenario: "广东高中",
+        handler: Some("collector.3q5a"),
+        note: "每题多个参考答案，原样不排序",
+    },
+    StructureTypeSpec {
+        id: "collector.dialogue",
+        official_name: "回答问题",
+        model: "InfoArrayBean (question[].std[])",
+        scenario: "北京高中 回答问题",
+        handler: Some("collector.dialogue"),
+        note: "",
+    },
+    StructureTypeSpec {
+        id: "collector.repeat_essay",
+        official_name: "短文复述",
+        model: "InfoObjBean (sublist[])",
+        scenario: "短文复述 / 篇章背诵",
+        handler: Some("collector.repeat_essay"),
+        note: "每条 sublist 一项成题",
+    },
+    StructureTypeSpec {
+        id: "word_pk",
+        official_name: "词汇 / PK 在线题",
+        model: "SyncWordQuestionBean",
+        scenario: "单词对战、词汇在线作业（无资源包）",
+        handler: Some("word_pk"),
+        note: "解析器内部统一标识；question_type 语义见 word_symbols（双通道）",
+    },
 ];
 
 /// 词汇侧题型（双套系统）。`ambiguous = true` 表示同一 `question_type` 在两个系统里语义不同，
