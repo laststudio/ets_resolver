@@ -122,10 +122,40 @@ cargo test --test official_inventory
 **另外新增一条诊断**：显式命中却出不了题时输出 `explicit_route_empty` 告警 ——
 否则这种情况会被 `layer=explicit` 掩盖成"看起来正常"。
 
-## 八、还没覆盖到的部分
+## 八、词汇双通道已用真实载荷定标（`/g/word/struct`）
+
+已完成作业的服务端会归档 `pk-info` / `homework/struct` 的题面，真实取法是后端那条链：
+```text
+/g/homework/score-detail → details[].word[].word_id   （96 / 139 个词，且是**权威作答顺序**）
+/g/word/struct?word_ids=[...] → data[].question[]     （每题自带官方 question_type_name）
+```
+
+**真实载荷自带官方 `question_type_name`** —— 这是权威定标，实测 96 词 × 6 题全量一致：
+
+| `question_type` | 官方 `question_type_name` | 答案形态 | 本库 type |
+|---|---|---|---|
+| 6 | **听音选义** | `'D'` + 选项 | `word.choice` |
+| 16 | **默写词汇** | `'trait'` | `word.write` |
+| 17 | **朗读词汇** | 空（原文即答案） | `word.read` |
+| 18 | **听写词汇** | `'trait'` | `word.dictation` |
+| 19 | **英译中** | `'B'` + 选项 | `word.translate_en_cn` |
+| 20 | **中译英** | `'A'` + 选项 | `word.translate_cn_en` |
+
+**并因此修正了一个真实错误**：先前 spec 里同步通道的 `official_name` 是照反编译符号名
+（`isTypeEnToCn` / `isTypeCnToEn` / …）推的，**17~20 位错位**（把"英译中"标到了 17）。
+现在官方名以线上载荷的 `question_type_name` 为准，符号名保留在 `symbol` 字段里供回溯。
+
+**解析策略升级**：`question_type_name` **优先于数字映射** —— 名字是官方自描述的，
+并且天然消除"同一数字跨通道语义不同"（6 在超能单词通道是"单词跟读"）的歧义。
+每题还会原样带出 `question_type_name` 与 `official_answer`（选择题的选项字母），便于逐字节对账。
+
+真实数据验证（广东高中 9月11日 U1 单词PK，96 词）：解析出 **576 题**，
+六种题型各 96 题，`channel=sync_pk`，题干/答案/选项与官方字段一一对应。
+
+## 九、还没覆盖到的部分
 
 - **其他地区/学段的 `res.json` 字段差异**：本次抽样已跨 107 个大类、221 套模板且零失败，
   但仍建议按地区（北京/江苏/上海/山东/广东）各抽一批复核；
 - ~~`collector.3q5a`（广东高中三问五答）~~：**已用真实广东高中数据闭环** ✅（见第六节）；
 - ~~`collector.repeat`（课内外语篇听读）~~：**已修 + 已入库** ✅（见第七节）；
-- **词汇双通道**（`Symbol_*` vs `sync_pk`）：题库只有听说卷，词汇通道需要从作业接口取真实载荷核对。
+- ~~**词汇双通道**（`Symbol_*` vs `sync_pk`）~~：**已用真实 `/g/word/struct` 载荷定标** ✅（见第八节）。

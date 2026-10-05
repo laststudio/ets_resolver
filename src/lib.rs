@@ -36,6 +36,11 @@ pub fn parse_task_value(content: &Value, content2: Option<&Value>, info: Option<
     api::parse_task(content, content2, info)
 }
 
+/// 词汇 / 单词 PK 解析的纯逻辑入口。
+pub fn parse_word_pk_value(data: &Value) -> Vec<Value> {
+    collectors::collect_word_pk(data)
+}
+
 /// 诊断的纯逻辑入口（输出见 `diagnose` 的 FFI 说明）。
 pub fn diagnose_value(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Value {
     diagnose::diagnose(content, content2, info)

@@ -259,13 +259,48 @@ pub const WORD_SYMBOLS: &[WordSymbolSpec] = &[
     WordSymbolSpec { qtype: 12, channel: "symbol", symbol: "Symbol_12_qjyy", official_name: "情景应用", code: "qjyy", ambiguous: false },
     WordSymbolSpec { qtype: 13, channel: "symbol", symbol: "Symbol_13_xdc", official_name: "学单词", code: "xdc", ambiguous: false },
     // --- 同步词汇 / PK 对战 SyncWordQuestionBean（6、16~20）---
-    WordSymbolSpec { qtype: 6, channel: "sync_pk", symbol: "isTypeListenChosen", official_name: "听音选词（4选1）", code: "listen_chosen", ambiguous: true },
-    WordSymbolSpec { qtype: 16, channel: "sync_pk", symbol: "isTypeSpell", official_name: "单词拼写", code: "spell", ambiguous: false },
-    WordSymbolSpec { qtype: 17, channel: "sync_pk", symbol: "isTypeEnToCn", official_name: "英译中（看英文选中文）", code: "en_cn", ambiguous: false },
-    WordSymbolSpec { qtype: 18, channel: "sync_pk", symbol: "isTypeCnToEn", official_name: "中译英（看中文选英文）", code: "cn_en", ambiguous: false },
-    WordSymbolSpec { qtype: 19, channel: "sync_pk", symbol: "isTypeWriteWord", official_name: "看中文写单词", code: "write_word", ambiguous: false },
-    WordSymbolSpec { qtype: 20, channel: "sync_pk", symbol: "isTypeDictationWord", official_name: "听音拼写（单词听写）", code: "dictation", ambiguous: false },
+    //
+    // 官方名以**真实载荷里的 `question_type_name` 为准**（实测 96 词 × 6 题全量一致）：
+    // 6=听音选义 16=默写词汇 17=朗读词汇 18=听写词汇 19=英译中 20=中译英。
+    // 早期版本按反编译符号名（isTypeEnToCn/isTypeCnToEn/…）推名字，17~20 是**错位**的，
+    // 已按线上数据纠正（符号名仍保留在 `symbol` 里供回溯）。
+    WordSymbolSpec { qtype: 6, channel: "sync_pk", symbol: "isTypeListenChosen", official_name: "听音选义", code: "listen_chosen", ambiguous: true },
+    WordSymbolSpec { qtype: 16, channel: "sync_pk", symbol: "isTypeSpell", official_name: "默写词汇", code: "spell", ambiguous: false },
+    WordSymbolSpec { qtype: 17, channel: "sync_pk", symbol: "isTypeSpell/read", official_name: "朗读词汇", code: "read", ambiguous: false },
+    WordSymbolSpec { qtype: 18, channel: "sync_pk", symbol: "isTypeDictation", official_name: "听写词汇", code: "dictation", ambiguous: false },
+    WordSymbolSpec { qtype: 19, channel: "sync_pk", symbol: "isTypeEnToCn", official_name: "英译中", code: "en_cn", ambiguous: false },
+    WordSymbolSpec { qtype: 20, channel: "sync_pk", symbol: "isTypeCnToEn", official_name: "中译英", code: "cn_en", ambiguous: false },
 ];
+
+/// 官方 `question_type_name`（真实载荷自带）→ 本库的词汇 type 标识。
+///
+/// **优先于数字映射**：名字是官方自描述的、且能消除"同一数字跨通道语义不同"的歧义。
+pub const WORD_TYPE_NAME_MAP: [(&str, &str); 12] = [
+    ("听音选义", "word.choice"),
+    ("听音选词", "word.choice"),
+    ("默写词汇", "word.write"),
+    ("单词拼写", "word.write"),
+    ("拼写", "word.write"),
+    ("朗读词汇", "word.read"),
+    ("单词跟读", "word.read"),
+    ("听写词汇", "word.dictation"),
+    ("单词听写", "word.dictation"),
+    ("英译中", "word.translate_en_cn"),
+    ("中译英", "word.translate_cn_en"),
+    ("", "word.unknown"),
+];
+
+/// 按官方名解析词汇 type（取不到则返回 None，由调用方回退到数字映射）。
+pub fn word_type_by_name(name: &str) -> Option<&'static str> {
+    let target = name.trim();
+    if target.is_empty() {
+        return None;
+    }
+    WORD_TYPE_NAME_MAP
+        .iter()
+        .find(|(n, _)| *n == target)
+        .map(|(_, t)| *t)
+}
 
 /// `question_type` 是否在两个通道里语义冲突（当前只有 6）。
 pub fn is_ambiguous_qtype(qtype: i64) -> bool {
@@ -413,6 +448,7 @@ pub fn taxonomy() -> Value {
             "code": w.code,
             "ambiguous_across_channels": w.ambiguous,
         })).collect::<Vec<_>>(),
+        "word_type_names": WORD_TYPE_NAME_MAP.iter().map(|(n, t)| json!({"question_type_name": n, "type": t})).collect::<Vec<_>>(),
         "word_channels": {
             "symbol": "新版超能单词 QuestionSymbol（0~13，自主训练题型）",
             "sync_pk": "同步词汇/PK 对战 SyncWordQuestionBean（6, 16~20）",
@@ -499,7 +535,15 @@ mod tests {
         let symbol = word_symbol(6, "symbol").unwrap();
         let sync = word_symbol(6, "sync_pk").unwrap();
         assert_eq!(symbol.official_name, "单词跟读");
-        assert_eq!(sync.official_name, "听音选词（4选1）");
+        assert_eq!(sync.official_name, "听音选义");
+        // 真实载荷的官方名 → type（96 词 × 6 题实测）
+        assert_eq!(word_type_by_name("听音选义"), Some("word.choice"));
+        assert_eq!(word_type_by_name("默写词汇"), Some("word.write"));
+        assert_eq!(word_type_by_name("朗读词汇"), Some("word.read"));
+        assert_eq!(word_type_by_name("听写词汇"), Some("word.dictation"));
+        assert_eq!(word_type_by_name("英译中"), Some("word.translate_en_cn"));
+        assert_eq!(word_type_by_name("中译英"), Some("word.translate_cn_en"));
+        assert_eq!(word_type_by_name("没见过的名字"), None);
     }
 
     #[test]

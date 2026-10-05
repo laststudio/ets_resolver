@@ -659,7 +659,14 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
     let mut questions = Vec::new();
     for (i, q) in raw_questions.iter().enumerate() {
         let qtype_num = get_i64(q.get("question_type").or_else(|| q.get("type")).or_else(|| q.get("q_type")).unwrap_or(&Value::Null)).unwrap_or(0);
-        let qtype_str = word_type_str(qtype_num, word_channel);
+        // 官方名优先：真实载荷自带 `question_type_name`（"听音选义/默写词汇/朗读词汇/…"），
+        // 比数字映射更可靠，且能消除"同一数字跨通道语义不同"的歧义。
+        let qtype_name = clean(&get_str(
+            q.get("question_type_name").or_else(|| q.get("type_name")).unwrap_or(&Value::Null),
+        ));
+        let qtype_str = crate::spec::word_type_by_name(&qtype_name)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| word_type_str(qtype_num, word_channel));
         let word_id = get_i64(q.get("word_id").unwrap_or(&Value::Null)).unwrap_or(0);
         let q_id = get_i64(q.get("id").or_else(|| q.get("q_id")).or_else(|| q.get("question_id")).unwrap_or(&Value::Null)).unwrap_or(0);
 
@@ -724,6 +731,16 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
         let mut extra = Map::new();
         // 官方词汇双通道：把判定结果带出去，客户端/后端能看到型别是按哪套系统解释的
         extra.insert("channel".into(), Value::String(word_channel.to_string()));
+        if !qtype_name.is_empty() {
+            // 官方自带的题型名：原样带出（对账/排错用，不做归一化）
+            extra.insert("question_type_name".into(), Value::String(qtype_name.clone()));
+        }
+        let raw_answer = get_str(q.get("answer").unwrap_or(&Value::Null));
+        if !raw_answer.is_empty() {
+            // 官方原始答案（选择题是选项字母 "A"/"B"…）。我们的 answers 是归一化后的
+            // 可读答案，这里保留官方原值以便逐字节对账。
+            extra.insert("official_answer".into(), Value::String(raw_answer));
+        }
         if crate::spec::is_ambiguous_qtype(qtype_num) {
             // 该 question_type 在两个通道语义不同，客户端如需精确语义请自行判定通道
             extra.insert("ambiguous_across_channels".into(), Value::Bool(true));
@@ -1219,7 +1236,7 @@ mod tests {
         let qs = collect_word_pk(&sync);
         assert_eq!(qs[0]["type"], "word.choice");
         assert_eq!(qs[0]["channel"], "sync_pk");
-        assert_eq!(qs[0]["symbol_name"], "听音选词（4选1）");
+        assert_eq!(qs[0]["symbol_name"], "听音选义");
 
         // 新版超能单词通道：6 = 单词跟读（word.symbol.dcgd）
         let symbol = json!({

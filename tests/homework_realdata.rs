@@ -11,6 +11,8 @@
 use std::fs;
 use std::path::PathBuf;
 
+use std::collections::BTreeSet;
+
 use serde_json::{json, Value};
 
 fn fixture(name: &str) -> Value {
@@ -344,4 +346,61 @@ fn explicit_route_without_questions_is_reported() {
     let warnings = report["warnings"].as_array().unwrap();
     assert!(warnings.iter().any(|w| w == "explicit_route_empty"));
     assert!(warnings.iter().any(|w| w == "no_questions"));
+}
+
+#[test]
+fn real_vocabulary_payload_uses_official_question_type_name() {
+    // 真实 `/g/word/struct` 响应（广东高中 单词PK）：每题自带官方 `question_type_name`，
+    // 它比数字映射更权威，也能消除"同一数字跨通道语义不同"的歧义。
+    let fx = fixture("word_struct_guangdong_hs_pk.json");
+    let body = &fx["body"];
+
+    // 官方名 → 我们的 type（全量实测：6/16/17/18/19/20 六个题型）
+    let pairs: Vec<(i64, &str, &str)> = vec![
+        (6, "听音选义", "word.choice"),
+        (16, "默写词汇", "word.write"),
+        (17, "朗读词汇", "word.read"),
+        (18, "听写词汇", "word.dictation"),
+        (19, "英译中", "word.translate_en_cn"),
+        (20, "中译英", "word.translate_cn_en"),
+    ];
+    for (qtype, name, _expect_type) in &pairs {
+        let q = body["data"][0]["question"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|q| q["question_type"].as_i64() == Some(*qtype))
+            .unwrap_or_else(|| panic!("fixture 缺少 qtype={qtype}"));
+        assert_eq!(q["question_type_name"], *name, "官方名应与实测一致");
+    }
+
+    let questions = resolver::parse_word_pk_value(body);
+    assert_eq!(questions.len(), 3 * 6, "3 词 × 6 题型");
+
+    // 每个 type 都出现，且官方名/官方答案被原样带出
+    let kinds: BTreeSet<&str> = questions.iter().map(|q| q["type"].as_str().unwrap()).collect();
+    for (_, _, expect_type) in &pairs {
+        assert!(kinds.contains(expect_type), "缺少题型 {expect_type}");
+    }
+    let first = &questions[0];
+    assert_eq!(first["channel"], "sync_pk");
+    assert!(!first["question_type_name"].as_str().unwrap().is_empty());
+    assert!(
+        first["official_answer"].as_str().is_some(),
+        "选择题应带官方原始答案（选项字母）"
+    );
+    // 选择题：归一化答案 = 官方字母；选项存在
+    let choice = questions
+        .iter()
+        .find(|q| q["type"] == "word.choice")
+        .unwrap();
+    assert_eq!(choice["answers"][0], choice["official_answer"]);
+    assert!(choice["options"].as_array().unwrap().len() >= 3);
+    // 朗读类：官方 answer 为空，但我们的 answers 给原文（与 read 家族语义一致）
+    let read = questions.iter().find(|q| q["type"] == "word.read").unwrap();
+    assert!(!read["answers"].as_array().unwrap().is_empty());
+    // 英译中/中译英：题干与答案互为一对（英文 / 中文释义）
+    let en_cn = questions.iter().find(|q| q["type"] == "word.translate_en_cn").unwrap();
+    assert_eq!(en_cn["question"], "trait");
+    assert!(!en_cn["answers"][0].as_str().unwrap().contains("trait"));
 }
