@@ -42,6 +42,39 @@
 
 ---
 
+## 一之二、官方权威规格（`op: "spec"`）
+
+题型枚举、词汇双通道、展示要素、res.json 权威路径与边界规则都已按**客户端反编译结果**固化，
+客户端不要再自己硬编码枚举——调一次 `{"op":"spec"}` 即可：
+
+```jsonc
+{
+  "structure_types": [ { "id": "listen_choice_standard", "official_name": "标准听力选择题",
+                         "model": "SectionItemBean", "handler": "collector.choose" }, ... ],   // 14 项
+  "word_symbols": [ { "question_type": 6, "channel": "sync_pk", "official_name": "听音选词（4选1）",
+                      "ambiguous_across_channels": true }, ... ],                            // 20 项
+  "exam_type_names": { "authoritative_guangdong": ["模仿朗读","听选信息","回答问题","信息转述","询问信息"],
+                       "aliases": ["短文朗读","情景反应",...] },
+  "display_elements": [ { "group": "听选信息(单选)", "options": true, "answers": true,
+                          "reference_text": true, "answer_kind": "letter" }, ... ],
+  "res_json_authority": [ { "key": "question_score",
+                            "path": "exam_type_list[].exam_list[].question_list[].question_score" }, ... ],
+  "boundary_rules": {
+    "multi_answer_order": "原样不排序",
+    "blank_number_source": "小题号取 info.std[].xth；卷面大题号取 th；exam_info[].value 是指示文本",
+    "reading_answers": "朗读类 answers 直接给朗读原文",
+    "score_authority": "逐题满分取 res.json 的 question_list[].question_score",
+    "order_authority": "大题顺序取 exam_type_list 下标"
+  },
+  "coverage": { "total": 14, "explicitly_adapted": 13, "not_explicitly_adapted": 1 }
+}
+```
+
+`parse_task` 的 `meta` 也会带 `spec_known`：**false 表示这个 `structure_type` 不在官方权威表里**
+（可能是官方新题型），请连同 `meta.shape` 一起上报。
+
+---
+
 ## 二、op 清单（`capabilities` 实时返回，这里是快照）
 
 | op | 状态 | 入参 | 出参 | 说明 |
@@ -55,6 +88,9 @@
 | `shape_fingerprint` | stable | 同上 | `{hash, paths[]}` | 发现官方新结构 |
 | `classify_homework` | stable | `homework` | 分类结论 | 含 `is_exercise_set`（习题集） |
 | `classify_homework_list` | stable | `homeworks` | 批量结论 | 返回 `exercise_set_ids` |
+| `spec` | stable | — | 权威规格 | **官方题型全集**、词汇双通道、展示要素、res.json 权威路径、边界规则、覆盖率 |
+| `res_template` | stable | `res` | 规范化模板 | 大题顺序、大题分、逐题满分（E5/E6 权威来源） |
+| `apply_res_template` | stable | `res`, `questions`, `section_index?`/`structure_type?` | 已盖分题目 | 只补题号与满分，不改内容 |
 | `parse_homework_set` | **planned** | `homeworks[]` | `{paper, coverage}` | 习题集多包合并（M2） |
 
 题库侧（`libcloud.so`）的 op 命名沿用同一信封，前缀 `cloud.`：`cloud.login` / `cloud.homework_list` / `cloud.download` …（M2 统一）。

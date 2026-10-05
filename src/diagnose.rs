@@ -122,6 +122,14 @@ pub fn diagnose(content: &Value, content2: Option<&Value>, info: Option<&Value>)
     if structure_type.is_empty() {
         warnings.push("structure_type_missing");
     }
+    // 与官方权威题型表（spec::STRUCTURE_TYPES）比对：
+    // 不在表里 = 要么是我们还没收录的官方新题型，要么是别名/方言 —— 两种都值得看一眼。
+    if !structure_type.is_empty() && crate::spec::find_structure_type(&structure_type).is_none() {
+        warnings.push("structure_type_not_in_official_spec");
+    }
+    if structure_type == "templet_common" {
+        warnings.push("template_driven_may_need_res_json");
+    }
     match routed.layer {
         "generic" => warnings.push("generic_fallback"),
         "none" => warnings.push("unmatched_shape"),
@@ -161,6 +169,15 @@ pub fn diagnose(content: &Value, content2: Option<&Value>, info: Option<&Value>)
     }
     if dirty_text_questions > 0 {
         warnings.push("dirty_text");
+    }
+    // question_type=6 在官方双通道里语义不同（单词跟读 vs 听音选词）：
+    // 若按 sync_pk 解释且载荷里没有明确的同步/PK 标记，提示调用方核对通道。
+    let assumed_sync_pk = questions.iter().any(|q| {
+        q.get("type").and_then(|v| v.as_str()) == Some("word.choice")
+            && q.get("channel").and_then(|v| v.as_str()) == Some("sync_pk")
+    });
+    if assumed_sync_pk {
+        warnings.push("word_qtype_6_assumed_sync_pk");
     }
 
     let preview: Vec<Value> = questions

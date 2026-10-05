@@ -326,11 +326,25 @@ Android 端对应 `ResolverNative.resolveRequest(json)` 与 `ResolverNative.capa
 
 | op | 状态 | 说明 |
 | --- | --- | --- |
-| `capabilities` | ✅ | 能力清单（ops / 题型 / 分类 / 错误码） |
-| `parse_task` / `parse_batch` / `parse_word_pk` / `extract_meta` | ✅ | 解析 |
+| `capabilities` | ✅ | 能力清单（ops / 题型 / 分类 / 错误码 / 覆盖率） |
+| `parse_task` / `parse_batch` / `parse_word_pk` / `extract_meta` | ✅ | 解析（`meta` 带 `layer` / `family` / `shape` / `spec_known`） |
 | `diagnose` / `shape_fingerprint` | ✅ | 诊断与结构指纹（发现官方新题型） |
 | `classify_homework` / `classify_homework_list` | ✅ | 作业分类（含习题集识别） |
+| `spec` | ✅ | **官方权威规格**：14 个题型全集、词汇双通道、展示要素、边界规则、覆盖率自证 |
+| `res_template` / `apply_res_template` | ✅ | `res.json` 权威题号与逐题满分（E5/E6） |
 | `parse_homework_set` | ⏳ | 习题集多包合并（见 `docs/PARITY.md` M2） |
+
+### 官方权威规格（客户端反编译固化）
+
+`{"op":"spec"}` 返回 `src/spec.rs` 里固化的官方定义域，客户端**不要再硬编码枚举**：
+
+| 内容 | 数量/要点 |
+| --- | --- |
+| `structure_types` | **14 项**（`collector.read/repeat/sentence/word`、`repeat`、`repeat_dialogue`、`essay`、`templet_common`、`listen_choice_standard`、`listen_fill_standard`、`read_passage_standard`、`read_sentence_standard`、`read_word_standard`、`read_and_choose_standard`），其中 13 项已显式适配 |
+| `word_symbols` | **20 项**（超能单词 `QuestionSymbol` 0~13 + 同步PK `SyncWordQuestionBean` 6/16~20） |
+| 双通道警戒 | `question_type=6` 在超能单词通道是「单词跟读」、在同步PK通道是「听音选词」→ 输出 `channel` / `symbol_name` / `ambiguous_across_channels` |
+| `boundary_rules` | 多答案**原样不排序**；填空小题号取 `std[].xth`、卷面大题号取 `th`（`exam_info[].value` 是指示文本）；朗读类 `answers` 直接给原文 |
+| `res_json_authority` | 大题顺序取 `exam_type_list` 下标；逐题满分取 `question_list[].question_score` |
 
 ### 单独可调的 C FFI（老调用方兼容保留）
 
@@ -383,7 +397,7 @@ Android 端对应 `ResolverNative.resolveRequest(json)` 与 `ResolverNative.capa
 
 Rust 核心测试（CI 与本地都应保持全绿）：
 ```bash
-cargo test --workspace          # 67 个用例：解析分发、PK 顺序/过滤、清洗、诊断指纹、作业分类、授权签名校验
+cargo test --workspace          # 97 个用例：解析分发、PK 顺序/过滤与双通道、清洗、诊断指纹、作业分类、res.json 模板、契约层、授权签名校验
 ```
 
 一致性回归（与官方客户端对齐的门禁，方法论见 [`docs/PARITY.md`](./docs/PARITY.md)）：

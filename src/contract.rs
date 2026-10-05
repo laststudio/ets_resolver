@@ -22,7 +22,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::collectors::parse_content_routed;
-use crate::{api, diagnose, homework};
+use crate::{api, diagnose, homework, spec, template};
 
 /// 契约版本。新增 op 不涨版本；**破坏性字段变更**才涨，且旧版本请求必须继续可用。
 pub const CONTRACT_VERSION: u64 = 1;
@@ -52,7 +52,9 @@ fn respond_err(op: &str, err: Value) -> Value {
     })
 }
 
-/// 字段取值：对象直接用；字符串尝试按 JSON 解析（跨语言调用时常见）。
+/// 字段取值：对象/数组直接用；字符串先尝试按 JSON 解析，
+/// **解析失败则保留为普通字符串**（否则 `"structure_type": "listen_choice_standard"`
+/// 这种非 JSON 的纯字符串会被静默丢掉）。
 fn as_json_value(v: Option<&Value>) -> Option<Value> {
     match v {
         None | Some(Value::Null) => None,
@@ -61,11 +63,20 @@ fn as_json_value(v: Option<&Value>) -> Option<Value> {
             if trimmed.is_empty() {
                 None
             } else {
-                serde_json::from_str::<Value>(trimmed).ok()
+                serde_json::from_str::<Value>(trimmed)
+                    .ok()
+                    .or_else(|| Some(Value::String(s.clone())))
             }
         }
         Some(other) => Some(other.clone()),
     }
+}
+
+/// 取整数下标：接受数字、数字字符串、JSON 字符串形态的数字。
+fn as_index(v: &Value) -> Option<usize> {
+    v.as_u64()
+        .map(|n| n as usize)
+        .or_else(|| v.as_str().and_then(|s| s.trim().parse::<usize>().ok()))
 }
 
 /// 从 payload（或请求根）里取字段，并做"对象 / JSON 字符串"归一。
@@ -127,6 +138,16 @@ pub fn capabilities() -> Value {
             {"op": "classify_homework_list", "status": "stable",
              "summary": "作业列表批量分类",
              "payload": {"homeworks": "array|object|string"}, "result": "{category_counts, exercise_set_ids, homeworks[]}"},
+            {"op": "spec", "status": "stable",
+             "summary": "官方权威规格：题型全集、词汇双通道、展示要素、res.json 权威路径、边界规则、覆盖率",
+             "payload": {}, "result": "taxonomy"},
+            {"op": "res_template", "status": "stable",
+             "summary": "规范化官方 res.json：大题顺序、大题分、逐题满分（E5/E6 的权威来源）",
+             "payload": {"res": "object|string"}, "result": "{sections[], section_order[], total_score, ...}"},
+            {"op": "apply_res_template", "status": "stable",
+             "summary": "把 res.json 的满分与题号盖到已解析题目上（只补不改内容）",
+             "payload": {"res": "object|string", "section_index": "int", "questions": "question[]"},
+             "result": "{applied, filled_no, filled_score, ...}"},
             {"op": "parse_homework_set", "status": "planned",
              "summary": "老师布置的一整套多卷（习题集）：多包下载、合并分节、全局题号、逐题满分",
              "payload": {"homeworks": "[{url|download_url, group_name, order?, real_id?}]",
@@ -146,10 +167,17 @@ pub fn capabilities() -> Value {
             "oral": ["collector.choose", "collector.read", "collector.role", "collector.picture",
                      "collector.fill", "collector.3q5a", "collector.dialogue", "collector.repeat_essay",
                      "collector.word", "collector.repeat", "collector.repeat_dialogue", "collector.essay"],
+            "standards": ["listen_choice_standard", "listen_fill_standard", "read_passage_standard",
+                          "read_sentence_standard", "read_word_standard", "read_and_choose_standard",
+                          "templet_common", "collector.sentence"],
             "vocabulary": ["word.choice", "word.write", "word.read", "word.dictation",
                            "word.translate_en_cn", "word.translate_cn_en"],
+            "vocabulary_symbol_channel": "word.symbol.<code>（新版超能单词 QuestionSymbol 0~13）",
             "unknown_fallback": "collector.unknown",
+            "authoritative_source": "spec::STRUCTURE_TYPES（客户端反编译）",
+            "how_to_get_full_spec": "{\"op\":\"spec\"}",
         },
+        "coverage": spec::coverage(),
         "error_codes": [
             {"code": "invalid_input", "meaning": "字段缺失或形态不对"},
             {"code": "unsupported_version", "meaning": "请求的 contract version 高于当前库"},
@@ -216,11 +244,20 @@ pub fn handle(request: &Value) -> Value {
             let info = field(request, &payload, "info");
             let content2 = field(request, &payload, "content2");
             let routed = parse_content_routed(&content, content2.as_ref(), info.as_ref());
+            let structure_type = content
+                .get("structure_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let spec_known = spec::find_structure_type(&structure_type).is_some();
             let meta = json!({
                 "layer": routed.layer,
                 "family": routed.family,
                 "question_count": routed.questions.len(),
                 "shape": diagnose::shape_report(&content, content2.as_ref(), info.as_ref())["hash"],
+                // 是否在官方权威题型表内（false = 可能是官方新题型，请上报 shape）
+                "spec_known": spec_known,
+                "structure_type": structure_type,
             });
             if op_ref == "diagnose" {
                 let report = diagnose::diagnose(&content, content2.as_ref(), info.as_ref());
@@ -310,6 +347,69 @@ pub fn handle(request: &Value) -> Value {
             ),
         ),
 
+        "spec" => respond_ok(op_ref, spec::taxonomy(), None),
+
+        "res_template" => {
+            let res = match required(request, &payload, "res") {
+                Ok(v) => v,
+                Err(e) => return respond_err(op_ref, e),
+            };
+            let parsed = template::parse(&res);
+            let meta = json!({
+                "section_count": parsed["sections"].as_array().map(|a| a.len()).unwrap_or(0),
+                "total_score": parsed["total_score"],
+                "total_score_source": parsed["total_score_source"],
+            });
+            respond_ok(op_ref, parsed, Some(meta))
+        }
+
+        "apply_res_template" => {
+            let res = match required(request, &payload, "res") {
+                Ok(v) => v,
+                Err(e) => return respond_err(op_ref, e),
+            };
+            let parsed = template::parse(&res);
+            let mut questions = match required(request, &payload, "questions") {
+                Ok(v) => v,
+                Err(e) => return respond_err(op_ref, e),
+            };
+            // 分节定位：显式 section_index 优先；否则按 structure_type 匹配 exam_type_collect；
+            // 都没有则用第 0 节（并在 meta 里如实回报用了哪一节）。
+            let section_index = match field(request, &payload, "section_index").as_ref().and_then(as_index) {
+                Some(v) => v,
+                None => match field(request, &payload, "structure_type")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .and_then(|st| template::section_for_collect(&parsed, &st))
+                    .and_then(|s| s.get("index").and_then(as_index))
+                {
+                    Some(v) => v,
+                    None => 0,
+                },
+            };
+            let report = match questions.as_array_mut() {
+                Some(arr) => template::apply_section(&parsed, section_index, arr),
+                None => {
+                    return respond_err(
+                        op_ref,
+                        error(
+                            "invalid_input",
+                            "`questions` 必须是数组",
+                            "直接传 parse_task 的 result",
+                        ),
+                    )
+                }
+            };
+            let applied = report["applied"].clone();
+            let meta = json!({
+                "applied": applied,
+                "section_index": report["section_index"],
+                "exam_type_name": report["exam_type_name"],
+                "filled_no": report["filled_no"],
+                "filled_score": report["filled_score"],
+            });
+            respond_ok(op_ref, questions, Some(meta))
+        }
+
         other => respond_err(
             other,
             error(
@@ -385,8 +485,7 @@ mod tests {
     }
 
     #[test]
-    fn handle_reports_missing_field_precisely() {
-        let out = handle(&json!({"op": "parse_task"}));
+    fn handle_reports_missing_field_precisely() {        let out = handle(&json!({"op": "parse_task"}));
         assert_eq!(out["ok"], false);
         assert_eq!(out["error"]["code"], "invalid_input");
         assert!(out["error"]["message"].as_str().unwrap().contains("content"));
@@ -440,5 +539,125 @@ mod tests {
         let out = handle(&req);
         assert_eq!(out["ok"], true);
         assert!(out["result"]["sections"].is_array());
+    }
+
+    #[test]
+    fn meta_reports_spec_known_for_official_and_unknown_types() {
+        let known = json!({
+            "op": "parse_task",
+            "payload": {"content": {"structure_type": "read_word_standard", "info": {"stid": "1", "value": "hello"}}}
+        });
+        let out = handle(&known);
+        assert_eq!(out["meta"]["spec_known"], true);
+        assert_eq!(out["meta"]["family"], "collector.read");
+
+        let unknown = json!({
+            "op": "parse_task",
+            "payload": {"content": {"structure_type": "collector.brand_new_2027",
+                                    "info": {"stid": "1", "value": "hello"}}}
+        });
+        let out = handle(&unknown);
+        assert_eq!(out["meta"]["spec_known"], false);
+    }
+
+    #[test]
+    fn official_standard_identifiers_route_to_expected_families() {
+        let cases = [
+            ("listen_choice_standard", "collector.choose"),
+            ("read_and_choose_standard", "collector.choose"),
+            ("listen_fill_standard", "collector.fill"),
+            ("read_passage_standard", "collector.read"),
+            ("read_sentence_standard", "collector.read"),
+            ("collector.sentence", "collector.read"),
+        ];
+        for (st, family) in cases {
+            let req = json!({
+                "op": "diagnose",
+                "payload": {"content": {"structure_type": st, "info": {"stid": "1"}}}
+            });
+            let out = handle(&req);
+            assert_eq!(out["ok"], true, "{st} 应被受理");
+            assert_eq!(out["result"]["family"], family, "{st} 应走 {family}");
+            assert_eq!(out["result"]["layer"], "explicit", "{st} 不应落到嗅探层");
+        }
+    }
+
+    #[test]
+    fn spec_op_returns_authoritative_taxonomy_and_coverage() {
+        let out = handle(&json!({"op": "spec"}));
+        assert_eq!(out["ok"], true);
+        let types = out["result"]["structure_types"].as_array().unwrap();
+        assert!(types.iter().any(|t| t["id"] == "listen_choice_standard"));
+        let symbols = out["result"]["word_symbols"].as_array().unwrap();
+        assert!(symbols.iter().any(|s| s["question_type"] == 13));
+        let coverage = &out["result"]["coverage"];
+        assert_eq!(coverage["total"], types.len());
+        assert!(coverage["explicitly_adapted"].as_u64().unwrap() >= types.len() as u64 - 1);
+    }
+
+    #[test]
+    fn res_template_op_normalizes_and_applies_scores() {
+        let res = json!({
+            "exam_type_list": [{
+                "exam_type_name": "听选信息",
+                "exam_type_collect": "listen_choice_standard",
+                "exam_list": [{
+                    "exam_score": "3.0",
+                    "question_list": [
+                        {"question_order": "0", "question_score": "1.5"},
+                        {"question_order": "1", "question_score": "1.5"}
+                    ]
+                }]
+            }]
+        });
+        let parsed = handle(&json!({"op": "res_template", "payload": {"res": res}}));
+        assert_eq!(parsed["ok"], true);
+        assert_eq!(parsed["result"]["total_score"], 3.0);
+        assert_eq!(parsed["meta"]["section_count"], 1);
+
+        // 不传 section_index，靠 structure_type 自动定位分节
+        let applied = handle(&json!({
+            "op": "apply_res_template",
+            "payload": {
+                "res": res,
+                "structure_type": "listen_choice_standard",
+                "questions": [{"question": "Q1"}, {"question": "Q2"}]
+            }
+        }));
+        assert_eq!(applied["ok"], true);
+        assert_eq!(applied["meta"]["applied"], true);
+        assert_eq!(applied["result"][0]["score"], 1.5);
+        assert_eq!(applied["result"][1]["score"], 1.5);
+        assert!(applied["result"][0]["no"].is_i64());
+    }
+
+    #[test]
+    fn apply_res_template_locates_section_by_structure_type_string() {
+        // 两节模板 + 纯字符串 structure_type：必须命中第 1 节，而不是退回第 0 节
+        let res = json!({
+            "exam_type_list": [
+                {"exam_type_name": "模仿朗读", "exam_type_collect": "collector.read",
+                 "exam_list": [{"exam_score": "6.0",
+                                "question_list": [{"question_order": "0", "question_score": "6.0"}]}]},
+                {"exam_type_name": "听选信息", "exam_type_collect": "listen_choice_standard",
+                 "exam_list": [{"exam_score": "3.0",
+                                "question_list": [{"question_order": "0", "question_score": "1.5"},
+                                                  {"question_order": "1", "question_score": "1.5"}]}]}
+            ]
+        });
+        let out = handle(&json!({
+            "op": "apply_res_template",
+            "payload": {
+                "res": res,
+                "structure_type": "listen_choice_standard",
+                "questions": [{"question": "Q1"}, {"question": "Q2"}]
+            }
+        }));
+        assert_eq!(out["meta"]["applied"], true);
+        assert_eq!(out["meta"]["section_index"], 1);
+        assert_eq!(out["meta"]["exam_type_name"], "听选信息");
+        assert_eq!(out["result"][0]["score"], 1.5);
+        assert_eq!(out["result"][1]["score"], 1.5);
+        assert_eq!(out["meta"]["filled_no"], 2);
     }
 }

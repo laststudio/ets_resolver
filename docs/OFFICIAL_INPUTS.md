@@ -1,171 +1,124 @@
 # 我需要你提供的官方内容（按优先级）
 
-> 这是"做到识别所有题型 + 拥有官方客户端能力 + 完全一致"的**输入清单**。
-> 每一项都写清楚：**要什么 / 为什么 / 期望形态 / 数量**。按 P0 → P3 给即可，我可以边收边做。
-> 拿到每一项我能立刻产出的东西，见文末"投入产出对照"。
+> 状态图例：✅ 已收到并已落地 ｜ 🟡 部分收到 ｜ ⬜ 仍缺
+> 每一项写清楚：**要什么 / 为什么 / 期望形态 / 数量**。
+
+## 进度总览
+
+| 编号 | 项目 | 状态 | 落地位置 |
+|---|---|---|---|
+| P0-1 | 官方题型全集（`structure_type` + 词汇 `question_type`） | ✅ | `src/spec.rs` → `op: spec` |
+| P0-2 | 每类题型的官方展示要素表 | ✅ | `src/spec.rs::DISPLAY_ELEMENTS` |
+| P0-3 | 关键边界判定（多答案顺序 / 填空题号 / 朗读 answers / 广东 exam_type_name） | ✅ | `src/spec.rs::boundary_rules` |
+| P0-4 | `res.json` 题号与满分权威结构 | 🟡 结构已确认，**仍缺真实样本** | `src/template.rs` → `op: res_template` |
+| P1-1 | 习题集（一整套多卷）样例 | ⬜ | 待 M2 `parse_homework_set` |
+| P1-2 | 官方接口响应样例 | ⬜ | 待定稿 PK/词汇顺序 |
+| P1-3 | 字段字典（`set_type`/`kind`/`mock`/`exam`/`set_id`/`resource_id`） | 🟡 词汇侧已给，作业侧仍缺 | `src/homework.rs` 仍是名字关键词兜底 |
+| P2-1 | 加密 ZIP 样本 | ⬜ | 待 E7 端到端回归 |
+| P2-2 | 异常/边界包 + 官方表现 | ⬜ | 待三端兜底统一 |
+| P2-3 | CDN 主机与证书异常清单 | ⬜ | 待 TLS 精确放行定稿 |
+| P3-1 | 官方更新的"变更前后对照" | ⬜ | 待新形状自动发现流程 |
+| P4-1 | 能力边界选择（解析库 / +评分TTS / +提交） | ⬜ | 待你确认 |
 
 ---
 
-## 交付方式（省你事）
+## ✅ 已收到并已落地（本轮）
 
-```
-official_inputs/
-├── manifest.csv                 # id,类别,地区,作业名,卷数,是否含音频,抓取时间,备注
-├── P0_题型枚举/
-│   ├── structure_type_all.txt   # 一行一个，官方客户端里出现过的全部取值
-│   ├── word_question_types.txt  # 词汇题 question_type 全部取值 + 官方中文名
-│   └── ui_type_names.csv        # structure_type -> 官方 UI 显示的大题名
-├── P0_金标准样例/<structure_type>/<case-id>/{content.json,info.json,content2.json,screenshot.png}
-├── P1_习题集/<作业名>/{list_item.json,resource_*.zip,screenshot_*.png}
-├── P2_端到端ZIP/<id>.zip
-└── P3_更新对照/<日期>/{before_content.json,after_content.json}
-```
+### P0-1 官方题型全集
 
-- **大文件（ZIP/音频）走网盘或对象存储**，别发聊天窗口，给我链接或放到 `official_inputs/` 下即可。
-- **小 JSON 直接贴/放文件**都行。
-- **token / 手机号 / 设备码请脱敏**，我只需要结构，不需要真实凭据。
-- 每一项的"期望数量"是**下限**，多了更好。
+- **收到**：14 个 `structure_type` / 引擎标识（`collector.read`、`collector.repeat`、`collector.sentence`、
+  `collector.word`、`repeat`、`repeat_dialogue`、`essay`、`templet_common`、`listen_choice_standard`、
+  `listen_fill_standard`、`read_passage_standard`、`read_sentence_standard`、`read_word_standard`、
+  `read_and_choose_standard`）；词汇双套系统（`QuestionSymbol` 0~13 + `SyncWordQuestionBean` 6/16~20）。
+- **已落地**：`src/spec.rs` 固化为机器可读注册表；`op: spec` 对外输出；覆盖率自证
+  （14 项里 **13 项已显式适配**，仅 `templet_common` 依赖 res.json 模板）；
+  新增标识全部接入显式路由（`listen_choice`/`sentence`/`read_*_standard`），
+  `parse_task.meta.spec_known` 可直接判断"是否官方已知题型"。
+- **顺带解决的真问题**：`question_type=6` 双语义（同步通道=听音选词、超能单词通道=单词跟读），
+  现在按通道判定并输出 `channel` / `symbol_name` / `ambiguous_across_channels`。
 
----
+### P0-2 官方展示要素表
 
-## P0 ｜定义域与逐字节口径（决定"识别所有类型"能不能成立）
+- **已落地**：`spec.display_elements`（8 行：题干/音频/图片/选项/答案/原文/评分点/解析 + 答案形态）。
+  用途：决定每类题型我们输出哪些字段——例如朗读类 `answer_kind = text_list`（原文即答案），
+  听选类 `answer_kind = letter`。
 
-### P0-1 官方题型全集 ★最高优先
+### P0-3 关键边界判定
 
-- **要什么**：官方客户端里出现过的**所有** `structure_type` 取值清单；词汇侧 `question_type` 的**全部**取值（我们目前只逆向到 `6/16/17/18/19/20`）；每个类型在 UI 上显示的**官方中文名**（大题名/题型名）。
-- **为什么**：这是"所有类型"的**定义域**。没有它，我们只能等线上解析为空才知道漏了，永远无法证明"全"。
-- **期望形态**：三个纯文本/CSV 文件（见上面目录），最好附上官方客户端里那张枚举/映射表（smali 常量或资源字符串也行）。
-- **数量**：全量，一行一个，别漏别名（例如 `collector.repeat` / `repeat_dialogue` / `essay` 这种同族别名）。
+- **已落地**（`spec.boundary_rules` + 代码行为）：
+  - 多参考答案**原样不排序**：我们本来就只做追加，现在这条被固化为契约并可回归验证；
+  - 填空小题号取 `info.std[].xth`、卷面大题号取 `th`、`exam_info[].value` 是**指示文本不是题号**；
+  - 朗读类 `answers` 直接给朗读原文（与官方界面一致，不打"参考答案"面板）。
 
-### P0-2 每类题型的"官方展示要素"表
+### P0-4 `res.json` 权威结构（结构部分）
 
-- **要什么**：每类题型在官方 UI 上到底展示哪些要素：题干 / 音频 / 图片 / 选项 / **参考答案** / 听力原文 / 评分要点 / 知识点；答案区是文本还是音频。
-- **为什么**：把"拥有官方客户端的能力"落到字段上——决定我们的输出要不要包含原文、要点、多答案。
-- **期望形态**：每类 1 张截图 + 对应那份 `content.json`（截图必须配 JSON，否则我只能看个热闹）。
-- **数量**：每个 `structure_type` 至少 1 组。
-
-### P0-3 每类的金标准样例（题面/答案/选项/题号的官方口径）
-
-- **要什么**：每类 3–5 份真实资源包原文（`content.json` / `info.json` / `content2.json`，**音频与 CDN 地址保留原样**）+ 官方客户端里这一类的展示截图。
-- **为什么**：E2/E3/E4/E5 的最终裁判是"官方怎么显示"。我们现在的清洗规则是反推的，需要逐字节校准。
-- **特别注意这几个边界，请优先给**：
-  - **多参考答案的展示顺序**（我们保持原始顺序不排序，需要确认）
-  - **填空题题号来源**：`info.std[].xth` vs `exam_info[].value`，官方以哪个为准
-  - **朗读类**：官方展示的是原文还是"参考答案"？`answers` 应该给什么？（这直接决定 `collector.read` 的输出）
-  - **广东初中 `res.json.exam_type_name` 的取值全集**（听选信息/回答问题/提问 的官方命名与判定依据）
-- **数量**：每类 3–5 份；边界情况各 1 份。
-
-### P0-4 官方 `res.json`（模板包）样例
-
-- **要什么**：每个地区/学段 2–3 份官方模板包 `res.json`，重点含 `exam_type_name` / `stNumber` / `exam_info` / `sectionData`。
-- **为什么**：**卷面顺序与逐题满分的权威来源**。我们现在只能按 `group_name` 猜（`group_name_weights`），《PARITY.md》里的 E5/E6 全靠这个才能真闭环。
-- **期望形态**：`res.json` 原文 + 它对应的作业名与地区。
-- **数量**：广东初中/广东高中/北京初中/北京高中 至少各 2 份。
+- **已落地**：`src/template.rs` + `op: res_template` / `op: apply_res_template`：
+  - 大题顺序 = `exam_type_list` 下标；
+  - `exam_type_collect` ↔ `content.json` 的 `structure_type` 作为挂载钥匙；
+  - 逐题满分 = `question_list[].question_score`（**不再用 `group_name` 权重猜**）；
+  - `apply_res_template` 把满分/题号盖到解析结果上（**只补不缺、不改内容**），
+    并支持用 `structure_type` 自动定位分节（不必传下标）；
+  - 兼容 snake_case 与 camelCase 两种字段命名。
 
 ---
 
-## P1 ｜习题集（老师布置的一整套多卷）与字段字典
+## ⬜ 仍然需要你提供的（按优先级）
 
-### P1-1 习题集样例（M2 `parse_homework_set` 的输入）
+### 1. 真实 `res.json` 样例 ★（P0-4 的验证件）
 
-- **要什么**：至少 3 份"老师布置的一整套多卷"作业：
-  1. 作业列表 item 的**原始 JSON**（含 `set_type` / `set_id` / `resource_id` / `kind` / `mock` / `exam` / `pk` / `struct.contents[].order|real_id|group_name`）
-  2. 它的**全部** resource 包（原始加密 ZIP）
-  3. 官方客户端里这张卷的展示（**大题顺序 + 题号 + 总分**）
-- **为什么**：多包合并规则（大题怎么排、题号怎么连、听后选择分包怎么处理）现在只是启发式；这是把 `format_parsed_paper`（后端）与 `normalizeCloudParsedSections`（Fe-pro）合并成一份实现的前提。
-- **数量**：最好 **2 卷 / 4 卷 / 6 卷各一份**，跨两个地区。
+- **要什么**：每地区/学段 2–3 份**真实** `res.json`（广东初中、广东高中、北京初中、北京高中），
+  特别要含 `exam_type_name` / `exam_type_collect` / `exam_score` / `question_list` 的真实取值。
+- **为什么**：结构我已按你给的模板实现，但真实文件里字段大小写、缺省字段、多 `exam_list` 合并方式
+  都可能不同。有真实样本我才能确认解析没有偏差，并把 `group_name_weights` 彻底废掉。
+- **形态**：`res.json` 原文 + 对应作业名/地区。
 
-### P1-2 官方接口响应样例（脱 token）
+### 2. 一个真实习题集（P1-1）★
 
-- **要什么**（每项 1–2 份即可）：
-  - `/g/homework/list`（`status=1/2/3` 各一份）
-  - `/g/homework/struct`（**带** `resource_id` 与**不带**各一份）
-  - `/g/homework/pk-info`、`/g/pk/start-word-pk`、`/g/word/struct`
-  - `/g/homework/score-detail`（一份已完成的词汇/对战作业）
-  - `/m/homework/info`、`/m/ecard/list`
-- **为什么**：PK/词汇的真实作答顺序（`score-detail` 是权威顺序）、`struct` 多级回退的真实形态，都只能从原始响应确认。
+- **要什么**：作业列表 item 原始 JSON（`set_type/set_id/resource_id/kind/mock/exam/pk/contents[].order|real_id`）
+  + **全部** resource ZIP + 官方客户端里这张卷的展示（大题顺序/题号/总分）。最好 2 卷 / 4 卷 / 6 卷各一份。
+- **为什么**：`parse_homework_set`（多包合并）就等这个；也是把后端 `format_parsed_paper`
+  与 Fe-pro `normalizeCloudParsedSections` 合成一份实现的前提。
 
-### P1-3 字段字典 ★决定分类正确率
+### 3. 作业侧字段字典（P1-3 剩余部分）★
 
-- **要什么**：这些字段的**取值域与语义**：`set_type`（1 是什么？5 是什么？6 是什么？还有别的吗）、`kind`（`pk` / `vocab` / `composition` / `mock` / 还有吗）、`mock`、`exam`、`pk`、`set_id`、`resource_id`。
-- **为什么**：`classify_homework` 现在有一半判定靠名字关键词猜（我们已经因此踩过"普通作业被误判成模拟考"的坑）。给我字典，我就能把关键字猜测全部换成官方字段。
-- **期望形态**：一张表（字段 | 取值 | 含义 | 示例作业），官方文档或你的经验总结都行。
+- **要什么**：`set_type`（1/5/6 各是什么，还有吗）、`kind`（`pk`/`vocab`/`composition`/`mock`/…）、
+  `mock`、`exam`、`pk`、`set_id`、`resource_id` 的**取值域与含义**。
+- **为什么**：`classify_homework` 里"词汇/模拟考"的判定目前仍有一半靠名字关键词兜底
+  （已因此踩过"普通作业被误判成模拟考"的坑）。给我字典，我就能全部换成官方字段。
 
----
+### 4. 官方接口响应样例（P1-2）
 
-## P2 ｜端到端与异常边界（E7）
+- `/g/homework/list`(status 1/2/3)、`/g/homework/struct`(带/不带 `resource_id`)、
+  `/g/homework/pk-info`、`/g/pk/start-word-pk`、`/g/word/struct`、`/g/homework/score-detail`、
+  `/m/homework/info`。各 1–2 份即可（**请脱 token**）。
+- **为什么**：PK/词汇的真实作答顺序、`struct` 多级回退的真实形态只能从原始响应确认。
 
-### P2-1 加密 ZIP 样本
+### 5. 加密 ZIP 样本（P2-1）与异常包（P2-2）
 
-- **要什么**：10–20 个不同来源的真实加密 ZIP；**如果存在尾部格式不同的包（老版本、特殊学科、机考包），务必包含**。
-- **为什么**：验证 `cloud_zip_password` 的算法覆盖率与解密成功率；这也是 E7"全链路一致"的测试素材。
-- **形态**：ZIP 原文（走网盘），附作业名/地区。
+- 10–20 个真实 ZIP（含尾部格式不同的老包/机考包）+ 异常包清单及其官方表现。
+- **为什么**：E7 端到端回归 + 三端异常兜底行为统一。
 
-### P2-2 异常与边界包
+### 6. CDN 与证书清单（P2-3）
 
-- **要什么**：这些包各 1 份 + 官方客户端的表现（跳过？占位？报错弹窗？）：
-  空包、只有音频没有 `content.json`、结构损坏、超大包（>100MB）、只有 `content2` 没有 `info`、`contents` 为空的作业。
-- **为什么**：现在三端各自拍脑袋兜底，行为不一致；官方怎么处理，我们就怎么处理（E8）。
+- 全部 CDN 主机名 + 已知证书异常主机（目前只知 `cdn.subject.ets100.com`）。
+- **为什么**：TLS 只能按主机精确放行，不能全局 trust-all。
 
-### P2-3 CDN 与证书清单
+### 7. 官方更新的"变更前后对照"（P3-1）
 
-- **要什么**：全部会用到的 CDN 主机名；已知**证书异常**的主机（我们目前只知道 `cdn.subject.ets100.com` 返回的是 `default.chinanetcenter.com` 证书）。
-- **为什么**：TLS 校验不能全局 trust-all，只能按主机精确放行——多一个主机名就多一个放行点，必须完整。
+- 每次官方更新后，受影响题型的 `content.json` 变更前后对照（哪怕只改一个字段）。
+- **为什么**：这是"24 小时内跟上官方"的燃料。
 
----
+### 8. 能力边界确认（P4-1）
 
-## P3 ｜跟上更新（M3 的燃料）
-
-### P3-1 官方更新的"变更前后对照"
-
-- **要什么**：每次官方更新后，受影响题型的 **`content.json` 变更前后对照**（哪怕只变了一个字段）。
-- **为什么**：这是自动发现新形状的燃料。有了它，"24 小时内跟上官方"才成立；没有它，我们只能靠线上用户报错。
-
-### P3-2 版本 → 题型变更时间线
-
-- **要什么**：官方客户端版本号与"哪次更新引入了哪个 `structure_type` / 字段"的对应关系（有记录就给，没有就算了）。
+三选一：**A（推荐）** 只做识别+解析一致+固定接口；B = A + 评分/TTS；C = A + B + 提交作业/回读分数。
 
 ---
 
-## P4 ｜能力边界确认（一个选择题，不是素材）
+## 最小启动集（现在只剩三样）
 
-### P4-1 我们做"解析库"还是也做"提交库"？
+1. **真实 `res.json` 2–3 份**（验证 P0-4，废掉满分猜测）
+2. **一个真实习题集**（列表 item + 全部 ZIP + 官方展示截图）
+3. **作业侧字段字典**（`set_type`/`kind`/`mock`/`exam` 取值域）
 
-请确认"官方客户端的能力"边界，三选一：
-
-| 选项 | 范围 | 我的建议 |
-|---|---|---|
-| **A（推荐）** | 只做 **E1–E8**：识别所有题型、解析结果与官方完全一致、提供固定接口 | 解析库保持纯粹，跨平台最省事 |
-| B | A + 评分/TTS 语音合成 | 需要官方评分与 TTS 的接口与口径 |
-| C | A + B + 提交作业/回读官方分数 | 风险最高（会产生真实提交），建议留在后端 |
-
----
-
-## 投入产出对照（你给什么 → 我立刻产出什么）
-
-| 你给的 | 我立刻产出 |
-|---|---|
-| P0-1 题型全集 | 覆盖率清单（每一项都是"已适配/待适配"），`capabilities.question_types` 变成官方全量；发现即补，不留空白 |
-| P0-2 要素表 | `question` 输出字段定稿（是否含原文/要点/答案音频） |
-| P0-3 金标准样例 | 每类进 `tests/corpus/`，一致性门禁从"自录"升级为"官方证明"，`official_ratio` 有真实起点 |
-| P0-4 `res.json` | 题号与逐题满分改成官方权威口径，废掉 `group_name_weights` 猜测 |
-| P1-1 习题集样例 | M2 `parse_homework_set` 一次做对；三端合并逻辑合成一份 |
-| P1-2 接口响应 | PK/词汇顺序与多级回退按真实响应定稿 |
-| P1-3 字段字典 | `classify_homework` 全部换成官方字段判定，删掉名字关键词猜测 |
-| P2-1 ZIP 样本 | E7 端到端回归，密码算法覆盖率实测 |
-| P2-2 异常包 | 三端兜底行为统一（E8） |
-| P2-3 CDN 清单 | TLS 精确放行清单定稿 |
-| P3-1 变更对照 | 新形状自动发现流程跑起来，"24h 跟上官方" |
-| P4-1 边界选择 | 确定库的最终范围（我按 A 推进，需要 B/C 再扩） |
-
----
-
-## 最小启动集（如果只能先给一点）
-
-只要这三样，我就能把 M2/M3 真正推起来：
-
-1. **P0-1 题型全集**（一行一个的文本就够）
-2. **P0-3 里每类 1 份样例 + 官方截图**（先来个 5–10 份）
-3. **P1-1 一个真实习题集**（列表 item + 全部 ZIP + 官方展示截图）
-
-有了这三样，我能给出：覆盖清单、官方证明的回归集、以及习题集合并的第一版实现。
+拿到这三样，我就能：把 E5/E6 用官方口径闭环、实现 `parse_homework_set`、
+把 `classify_homework` 的名字关键词彻底换成官方字段。

@@ -17,6 +17,8 @@ mod collectors;
 mod contract;
 mod diagnose;
 mod homework;
+mod spec;
+mod template;
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 mod auth;
@@ -63,6 +65,26 @@ pub fn handle_request(request: &Value) -> Value {
 /// 契约能力清单（客户端启动时读一次）。
 pub fn capabilities_value() -> Value {
     contract::capabilities()
+}
+
+/// 官方权威规格（题型全集 / 词汇双通道 / 展示要素 / res.json 权威路径 / 边界规则）。
+pub fn spec_value() -> Value {
+    spec::taxonomy()
+}
+
+/// 规范化一份官方 res.json 模板（大题顺序、大题分、逐题满分）。
+pub fn res_template_value(res: &Value) -> Value {
+    template::parse(res)
+}
+
+/// 把 res.json 模板的满分与题号盖到已解析题目上（就地修改，返回应用报告）。
+pub fn apply_res_template_value(
+    res: &Value,
+    section_index: usize,
+    questions: &mut [Value],
+) -> Value {
+    let parsed = template::parse(res);
+    template::apply_section(&parsed, section_index, questions)
 }
 
 // ============== 新接口: 纯 JSON 字符串 (仅非 Android 目标导出) ==============

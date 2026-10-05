@@ -14,14 +14,14 @@
 
 | 编号 | 等价类 | 判定内容 |
 |---|---|---|
-| **E1** | 题目切分一致 | 题数相同；每题归属的 `stid` / 官方题号相同；一题不多、一题不少 |
+| **E1** | 题目切分一致 | 题数相同；每题归属的 `stid` / 官方题号相同；一题不多、一题不少。**词汇侧必须在正确通道下切分**（`question_type=6` 在超能单词通道是"单词跟读"、在同步PK通道是"听音选词"） |
 | **E2** | 题面文本一致 | 清洗后的最终字符串逐字节相同（含 `<br>`/`<p>` 转空格、零宽字符去除、`ets_th{n}` 前缀去除） |
-| **E3** | 答案集合一致 | 每个题目的答案数组内容与顺序相同（多参考答案题型按官方顺序，不排序） |
+| **E3** | 答案集合一致 | 每个题目的答案数组内容与顺序相同（**原样不排序**，与官方源码一致：只 append、不 sort） |
 | **E4** | 选项集合一致 | 选项文本与顺序相同（`A. xxx` 形式） |
-| **E5** | 卷面顺序一致 | 大题顺序、卷内全局题号与官方展示一致 |
-| **E6** | 作业分类一致 | 作业类别（词汇PK/模拟套卷/习题集/作文/在线/常规）、卷面总分、大题名与官方一致 |
+| **E5** | 卷面顺序一致 | 大题顺序取 `res.json` 的 `exam_type_list` 下标；小题按 `question_order` 结合 `xth`/`th` 递增（**权威来源已接入**：`op: res_template`） |
+| **E6** | 作业分类一致 | 作业类别（词汇PK/模拟套卷/习题集/作文/在线/常规）、**卷面总分取 `exam_score` / `question_score`**（不再用 `group_name` 权重推算）、大题名与官方一致 |
 | **E7** | 端到端一致 | 官方加密 ZIP → 尾部密码 → 解压 → 读取 `content/info/content2` → 解析，全链路一致（**音频与 CDN 保持原样，不做脱敏**） |
-| **E8** | 不退化 | 官方新增结构时**不静默丢**：新形状能被自动发现并进入待适配清单 |
+| **E8** | 不退化 | 官方新增结构时**不静默丢**：`spec_known=false`（不在官方权威题型表里）与新形状指纹都能被发现并进入待适配清单 |
 
 ---
 
@@ -123,12 +123,14 @@ L1/L2 命中情况已经可查：`diagnose()` 返回 `layer ∈ {explicit, gener
 - `is_exercise_set` 的判据是"**要不要合并多包**"（`package_count >= 2`，或带 `set_id` 的单包），
   所以模拟套卷同样为 `true`：下游要的是这个语义。
 
-**下一步（M2）**：新增 `resolve_homework_set(packages[])`，把后端 `format_parsed_paper` 与
-Fe-pro `normalizeCloudParsedSections` 的合并逻辑收口进来：
+**下一步（M2）**：新增 `parse_homework_set(packages[])`，把后端 `format_parsed_paper` 与
+Fe-pro `normalizeCloudParsedSections` 的合并逻辑收口进来（`res.json` 的权威顺序/满分已就绪，
+直接复用 `template::parse` + `apply_res_template`）：
 
 ```
-多包 → 按 contents[].order / real_id 排大题 → 逐包解析 → 合并分节（含听后选择分包合并）
-     → 全局题号（以官方 res.json 的 stNumber/exam_info 为准）→ 逐题满分 → 输出 paper
+多包 → 按 res.json 的 exam_type_list 下标排大题（无模板时退回 contents[].order / real_id）
+     → 逐包解析 → 合并分节（含听后选择分包合并）→ 全局题号（xth/th + question_order）
+     → 逐题满分（question_score）→ 输出 paper
 ```
 
 ---
@@ -137,16 +139,28 @@ Fe-pro `normalizeCloudParsedSections` 的合并逻辑收口进来：
 
 | 接口 | 状态 | 说明 |
 |---|---|---|
-| `diagnose(content, info, content2)` | ✅ 本次新增 | 命中层/家族/形状指纹/告警；**不含题目文本**，可安全进日志 |
-| `shape_fingerprint(content, info, content2)` | ✅ 本次新增 | 结构指纹（不含取值、不含 `structure_type`）：改名不改结构 → 指纹不变 |
-| `classify_homework(homework_json)` | ✅ 本次新增 | 作业分类 + 卷面总分口径 |
-| `classify_homework_list(list_json)` | ✅ 本次新增 | 批量分类，返回 `exercise_set_ids` 清单 |
-| 语料库一致性测试 | ✅ 本次新增 | `tests/corpus_parity.rs` + `PARITY_*` 环境变量 + 机器可读报告 |
+| `resolve_request(op)` / `capabilities()` | ✅ 已完成 | 跨平台固定契约（见 [INTERFACE.md](./INTERFACE.md)）：新能力只加 op，不改 ABI |
+| `spec` (op) | ✅ 本次新增 | **官方权威规格**：14 个题型全集的官方名/模型/场景/处理器、词汇双通道（`question_type=6` 双语义）、展示要素表、res.json 权威路径、边界规则、覆盖率自证 |
+| `diagnose(content, info, content2)` | ✅ 已完成 | 命中层/家族/形状指纹/告警；**不含题目文本**；新增 `structure_type_not_in_official_spec` 告警 |
+| `shape_fingerprint(content, info, content2)` | ✅ 已完成 | 结构指纹（不含取值、不含 `structure_type`）：改名不改结构 → 指纹不变 |
+| `classify_homework` / `classify_homework_list` | ✅ 已完成 | 作业分类 + 卷面总分口径，返回 `exercise_set_ids` |
+| `res_template(res)` | ✅ 本次新增 | 规范化官方 `res.json`：大题顺序（`exam_type_list` 下标）、大题分、**逐题满分** |
+| `apply_res_template(res, questions)` | ✅ 本次新增 | 把满分/题号盖到解析结果（只补不改内容），支持按 `structure_type` 自动定位分节 |
+| 语料库一致性测试 | ✅ 已完成 | `tests/corpus_parity.rs` + `PARITY_*` 环境变量 + 机器可读报告 |
 | `cloud_get_homework_list` 字段透传 | ⏳ M2 | 补 `pk/set_type/set_id/resource_id/kind/mock/exam/order/real_id/point/total_point` |
-| `resolve_homework_set(packages[])` | ⏳ M2 | 多包合并（习题集） |
+| `parse_homework_set(packages[])` | ⏳ M2 | 多包合并（习题集） |
 | L3 兜底抽取 | ⏳ M2 | 名字与形状都不认识时的最后抢救 + 低置信标记 |
 
-以上 FFI 在 **Android 端同时有 JNI 入口**：`ResolverNative.diagnose` / `classifyHomework` / `classifyHomeworkList`。
+以上能力在 **Android 端统一走 `ResolverNative.resolveRequest(json)`**（新增 op 无需改客户端声明）。
+
+### 官方权威规格带来的修正（本轮）
+
+- `listen_choice_standard` 不含 "choose"，原先会掉进结构嗅探 → 现已显式路由到选择题；
+  同时加回归保护：`word.choice`（含 "choice"）**不得**被误判为选择题。
+- `collector.sentence` / `read_*_standard` 归入朗读家族（文本集合形态）。
+- 逐题满分与题号改由 `res.json` 权威提供，`group_name_weights` 降级为**无模板时的兜底**。
+- 词汇双通道：同一 `question_type` 在不同通道语义不同，输出 `channel` / `symbol_name` /
+  `ambiguous_across_channels` 三类元信息，杜绝"只看数字"的误判。
 
 ---
 

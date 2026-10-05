@@ -39,6 +39,82 @@ pub fn pk_type_str(qtype: i64) -> &'static str {
     }
 }
 
+/// 递归寻找"新版超能单词"通道标记（`symbol` / `question_symbol` / 值以 `Symbol_` 开头）。
+fn has_symbol_marker_deep(value: &Value, depth: usize) -> bool {
+    if depth > 5 {
+        return false;
+    }
+    match value {
+        Value::Object(map) => {
+            for (k, v) in map {
+                let key_lower = k.to_lowercase();
+                if key_lower == "symbol"
+                    || key_lower == "question_symbol"
+                    || key_lower == "symbol_type"
+                    || key_lower == "symboltype"
+                {
+                    return true;
+                }
+                if let Value::String(s) = v {
+                    if s.starts_with("Symbol_") {
+                        return true;
+                    }
+                }
+                if has_symbol_marker_deep(v, depth + 1) {
+                    return true;
+                }
+            }
+            false
+        }
+        Value::Array(items) => items.iter().any(|v| has_symbol_marker_deep(v, depth + 1)),
+        _ => false,
+    }
+}
+
+/// 判断词汇载荷来自哪个通道。
+///
+/// 官方存在**双套系统**，且 `question_type=6` 在两套里语义不同（见 `spec::WORD_SYMBOLS`）：
+///   * `symbol`   新版超能单词 `QuestionSymbol`（0~13，自主训练）
+///   * `sync_pk`  同步词汇 / PK 对战 `SyncWordQuestionBean`（6、16~20）
+pub fn detect_word_channel(content: &Value, root: &Value) -> &'static str {
+    if has_symbol_marker_deep(content, 0) || has_symbol_marker_deep(root, 0) {
+        return "symbol";
+    }
+    // 旧版超能单词/自训通道常见 `dcld`/`dcgd` 这类 code 字段
+    let has_code_marker = |v: &Value| {
+        ["code", "code_id", "qtype_code"]
+            .iter()
+            .any(|k| v.get(k).map_or(false, |c| c.is_string()))
+    };
+    if content.get("word_question").is_none()
+        && content.get("word_questions").is_none()
+        && content.get("words").is_none()
+        && (has_code_marker(content) || has_code_marker(root))
+    {
+        return "symbol";
+    }
+    "sync_pk"
+}
+
+/// 词汇题型的 `type` 字符串。`channel` 见 [`detect_word_channel`]。
+///
+/// `symbol` 通道用官方 code 生成稳定标识（如 `word.symbol.ktxy`），
+/// `sync_pk` 通道保持既有标识不变（`word.choice` 等）。
+pub fn word_type_str(qtype: i64, channel: &str) -> String {
+    match channel {
+        "symbol" => crate::spec::word_symbol(qtype, "symbol")
+            .map(|s| {
+                if s.code.is_empty() {
+                    "word.symbol.none".to_string()
+                } else {
+                    format!("word.symbol.{}", s.code)
+                }
+            })
+            .unwrap_or_else(|| "word.unknown".to_string()),
+        _ => pk_type_str(qtype).to_string(),
+    }
+}
+
 pub const QUESTION_TYPES: [&str; 7] = [
     TYPE_ROLE,
     "collector.dialogue",
@@ -577,10 +653,13 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
     }
 
     // 4. 构建题目结构
+    // 官方词汇存在双套系统，question_type=6 在两套里语义不同（单词跟读 vs 听音选词），
+    // 因此先判定通道，再决定 type 字符串与语义（见 spec::WORD_SYMBOLS）。
+    let word_channel = detect_word_channel(content, root);
     let mut questions = Vec::new();
     for (i, q) in raw_questions.iter().enumerate() {
         let qtype_num = get_i64(q.get("question_type").or_else(|| q.get("type")).or_else(|| q.get("q_type")).unwrap_or(&Value::Null)).unwrap_or(0);
-        let qtype_str = pk_type_str(qtype_num);
+        let qtype_str = word_type_str(qtype_num, word_channel);
         let word_id = get_i64(q.get("word_id").unwrap_or(&Value::Null)).unwrap_or(0);
         let q_id = get_i64(q.get("id").or_else(|| q.get("q_id")).or_else(|| q.get("question_id")).unwrap_or(&Value::Null)).unwrap_or(0);
 
@@ -643,6 +722,16 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
         }
 
         let mut extra = Map::new();
+        // 官方词汇双通道：把判定结果带出去，客户端/后端能看到型别是按哪套系统解释的
+        extra.insert("channel".into(), Value::String(word_channel.to_string()));
+        if crate::spec::is_ambiguous_qtype(qtype_num) {
+            // 该 question_type 在两个通道语义不同，客户端如需精确语义请自行判定通道
+            extra.insert("ambiguous_across_channels".into(), Value::Bool(true));
+        }
+        if let Some(spec) = crate::spec::word_symbol(qtype_num, word_channel) {
+            extra.insert("symbol".into(), Value::String(spec.symbol.to_string()));
+            extra.insert("symbol_name".into(), Value::String(spec.official_name.to_string()));
+        }
         if word_id > 0 {
             extra.insert("word_id".into(), json!(word_id));
         }
@@ -673,7 +762,7 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
         questions.push(make_question(
             Some(explicit_no),
             Some("local"),
-            qtype_str,
+            &qtype_str,
             if word_id > 0 { Some(word_id) } else { None },
             question_text,
             answers,
@@ -998,7 +1087,9 @@ pub fn parse_content_routed(
         .map(|v| get_str(v))
         .unwrap_or_default();
     let st = structure_type.as_str();
-    if st.contains("choose") {
+    // `listen_choice_standard`（官方标准听力选择）不含 "choose"，必须单独认；
+    // 注意不能用 contains("choice")：那会把 `word.choice`（词汇PK）误路由到选择题。
+    if st.contains("choose") || st.contains("listen_choice") {
         return explicit(collect_choose(content, content2, info), TYPE_CHOOSE);
     }
     if st == TYPE_REPEAT_ESSAY {
@@ -1014,7 +1105,9 @@ pub fn parse_content_routed(
     if content.get("word_question").is_some() || content.get("word_questions").is_some() {
         return explicit(collect_word_pk(content), "word_pk");
     }
-    if st.contains("read") || st.contains("word") {
+    // 朗读家族：collector.read / collector.sentence / collector.word（文本集合形态）/
+    // read_passage_standard / read_sentence_standard / read_word_standard
+    if st.contains("read") || st.contains("word") || st.contains("sentence") {
         return explicit(collect_read(content, content2, info), TYPE_READ);
     }
     if st.contains("fill") {
@@ -1083,6 +1176,61 @@ mod tests {
         assert_eq!(qs.len(), 2);
         assert_eq!(qs[0]["answers"][0], "v1");
         assert_eq!(qs[0]["no"], 1);
+    }
+
+    #[test]
+    fn test_word_channel_disambiguates_qtype_6() {
+        // 同步词汇/PK 通道：6 = 听音选词（word.choice）
+        let sync = json!({
+            "words": [{"id": 1, "content": "apple", "translate": "苹果"}],
+            "word_questions": [
+                {"question_type": 6, "word_id": 1, "answer": "A",
+                 "options": ["A. apple", "B. banana"]}
+            ]
+        });
+        let qs = collect_word_pk(&sync);
+        assert_eq!(qs[0]["type"], "word.choice");
+        assert_eq!(qs[0]["channel"], "sync_pk");
+        assert_eq!(qs[0]["symbol_name"], "听音选词（4选1）");
+
+        // 新版超能单词通道：6 = 单词跟读（word.symbol.dcgd）
+        let symbol = json!({
+            "words": [{"id": 1, "content": "apple", "translate": "苹果"}],
+            "word_questions": [
+                {"question_type": 6, "word_id": 1, "symbol": "Symbol_06_dcgd", "answer": "apple"}
+            ]
+        });
+        let qs = collect_word_pk(&symbol);
+        assert_eq!(qs[0]["type"], "word.symbol.dcgd");
+        assert_eq!(qs[0]["channel"], "symbol");
+        assert_eq!(qs[0]["symbol_name"], "单词跟读");
+        assert_eq!(qs[0]["ambiguous_across_channels"], true);
+    }
+
+    #[test]
+    fn test_official_standard_identifiers_are_routed() {
+        for (st, family) in [
+            ("listen_choice_standard", TYPE_CHOOSE),
+            ("read_and_choose_standard", TYPE_CHOOSE),
+            ("listen_fill_standard", TYPE_FILL),
+            ("read_passage_standard", TYPE_READ),
+            ("read_sentence_standard", TYPE_READ),
+            ("read_word_standard", TYPE_READ),
+            ("collector.sentence", TYPE_READ),
+        ] {
+            let content = json!({"structure_type": st, "info": {"stid": "1", "value": "hello"}});
+            let routed = parse_content_routed(&content, None, None);
+            assert_eq!(routed.layer, "explicit", "{st} 应显式命中");
+            assert_eq!(routed.family, family, "{st} 应路由到 {family}");
+        }
+    }
+
+    #[test]
+    fn test_word_choice_still_routes_to_read_family_not_choose() {
+        // 回归保护：`word.choice` 含 "choice"，不能因为加了听选识别而被当成选择题
+        let content = json!({"structure_type": "word.choice", "info": {"stid": "1", "value": "apple"}});
+        let routed = parse_content_routed(&content, None, None);
+        assert_eq!(routed.family, TYPE_READ);
     }
 
     #[test]
