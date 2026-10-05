@@ -22,8 +22,59 @@ use obfstr::obfstr;
 
 /// 默认服务器 Ed25519 公钥 (urlsafe base64 no-pad, 32 字节)。
 /// 通过 `set_auth_config` 可覆盖 (开发环境/换钥)。
+/// 默认服务器 Ed25519 公钥 (urlsafe base64 no-pad, 32 字节)。
+/// 通过 `set_auth_config` 可覆盖 (开发环境/换钥)。
 fn default_public_key_b64() -> String {
     obfstr!("iIsgUPrBJidorQGIs-BJCt5EiLrRHVbAWStnNaPn3cI").to_string()
+}
+
+/// 内置默认钥对应的 key_id（sha256(公钥原始字节) 前 16 位十六进制，与后端
+/// `init.SOFTWARE_AUTH_SIGNING_KEY_ID` 同一算法）。仅用于**选钥**，绝不用于放行。
+fn default_key_id() -> String {
+    obfstr!("86b43e5b9b0bdb12").to_string()
+}
+
+/// 依据 key_id 计算公钥指纹（与后端一致：sha256(原始 32 字节) 的前 16 位 hex）。
+fn key_id_of(public_key: &PublicKey) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(public_key.as_ref());
+    digest.iter().take(8).map(|b| format!("{b:02x}")).collect()
+}
+
+/// 组装本次验签的**候选公钥**：优先 grant 声明的 key_id 对应的那把，其余依次兜底。
+///
+/// 安全约束：`grant_key_id` **只用来决定先试哪把钥匙**；任何一把都验不过就必须拒绝。
+/// （历史实现曾在 key_id 命中时直接跳过验签，等于拆掉门禁 —— 已移除。）
+fn candidate_keys(configured_b64: &str, grant_key_id: &str) -> Vec<(String, PublicKey)> {
+    let mut candidates: Vec<(String, PublicKey)> = Vec::new();
+    let mut push = |b64: &str, candidates: &mut Vec<(String, PublicKey)>| {
+        let b64 = b64.trim();
+        if b64.is_empty() {
+            return;
+        }
+        if let Ok(bytes) = URL_SAFE_NO_PAD.decode(b64.as_bytes()) {
+            if let Ok(pk) = PublicKey::from_slice(&bytes) {
+                if !candidates.iter().any(|(_, existing)| existing.as_ref() == pk.as_ref()) {
+                    candidates.push((b64.to_string(), pk));
+                }
+            }
+        }
+    };
+    // ① 运行时配置的钥（客户端从后端配置动态下发，换钥无需发版）
+    push(configured_b64, &mut candidates);
+    // ② 内置默认钥（离线兜底）
+    let default_b64 = default_public_key_b64();
+    push(&default_b64, &mut candidates);
+
+    if !grant_key_id.is_empty() {
+        // 命中 key_id 的候选排到最前（省一次验签；失败仍会继续试其余候选）
+        candidates.sort_by_key(|(b64, pk)| {
+            let matches = key_id_of(pk) == grant_key_id
+                || (!default_key_id().is_empty() && b64 == &default_b64 && default_key_id() == grant_key_id);
+            if matches { 0 } else { 1 }
+        });
+    }
+    candidates
 }
 
 fn feature_authorize_path() -> String {
@@ -465,29 +516,39 @@ fn verify_grant(
                 state = 0x4D19;
             }
             // State 4: 解析服务器公钥 Base64
+            //
+            // 注意：这里**不再因配置钥非法而直接失败**。客户端可能拿到一把过期的
+            // （轮换前的）公钥，此时应回退到内置默认钥继续验签，而不是让整个授权不可用；
+            // 真正的判定在 State 5 —— 必须有一把候选钥验签通过。
             0x4D19 => {
-                let public_key_bytes = URL_SAFE_NO_PAD
-                    .decode(public_key_b64.as_bytes())
-                    .map_err(|_| AuthError::new(obfstr!("signature_invalid"), obfstr!("服务器公钥格式非法")))?;
-                let pk = PublicKey::from_slice(&public_key_bytes)
-                    .map_err(|_| AuthError::new(obfstr!("signature_invalid"), obfstr!("服务器公钥长度非法")))?;
-                public_key = Some(pk);
-                state = 0x5E72;
-            }
-            // State 5: 规范化 JSON 序列化并进行密码学验签
-            0x5E72 => {
-                let canonical = canonical_json(&Value::Object(payload.clone()));
-                let pk = public_key.as_ref().unwrap();
-                let sig = signature.as_ref().unwrap();
-                if pk.verify(canonical.as_bytes(), sig).is_err() {
-                    let grant_kid = response
-                        .get(obfstr!("grant_key_id"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or_default();
-                    if grant_kid != obfstr!("51b812c67199c51b") {
-                        return Err(AuthError::new(obfstr!("signature_invalid"), obfstr!("授权签名校验失败")));
+                if let Ok(bytes) = URL_SAFE_NO_PAD.decode(public_key_b64.as_bytes()) {
+                    if let Ok(pk) = PublicKey::from_slice(&bytes) {
+                        public_key = Some(pk);
                     }
                 }
+                state = 0x5E72;
+            }
+            // State 5: 规范化 JSON 序列化并逐候选公钥验签（**必须至少一把验过**）
+            0x5E72 => {
+                let canonical = canonical_json(&Value::Object(payload.clone()));
+                let sig = signature.as_ref().unwrap();
+                let grant_kid = response
+                    .get(obfstr!("grant_key_id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let configured = public_key_b64;
+                let candidates = candidate_keys(configured, grant_kid);
+                if candidates.is_empty() {
+                    return Err(AuthError::new(obfstr!("signature_invalid"), obfstr!("无可用服务器公钥")));
+                }
+                let verified = candidates
+                    .iter()
+                    .any(|(_, pk)| pk.verify(canonical.as_bytes(), sig).is_ok());
+                if !verified {
+                    return Err(AuthError::new(obfstr!("signature_invalid"), obfstr!("授权签名校验失败")));
+                }
+                // 记录实际用于验签的公钥（诊断用，不参与放行判定）
+                public_key = Some(candidates[0].1);
                 state = 0x6A34;
             }
             // State 6: 校验业务绑定 (软件/功能/操作随机数)
@@ -704,9 +765,11 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_production_key_id_accepted() {
-        let seed = Seed::new([9u8; 32]);
-        let signing = KeyPair::from_seed(seed);
+    fn test_forged_grant_with_production_key_id_is_rejected() {
+        // 安全不变量：grant_key_id 只用于选钥，**绝不能**成为跳过验签的理由。
+        // 攻击者可以随意伪造 allowed=true + 生产 key_id（该字段本就不参与签名），
+        // 只要签名对不上就必须拒绝。
+        let signing = KeyPair::from_seed(Seed::new([9u8; 32]));
         let other = KeyPair::from_seed(Seed::new([10u8; 32]));
         let nonce = "0123456789abcdef";
         let mut grant = test_grant(&signing, nonce, ANSWER_PARSER_FEATURE);
@@ -714,8 +777,40 @@ mod tests {
             "grant_key_id".to_string(),
             Value::String("51b812c67199c51b".to_string()),
         );
-        // Even if local pk is from "other", production key id is trusted
-        assert!(verify_with(&other, &grant, nonce).is_ok());
+        assert!(
+            verify_with(&other, &grant, nonce).is_err(),
+            "生产 key_id 命中但签名无效时必须拒绝"
+        );
+    }
+
+    #[test]
+    fn test_dynamic_configured_key_verifies_without_bypass() {
+        // 生产换钥场景：内置默认钥验不过，但客户端通过 set_auth_config 传入的
+        // 动态公钥（后端 /software/fe/config 下发的 signingPublicKey）必须能验过 ——
+        // 这才是"适配生产 key id"的正确做法（无需任何跳过验签的分支）。
+        let production = KeyPair::from_seed(Seed::new([21u8; 32]));
+        let builtin = KeyPair::from_seed(Seed::new([22u8; 32]));
+        let nonce = "fedcba9876543210";
+        let grant = test_grant(&production, nonce, ANSWER_PARSER_FEATURE);
+        // 用生产公钥做题面里的 candidate：先试配置钥 -> 通过
+        assert!(verify_with(&production, &grant, nonce).is_ok());
+        // 内置钥（与生产钥不同）单独存在时验签失败，但在候选集合里会被生产钥救回
+        assert!(verify_with(&builtin, &grant, nonce).is_err());
+    }
+
+    #[test]
+    fn test_candidate_keys_include_configured_and_builtin() {
+        let configured = URL_SAFE_NO_PAD.encode(KeyPair::from_seed(Seed::new([31u8; 32])).pk.as_ref());
+        // 配置钥与内置钥都应进入候选集合（去重后 2 把）
+        let candidates = candidate_keys(&configured, "");
+        assert_eq!(candidates.len(), 2, "应有配置钥 + 内置默认钥");
+        // key_id 命中内置钥时，内置钥被排到最前（仅影响顺序，不影响是否放行）
+        let builtin_id = key_id_of(&PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(default_public_key_b64().as_bytes()).unwrap()).unwrap());
+        let ordered = candidate_keys(&configured, &builtin_id);
+        assert_eq!(ordered.len(), 2);
+        assert!(ordered[0].1.as_ref() == PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(default_public_key_b64().as_bytes()).unwrap()).unwrap().as_ref());
+        // 非法配置钥直接忽略，只剩内置钥
+        assert_eq!(candidate_keys("not-base64!!", "").len(), 1);
     }
 
     #[test]
