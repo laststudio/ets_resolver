@@ -2,7 +2,7 @@
 // 不包含答案解析器；仅负责云端授权、登录、账号、列表、下载和 ZIP 协议。
 
 #[path = "../../src/auth.rs"]
-mod auth;
+pub mod auth;
 #[path = "../../src/cloud.rs"]
 pub mod cloud;
 
