@@ -152,7 +152,48 @@ fn normalize_exam_id(raw: &str) -> String {
 ///   2. `structure_type` == `exam_type_collect`
 ///   3. 去序号后的名字相等（应对两边一处带序号、一处不带）
 ///   4. handler 家族相同
+/// 匹配原因：官方挂载键 > 精确大题名 > 尾部序号剔除后的大题名 > 同结构家族。
+/// **原因必须带出来**：靠"同家族"兜底挂上去的题虽然不丢，但可能落到相邻大题里，
+/// 调用方需要知道这次挂载有多可靠。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MountReason {
+    CodeId,
+    ExactName,
+    StrippedName,
+    CollectFamily,
+}
+
+impl MountReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MountReason::CodeId => "code_id",
+            MountReason::ExactName => "exact_name",
+            MountReason::StrippedName => "stripped_name",
+            MountReason::CollectFamily => "collect_family",
+        }
+    }
+
+    /// 是否属于"确定性挂载"（官方键或名字命中）；家族兜底不算。
+    pub fn is_exact(self) -> bool {
+        !matches!(self, MountReason::CollectFamily)
+    }
+}
+
+fn section_index_for_package_with_reason(
+    template: &Value,
+    pkg: &Package,
+) -> Option<(usize, MountReason)> {
+    section_index_for_package_inner(template, pkg)
+}
+
 fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
+    section_index_for_package_inner(template, pkg).map(|(idx, _)| idx)
+}
+
+fn section_index_for_package_inner(
+    template: &Value,
+    pkg: &Package,
+) -> Option<(usize, MountReason)> {
     let sections = template.get("sections")?.as_array()?;
 
     if !pkg.code_id.is_empty() {
@@ -170,7 +211,7 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
                 })
                 .unwrap_or(false)
         }) {
-            return Some(idx);
+            return Some((idx, MountReason::CodeId));
         }
     }
 
@@ -182,7 +223,7 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
                 .map(|n| name_match_key(n) == pkg_name)
                 .unwrap_or(false)
         }) {
-            return Some(idx);
+            return Some((idx, MountReason::ExactName));
         }
     }
 
@@ -193,7 +234,9 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
                 .map(|c| c.eq_ignore_ascii_case(&pkg.structure_type))
                 .unwrap_or(false)
         }) {
-            return Some(idx);
+            // exam_type_collect 本身也是官方字段，但同一家族可能对应多个大题，
+            // 因此只算"确定"里最弱的一档（仍不是家族兜底）。
+            return Some((idx, MountReason::ExactName));
         }
     }
 
@@ -205,7 +248,7 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
                 .map(|n| strip_trailing_index(&name_match_key(n)) == bare)
                 .unwrap_or(false)
         }) {
-            return Some(idx);
+            return Some((idx, MountReason::StrippedName));
         }
     }
 
@@ -223,7 +266,8 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
                 .and_then(|spec| spec.handler)
                 .map(|h| h == family)
                 .unwrap_or(false)
-        });
+        })
+        .map(|idx| (idx, MountReason::CollectFamily));
     }
     None
 }
@@ -235,9 +279,37 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
     let packages = read_packages(packages_value);
     let mut warnings: Vec<String> = Vec::new();
 
+    // 作业自己声明的资源包数量：与传进来的 packages 数对账。
+    // 这一步能抓到**下载/提取阶段就丢掉的包**（那些包根本到不了解析器），
+    // 是"漏题"最早的一道防线 —— 少了包但没人说，是最难发现的一种漏题。
+    let declared_packages = homework_value
+        .and_then(|h| h.get("contents"))
+        .and_then(|v| v.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let packages_missing = declared_packages.saturating_sub(packages.len());
+    if packages_missing > 0 {
+        warnings.push(format!(
+            "packages_missing_vs_homework: 作业声明 {} 个资源包，实际只解析了 {} 个（少 {} 个）—— 检查下载/提取是否失败",
+            declared_packages,
+            packages.len(),
+            packages_missing
+        ));
+    }
+
     if packages.is_empty() {
         return json!({
             "paper": {"sections": [], "question_count": 0},
+            "completeness": {
+                "template_questions": 0,
+                "parsed_questions": 0,
+                "missing_vs_template": 0,
+                "extra_vs_template": 0,
+                "sections_below_template": [],
+                "sections_weak_mount": [],
+                "sections_not_covered": [],
+                "is_complete": true,
+            },
             "coverage": {"packages": 0, "merged": 0, "ordered_by": "none",
                          "unmatched_packages": []},
             "warnings": ["no_packages"],
@@ -255,6 +327,8 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
         template_index: Option<usize>,
         template_section: Option<Value>,
         packages: Vec<Package>,
+        /// (资源包 index, 挂载原因)：靠家族兜底挂上来的必须可见
+        mounts: Vec<(usize, MountReason)>,
     }
 
     let mut sections: Vec<Section> = Vec::new();
@@ -294,6 +368,14 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                 if members.is_empty() {
                     continue;
                 }
+                let mounts: Vec<(usize, MountReason)> = packages
+                    .iter()
+                    .filter_map(|p| {
+                        section_index_for_package_with_reason(tpl, p)
+                            .filter(|(idx, _)| *idx == tpl_index)
+                            .map(|(_, reason)| (p.index, reason))
+                    })
+                    .collect();
                 // 同一大题内的多包按官方 order 排（听后选择分包合并的关键）
                 members.sort_by_key(|p| (p.order, p.index));
                 sections.push(Section {
@@ -307,6 +389,7 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                     template_index: Some(tpl_index),
                     template_section: Some(tpl_section.clone()),
                     packages: members,
+                    mounts,
                 });
             }
             // 模板没覆盖到的包，接在后面（保持可见，不丢）
@@ -324,7 +407,8 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                     structure_type: String::new(),
                     template_index: None,
                     template_section: None,
-                    packages: leftovers,
+                    packages: leftovers.clone(),
+                    mounts: leftovers.iter().map(|p| (p.index, MountReason::CollectFamily)).collect(),
                 });
             }
             sorted.clear();
@@ -338,6 +422,7 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                 let key = package_key(pkg);
                 if let Some(existing) = sections.iter_mut().find(|s| s.key == key) {
                     existing.packages.push(pkg.clone());
+                    existing.mounts.push((pkg.index, MountReason::ExactName));
                 } else {
                     sections.push(Section {
                         key: key.clone(),
@@ -350,6 +435,7 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                         template_index: None,
                         template_section: None,
                         packages: vec![pkg.clone()],
+                        mounts: vec![(pkg.index, MountReason::ExactName)],
                     });
                 }
             }
@@ -358,6 +444,12 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
 
     // 逐节展开题目、定题号、定满分
     let mut global_no: i64 = 0;
+    // 完整性对账计数（漏题可观测性的核心）
+    let mut missing_vs_template: usize = 0;
+    let mut extra_vs_template: usize = 0;
+    let mut template_question_total: usize = 0;
+    let mut below_template: Vec<String> = Vec::new();
+    let mut weak_mounts: Vec<String> = Vec::new();
     let mut out_sections: Vec<Value> = Vec::new();
     let mut total_from_template = 0.0f64;
     let mut question_count = 0usize;
@@ -455,12 +547,68 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
         }
 
         question_count += questions.len();
+
+        // ── 完整性对账：合并后的题数 vs 官方模板要求的题数 ────────────────────
+        // 漏题（少题）必须能被机器发现：卷面分来自官方 set_score，即使少几题也照样是
+        // 30/20 分，光看总分看不出问题，所以这里逐大题对账并给出明确状态。
+        let template_question_count = section
+            .template_section
+            .as_ref()
+            .and_then(|s| s.get("questions"))
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+        let count_status = if section.template_section.is_none() {
+            "no_template"
+        } else if template_question_count == questions.len() {
+            "match"
+        } else if questions.len() < template_question_count {
+            "below_template"
+        } else {
+            "above_template"
+        };
+        if count_status == "below_template" {
+            missing_vs_template += template_question_count - questions.len();
+            below_template.push(format!(
+                "{}: {} 题（官方模板 {} 题）",
+                section.caption,
+                questions.len(),
+                template_question_count
+            ));
+        } else if count_status == "above_template" {
+            extra_vs_template += questions.len() - template_question_count;
+        }
+        template_question_total += template_question_count;
+
+        let mount_entries: Vec<Value> = section
+            .mounts
+            .iter()
+            .map(|(idx, reason)| json!({"package_index": idx, "by": reason.as_str()}))
+            .collect();
+        let family_fallback = section
+            .mounts
+            .iter()
+            .any(|(_, reason)| !reason.is_exact());
+        if family_fallback {
+            weak_mounts.push(section.caption.clone());
+        }
+
         out_sections.push(json!({
             "index": section_pos,
             "caption": section.caption,
             "structure_type": section.structure_type,
             "template_index": section.template_index,
             "package_count": section.packages.len(),
+            // 每个资源包是怎么挂到这一节的：code_id / exact_name / stripped_name /
+            // collect_family。collect_family 属兜底（题不丢，但可能落到相邻大题）。
+            "mounts": mount_entries,
+            "mount_confidence": if section.template_section.is_none() {
+                "unmatched"
+            } else if family_fallback { "family_fallback" } else { "exact" },
+            // 题数对账：match / below_template / above_template / no_template
+            "question_count": questions.len(),
+            "template_question_count": template_question_count,
+            "count_status": count_status,
             "package_indexes": section.packages.iter().map(|p| p.index).collect::<Vec<_>>(),
             // 官方挂载键：real_id（部分接口叫 entity_id），客户端/后端做分节挂载时用它
             "real_ids": section
@@ -521,6 +669,56 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
         },
     };
 
+    // 模板里"完全没挂上包"的大题：题不是漏了，而是整节缺失（同样属于不完整）
+    let mut sections_not_covered: Vec<String> = Vec::new();
+    if let Some(tpl) = parsed_template.as_ref() {
+        if let Some(tpl_sections) = tpl.get("sections").and_then(|v| v.as_array()) {
+            for (idx, s) in tpl_sections.iter().enumerate() {
+                let covered = sections
+                    .iter()
+                    .any(|sec| sec.template_index == Some(idx) && !sec.packages.is_empty());
+                if !covered {
+                    sections_not_covered.push(
+                        s.get("exam_type_name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("(未命名大题)")
+                            .to_string(),
+                    );
+                }
+            }
+        }
+    }
+    if !sections_not_covered.is_empty() {
+        warnings.push(format!(
+            "template_sections_not_covered: 官方模板有 {} 个大题没挂上任何资源包 —— {}",
+            sections_not_covered.len(),
+            sections_not_covered.join("；")
+        ));
+    }
+
+    // 漏题/多题/弱挂载都必须进 warnings，让调用方能直接判"这张卷可不可信"
+    if missing_vs_template > 0 {
+        warnings.push(format!(
+            "question_count_below_template: 合并后 {} 题，官方模板要求 {} 题，少 {} 题 —— {}",
+            question_count,
+            template_question_total,
+            missing_vs_template,
+            below_template.join("；")
+        ));
+    }
+    if extra_vs_template > 0 {
+        warnings.push(format!(
+            "question_count_above_template: 合并后 {} 题，官方模板要求 {} 题，多 {} 题",
+            question_count, template_question_total, extra_vs_template
+        ));
+    }
+    if !weak_mounts.is_empty() {
+        warnings.push(format!(
+            "package_mounted_by_family_fallback: 这些大题靠同结构家族兜底挂载（题目未丢，但落点可能与官方模板不同）—— {}",
+            weak_mounts.join("；")
+        ));
+    }
+
     json!({
         "paper": {
             "homework_id": homework_value.map(|h| get_str(h, "id")).unwrap_or_default(),
@@ -535,8 +733,26 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
             "is_exercise_set": classification.as_ref().and_then(|c| c.get("is_exercise_set").cloned()).unwrap_or(Value::Null),
             "classification": classification.unwrap_or(Value::Null),
         },
+        "completeness": {
+            // 官方模板要求的总题数 / 实际合并出的总题数
+            "template_questions": template_question_total,
+            "parsed_questions": question_count,
+            "missing_vs_template": missing_vs_template,
+            "extra_vs_template": extra_vs_template,
+            // 少题的大题（空数组 = 与官方模板逐节对齐）
+            "sections_below_template": below_template,
+            // 靠家族兜底挂载的大题（题不丢，但落点需人工确认）
+            "sections_weak_mount": weak_mounts,
+            "sections_not_covered": sections_not_covered,
+            "is_complete": missing_vs_template == 0
+                && extra_vs_template == 0
+                && packages_missing == 0
+                && sections_not_covered.is_empty(),
+        },
         "coverage": {
             "packages": packages.len(),
+            "declared_packages": declared_packages,
+            "missing_packages": packages_missing,
             "merged": packages.len() - unmatched.len(),
             "ordered_by": ordered_by,
             "unmatched_packages": unmatched,

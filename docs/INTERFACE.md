@@ -192,3 +192,34 @@ if (!resp.ok) throw new Error(resp.error.code);
 - 新增字段 → 只加不改不删；客户端忽略未知字段。
 - 错误码 → 只增不改含义；新增码必须进 `capabilities.error_codes`。
 - 破坏性变更 → 涨 `CONTRACT_VERSION`，且**同时支持旧版本请求至少一个发布周期**。
+
+## 完整性对账（`completeness`）—— 漏题必须可发现
+
+`parse_homework_set` 的返回里除了 `paper` / `coverage` / `warnings`，还有 **`completeness`**：
+
+```json
+"completeness": {
+  "template_questions": 14,        // 官方模板要求的总题数
+  "parsed_questions": 14,          // 实际合并出的总题数
+  "missing_vs_template": 0,        // 比模板少的题数
+  "extra_vs_template": 0,          // 比模板多的题数
+  "sections_below_template": [],   // 少题的大题（如 ["回答问题: 2 题（官方模板 4 题）"]）
+  "sections_weak_mount": [],       // 靠同结构家族兜底挂载的大题
+  "sections_not_covered": [],      // 官方模板里有、但没挂上任何资源包的大题
+  "is_complete": true
+}
+```
+
+**为什么需要它**：卷面分来自官方 `set_score`，所以"少几题"时总分依然是 30/20 分，
+`ok: true` 也依然成立 —— 光看总分和成功标志**发现不了漏题**。逐大题对账是唯一可靠的信号。
+
+三层漏题防线（越早越好）：
+
+| 阶段 | 检测 | 位置 |
+|---|---|---|
+| ① 下载/提取 | 作业声明 N 个资源包，实际只解析 M 个 | `coverage.missing_packages` + `packages_missing_vs_homework` 告警 |
+| ② 挂载 | 资源包没挂上官方大题 / 只靠同结构家族兜底 | `coverage.unmatched_packages`、`sections[].mounts[].by`、`mount_confidence` |
+| ③ 题数 | 合并后题数与官方模板逐节对账 | `completeness.*` + `question_count_below_template` 告警 |
+
+每个 section 还带 `question_count` / `template_question_count` / `count_status`
+（`match` / `below_template` / `above_template` / `no_template`），可直接定位到具体大题。

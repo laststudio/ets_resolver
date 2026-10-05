@@ -15,6 +15,12 @@ use std::collections::BTreeSet;
 
 use serde_json::{json, Value};
 
+fn corpus_path(case: &str) -> std::path::PathBuf {
+    let mut p: std::path::PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "corpus"].iter().collect();
+    p.push(case);
+    p
+}
+
 fn fixture(name: &str) -> Value {
     let path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "fixtures", name]
         .iter()
@@ -454,4 +460,236 @@ fn l3_salvage_does_not_touch_known_shapes() {
         "info": {"stid": "9", "question": [{"ask": "Q1", "std": [{"value": "A1"}]}]}});
     let report = resolver::diagnose_value(&sniffable, None, None);
     assert_eq!(report["layer"], "generic", "形状熟悉时应走 L2 而不是 L3");
+}
+
+#[test]
+fn completeness_guard_detects_missing_questions() {
+    // 漏题必须能被机器发现：卷面分来自官方 set_score，少几题也照样是 30 分，
+    // 光看总分/成功标志看不出问题 —— 所以逐大题对账 + 明确告警。
+    let res_json = fixture("res_json_guangdong_mock1.json");
+    // 注意：官方模板把 7 个大题编号为 st1..st7，其中 回答问题 = st5
+    let dirs = [
+        ("00_模仿朗读", "st1"),
+        ("01_听选信息1", "st2"),
+        ("02_听选信息2", "st3"),
+        ("04_回答问题", "st5"),
+    ];
+    let mut packages = Vec::new();
+    for (i, (case, code_id)) in dirs.iter().enumerate() {
+        let dir = corpus_path("guangdong_mock1").join(case);
+        let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+        let info: Value = serde_json::from_str(&fs::read_to_string(dir.join("info.json")).unwrap()).unwrap();
+        let content2: Value = serde_json::from_str(&fs::read_to_string(dir.join("content2.json")).unwrap()).unwrap();
+        let mut questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+        // 故意把「回答问题」的题目砍掉一半（模拟解析/下载漏题）
+        if case.contains("回答问题") {
+            questions.truncate(questions.len() / 2);
+        }
+        packages.push(json!({
+            "structure_type": content["structure_type"],
+            "group_name": case.splitn(2, '_').nth(1).unwrap(),
+            "code_id": code_id,
+            "order": i,
+            "questions": questions,
+        }));
+    }
+    let merged = resolver::parse_homework_set_value(&json!(packages), Some(&res_json), None);
+    let completeness = &merged["completeness"];
+    assert_eq!(completeness["is_complete"], false, "少题必须判为不完整");
+    assert!(
+        completeness["missing_vs_template"].as_u64().unwrap() > 0,
+        "应报告比官方模板少了几题"
+    );
+    let below = completeness["sections_below_template"].as_array().unwrap();
+    assert!(
+        below.iter().any(|s| s.as_str().unwrap_or("").contains("回答问题")),
+        "应点出是哪个大题少题: {below:?}"
+    );
+    let warnings = merged["warnings"].as_array().unwrap();
+    assert!(
+        warnings.iter().any(|w| w.as_str().unwrap_or("").starts_with("question_count_below_template")),
+        "必须给出可发现的告警: {warnings:?}"
+    );
+    // 只挂上 4/7 个大题时，卷面分不取官方 set_score（30），而是已挂载大题之和（6+3+3+6=18）
+    // —— 半张卷不能报满分。真实整卷（7/7）才会用官方 set_score。
+    // 这也说明：**看总分不足以发现漏题**，必须靠 completeness 逐节对账。
+    assert_eq!(merged["paper"]["totalScore"], 18.0);
+    assert_eq!(merged["paper"]["totalScore_source"], "res_template_partial");
+}
+
+#[test]
+fn completeness_guard_reports_full_alignment_for_real_paper() {
+    // 正常情况：与官方模板逐节对齐、无告警
+    let res_json = fixture("res_json_guangdong_hs_monitor.json");
+    let mut packages = Vec::new();
+    for (i, case) in ["0_单词朗读", "1_课内语篇朗读", "2_课内语篇听读", "3_课外语篇听读", "4_故事复述"]
+        .iter()
+        .enumerate()
+    {
+        let dir = corpus_path("guangdong_hs_monitor_a").join(case);
+        let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+        let info: Value = serde_json::from_str(&fs::read_to_string(dir.join("info.json")).unwrap()).unwrap();
+        let content2: Value = serde_json::from_str(&fs::read_to_string(dir.join("content2.json")).unwrap()).unwrap();
+        let questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+        packages.push(json!({
+            "structure_type": content["structure_type"],
+            "group_name": case.splitn(2, '_').nth(1).unwrap(),
+            "code_id": format!("st{}", i + 1),
+            "order": i,
+            "questions": questions,
+        }));
+    }
+    let merged = resolver::parse_homework_set_value(&json!(packages), Some(&res_json), None);
+    let completeness = &merged["completeness"];
+    assert_eq!(completeness["is_complete"], true);
+    assert_eq!(completeness["missing_vs_template"], 0);
+    assert_eq!(completeness["template_questions"], 5);
+    assert_eq!(completeness["parsed_questions"], 5);
+    // 每个大题都用官方挂载键挂上（无家族兜底）
+    for section in merged["paper"]["sections"].as_array().unwrap() {
+        assert_eq!(section["mount_confidence"], "exact", "{section}");
+        assert_eq!(section["count_status"], "match", "{section}");
+    }
+    let warnings = merged["warnings"].as_array().unwrap();
+    assert!(
+        !warnings.iter().any(|w| w.as_str().unwrap_or("").contains("below_template")),
+        "对齐时不应有少题告警: {warnings:?}"
+    );
+}
+
+#[test]
+fn mount_reason_exposes_family_fallback() {
+    // 大题名与挂载键都对不上时，题目会被"同结构家族"兜底挂到相邻大题：
+    // 题不丢，但必须让调用方看见这次挂载不可靠。
+    let res_json = fixture("res_json_guangdong_mock1.json");
+    let dir = corpus_path("guangdong_mock1").join("01_听选信息1");
+    let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+    let info: Value = serde_json::from_str(&fs::read_to_string(dir.join("info.json")).unwrap()).unwrap();
+    let content2: Value = serde_json::from_str(&fs::read_to_string(dir.join("content2.json")).unwrap()).unwrap();
+    let questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+    // structure_type 用官方 code 值（listen_choice_standard，handler=collector.role），
+    // 与模板的 exam_type_collect（collector.role）不相等 -> 只能走"同结构家族"兜底
+    let packages = json!([
+        {"structure_type": "listen_choice_standard", "group_name": "老师新加的大题", "code_id": "",
+         "order": 0, "questions": questions},
+        {"structure_type": "collector.read", "group_name": "模仿朗读", "code_id": "st1",
+         "order": 1, "questions": resolver::parse_task_value(
+            &serde_json::from_str::<Value>(&fs::read_to_string(
+                corpus_path("guangdong_mock1").join("00_模仿朗读").join("content.json")).unwrap()).unwrap(),
+            None, None)},
+    ]);
+    let merged = resolver::parse_homework_set_value(&packages, Some(&res_json), None);
+    let warnings = merged["warnings"].as_array().unwrap();
+    assert!(
+        warnings.iter().any(|w| w.as_str().unwrap_or("").starts_with("package_mounted_by_family_fallback")),
+        "家族兜底挂载必须告警: {warnings:?}"
+    );
+    let completeness = &merged["completeness"];
+    assert!(
+        !completeness["sections_weak_mount"].as_array().unwrap().is_empty(),
+        "应点出靠兜底挂载的大题"
+    );
+    // 题目不丢
+    let total: u64 = merged["paper"]["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["questions"].as_array().unwrap().len() as u64)
+        .sum();
+    assert!(total >= 3, "兜底也绝不能丢题，实际 {total}");
+}
+
+#[test]
+fn completeness_guard_detects_package_lost_before_parsing() {
+    // 更早阶段的漏题：资源包在下载/提取阶段就丢了，根本到不了解析器。
+    // 靠"作业声明的包数 vs 实际解析包数"对账抓出来。
+    let res_json = fixture("res_json_guangdong_hs_monitor.json");
+    let dir = corpus_path("guangdong_hs_monitor_a").join("0_单词朗读");
+    let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+    let questions = resolver::parse_task_value(&content, None, None);
+    // 作业声明 5 个包，只传进来 2 个
+    let homework = json!({"id": "104456286", "name": "听说练习",
+        "contents": [{"group_name": "单词朗读"}, {"group_name": "课内语篇朗读"},
+                     {"group_name": "课内语篇听读"}, {"group_name": "课外语篇听读"},
+                     {"group_name": "故事复述"}]});
+    let packages = json!([
+        {"structure_type": "collector.read", "group_name": "单词朗读", "code_id": "st1",
+         "order": 0, "questions": questions},
+        {"structure_type": "collector.read", "group_name": "课内语篇朗读", "code_id": "st2",
+         "order": 1, "questions": questions},
+    ]);
+    let merged = resolver::parse_homework_set_value(&packages, Some(&res_json), Some(&homework));
+    assert_eq!(merged["coverage"]["declared_packages"], 5);
+    assert_eq!(merged["coverage"]["packages"], 2);
+    assert_eq!(merged["coverage"]["missing_packages"], 3);
+    let warnings = merged["warnings"].as_array().unwrap();
+    assert!(
+        warnings.iter().any(|w| w.as_str().unwrap_or("").starts_with("packages_missing_vs_homework")),
+        "包数对不上必须告警: {warnings:?}"
+    );
+    assert_eq!(merged["completeness"]["is_complete"], false);
+}
+
+#[test]
+fn unified_question_schema_across_all_official_families() {
+    // 「输出统一格式」的机器化断言：10 个官方解析家族 + 词汇，题目对象字段集必须一致。
+    // 各家族载荷形状差异极大（xtlist / std / question+std / info.value / 双通道词汇），
+    // 但输出必须收敛成同一套字段，客户端才能只写一份渲染逻辑。
+    let corpus = corpus_path("");
+    let mut checked: Vec<String> = Vec::new();
+    let cases: Vec<(&str, &str)> = vec![
+        ("guangdong_mock1", "00_模仿朗读"),
+        ("guangdong_mock1", "01_听选信息1"),
+        ("guangdong_mock1", "05_信息转述"),
+        ("guangdong_hs_mock1", "01_角色扮演"),
+        ("guangdong_hs_monitor_a", "2_课内语篇听读"),
+        ("guangdong_hs_monitor_a", "4_故事复述"),
+        ("_examples", "choose_xtlist/mock-001"),
+        ("_examples", "std_fill/mock-001"),
+    ];
+    for (group, case) in cases {
+        let dir = corpus.join(group).join(case);
+        if !dir.join("content.json").is_file() {
+            continue;
+        }
+        let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+        let info = fs::read_to_string(dir.join("info.json")).ok().map(|s| serde_json::from_str::<Value>(&s).unwrap());
+        let content2 = fs::read_to_string(dir.join("content2.json")).ok().map(|s| serde_json::from_str::<Value>(&s).unwrap());
+        let questions = resolver::parse_task_value(&content, content2.as_ref(), info.as_ref());
+        assert!(!questions.is_empty(), "{case} 应有题目");
+        for q in &questions {
+            let obj = q.as_object().unwrap();
+            // 统一契约的必需字段（缺一不可）
+            for key in ["no", "type", "question", "answers"] {
+                assert!(
+                    obj.contains_key(key),
+                    "{case}（{}）缺少统一字段 `{key}`: {q}",
+                    content["structure_type"]
+                );
+            }
+            assert!(obj["answers"].is_array(), "{case} answers 必须是数组");
+            assert!(obj["no"].is_number() || obj["no"].is_null(), "{case} no 必须是数字");
+            // 可选但约定存在的字段
+            assert!(obj.contains_key("options"), "{case} 应始终有 options（可为空数组）");
+            assert!(obj.contains_key("stid"), "{case} 应始终有 stid（可为 null）");
+        }
+        checked.push(format!(
+            "{}（{}）{} 题",
+            case,
+            content["structure_type"].as_str().unwrap_or(""),
+            questions.len()
+        ));
+    }
+    assert!(checked.len() >= 6, "至少应覆盖 6 个真实家族: {checked:?}");
+
+    // 词汇走同一套字段
+    let vocab = fixture("word_struct_guangdong_hs_pk.json");
+    let word_questions = resolver::parse_word_pk_value(&vocab["body"]);
+    assert!(!word_questions.is_empty());
+    for q in &word_questions {
+        let obj = q.as_object().unwrap();
+        for key in ["no", "type", "question", "answers"] {
+            assert!(obj.contains_key(key), "词汇缺统一字段 `{key}`: {q}");
+        }
+    }
 }
