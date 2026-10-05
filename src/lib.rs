@@ -18,6 +18,7 @@ pub mod contract;
 pub mod diagnose;
 pub mod homework;
 pub mod homework_set;
+pub mod integrity;
 pub mod spec;
 pub mod template;
 
@@ -203,6 +204,13 @@ pub extern "C" fn diagnose(
 /// 官方新增题型时用它做"结构是否变化"的判定：结构没变=只是改名，结构变了=需要跟。
 #[cfg(not(target_os = "android"))]
 #[no_mangle]
+/// 自校验结果（可执行段摘要 + 注入/内存环境扫描）。JSON 字符串，用 `free_string` 释放。
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn self_integrity_check() -> *mut c_char {
+    json_to_ptr(integrity::verify_self().to_json())
+}
+
 pub extern "C" fn shape_fingerprint(
     content: *const c_char,
     info: *const c_char,

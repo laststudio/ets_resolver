@@ -26,5 +26,8 @@ EXTRA=()
 if java --enable-native-access=ALL-UNNAMED -version >/dev/null 2>&1; then
   EXTRA=(--enable-native-access=ALL-UNNAMED)
 fi
+# 静态工具算出的期望摘要：探针会用它核对"运行时摘要 == 静态摘要"（自校验算法的对齐门禁）
+DIGEST="$(python3 "$ROOT/tools/integrity/segment_digest.py" "$SO" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha256"])')"
+echo "④ 静态摘要: ${DIGEST:0:24}…（运行时须与此一致）"
 PATH="$OUT/bin:$PATH" exec com.shuaiqiu.fuckets100 "${EXTRA[@]}" \
-  -cp "$OUT/classes" -Dresolver.lib="$SO" com.shuaiqiu.fuckets100.JniProbe
+  -cp "$OUT/classes" -Dresolver.lib="$SO" -Dexpected.digest="$DIGEST" com.shuaiqiu.fuckets100.JniProbe

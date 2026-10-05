@@ -68,11 +68,76 @@ jobs:
           ls -la target/aarch64-linux-android/release/libresolver.so
           ls -la target/aarch64-linux-android/release/libcloud.so
 
+      # ── 可执行段自校验的期望摘要注入（两遍构建）────────────────────────────
+      # 第 1 遍已产出 so -> 静态工具算出"可执行映射"的 sha256 -> 第 2 遍用
+      # RESOLVER_TEXT_DIGEST / CLOUD_TEXT_DIGEST 注入（两个产物摘要不同）。
+      # 守卫：注入后摘要必须与第 1 遍**逐字节一致** —— 否则运行时会把自己判成被篡改。
+      # 注入值由 build.rs 写成固定 64 字节数组并强制放进 .data 段，正是为满足这条守卫。
+      #
+      # 强制模式（摘要不匹配即拒绝服务）默认**关闭**（灰度观察期）：CI 只注入期望值，
+      # 端侧用 selfIntegrityCheck 的 text_digest_match 上报；观察无误后再开
+      # （仓库变量 RESOLVER_INTEGRITY_ENFORCE=1 即可）。
+      - name: Inject self-check digest (two-pass build + guard)
+        env:
+          RESOLVER_INTEGRITY_ENFORCE: ${{ vars.RESOLVER_INTEGRITY_ENFORCE || '0' }}
+        run: |
+          set -euo pipefail
+          DIR=target/aarch64-linux-android/release
+          digest_of() { python3 tools/integrity/segment_digest.py "$1" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha256"])'; }
+
+          R1="$(digest_of "$DIR/libresolver.so")"; C1="$(digest_of "$DIR/libcloud.so")"
+          echo "第 1 遍: resolver=${R1:0:24}… cloud=${C1:0:24}… （enforce=${RESOLVER_INTEGRITY_ENFORCE}）"
+
+          RESOLVER_TEXT_DIGEST="$R1" CLOUD_TEXT_DIGEST="$C1" \
+            cargo ndk -t arm64-v8a build --release --workspace
+
+          R2="$(digest_of "$DIR/libresolver.so")"; C2="$(digest_of "$DIR/libcloud.so")"
+          echo "第 2 遍: resolver=${R2:0:24}… cloud=${C2:0:24}…"
+
+          [ "$R1" = "$R2" ] || { echo "::error::注入 RESOLVER_TEXT_DIGEST 后 libresolver.so 可执行段变化 —— 自校验会误判自身被篡改"; exit 1; }
+          [ "$C1" = "$C2" ] || { echo "::error::注入 CLOUD_TEXT_DIGEST 后 libcloud.so 可执行段变化 —— 同上"; exit 1; }
+          echo "✅ 摘要注入不影响可执行段"
+          {
+            echo "### 自校验期望摘要（注入后不可变）"
+            echo ""
+            echo "| 产物 | sha256（可执行映射） |"
+            echo "|---|---|"
+            echo "| libresolver.so | \`$R1\` |"
+            echo "| libcloud.so | \`$C1\` |"
+            echo ""
+            echo "强制模式（不匹配即拒绝）：\`${RESOLVER_INTEGRITY_ENFORCE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build host Linux resolver/cloud SOs (dev/tooling)
         run: |
+          set -euo pipefail
+          DIR=target/x86_64-unknown-linux-gnu/release
+          digest_of() { python3 tools/integrity/segment_digest.py "$1" --json | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha256"])'; }
+
           cargo build --release --target x86_64-unknown-linux-gnu --workspace
-          ls -la target/x86_64-unknown-linux-gnu/release/libresolver.so
-          ls -la target/x86_64-unknown-linux-gnu/release/libcloud.so
+          R1="$(digest_of "$DIR/libresolver.so")"; C1="$(digest_of "$DIR/libcloud.so")"
+          echo "宿主第 1 遍(灰度): resolver=${R1:0:24}… cloud=${C1:0:24}…"
+
+          RESOLVER_TEXT_DIGEST="$R1" CLOUD_TEXT_DIGEST="$C1" \
+            cargo build --release --target x86_64-unknown-linux-gnu --workspace
+          R2="$(digest_of "$DIR/libresolver.so")"
+          [ "$R1" = "$R2" ] || { echo "::error::宿主产物注入摘要后代码段变化"; exit 1; }
+
+          # 守卫（覆盖 enforce 维度）：打开强制开关重建，代码段必须仍然不变，
+          # 否则"开强制"本身会让所有正常产物被判成被篡改。
+          RESOLVER_TEXT_DIGEST="$R1" CLOUD_TEXT_DIGEST="$C1" RESOLVER_INTEGRITY_ENFORCE=1 \
+            cargo build --release --target x86_64-unknown-linux-gnu --workspace
+          R3="$(digest_of "$DIR/libresolver.so")"
+          if [ "$R1" != "$R3" ]; then
+            echo "::error::开启 RESOLVER_INTEGRITY_ENFORCE 后代码段变化 —— 强制模式会把正常产物拦死"
+            exit 1
+          fi
+          echo "✅ 宿主产物：摘要注入与强制开关都不影响可执行段"
+
+          # 还原为灰度构建（发布出去的宿主产物不带强制）
+          RESOLVER_TEXT_DIGEST="$R1" CLOUD_TEXT_DIGEST="$C1" \
+            cargo build --release --target x86_64-unknown-linux-gnu --workspace
+          ls -la "$DIR/libresolver.so" "$DIR/libcloud.so"
 
       - name: Build wasm (optional, keep parity with existing release)
         run: |
@@ -92,6 +157,13 @@ jobs:
           if nm -D --defined-only target/aarch64-linux-android/release/libcloud.so | grep -Eq 'parseTask|parseBatch|parse_task|parse_batch|ResolverNative'; then
             echo "libcloud.so 意外包含解析符号"; exit 1
           fi
+          echo "== self-check digest (android + host) =="
+          for f in target/aarch64-linux-android/release/libresolver.so \
+                   target/aarch64-linux-android/release/libcloud.so \
+                   target/x86_64-unknown-linux-gnu/release/libresolver.so \
+                   target/x86_64-unknown-linux-gnu/release/libcloud.so; do
+            [ -f "$f" ] && python3 tools/integrity/segment_digest.py "$f" || true
+          done
           echo "== strip debug sections (defence in depth) =="
           find target -name 'libresolver.so' -o -name 'resolver.wasm' | while read -r f; do
             # strip true already in profile.release; apply a second strip to be explicit

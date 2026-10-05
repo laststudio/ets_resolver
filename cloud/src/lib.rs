@@ -5,6 +5,8 @@
 pub mod auth;
 #[path = "../../src/cloud.rs"]
 pub mod cloud;
+#[path = "../../src/integrity.rs"]
+pub mod integrity;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

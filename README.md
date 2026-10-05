@@ -398,7 +398,7 @@ Android 端对应 `ResolverNative.resolveRequest(json)` 与 `ResolverNative.capa
 
 Rust 核心测试（CI 与本地都应保持全绿）：
 ```bash
-cargo test --workspace          # 135 个用例：解析分发、PK 顺序/过滤与双通道、清洗、诊断指纹、作业分类、res.json 模板、契约层、授权签名校验
+cargo test --workspace          # 143 个用例：解析分发、PK 顺序/过滤与双通道、清洗、诊断指纹、作业分类、res.json 模板、契约层、授权签名校验
 ```
 
 一致性回归（与官方客户端对齐的门禁，方法论见 [`docs/PARITY.md`](./docs/PARITY.md)）：
@@ -453,3 +453,5 @@ Disk: WD SN550 1TB
 [Python](https://python.org/)  
 [ETS100](https://ets100.com/)  
 本项目的产生离不开各个开源项目和开源开发者的支持, 向其他开源开发者致敬!
+
+- 防护清单（含自校验/灰度开关）：[docs/HARDENING.md](docs/HARDENING.md)

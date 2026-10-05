@@ -54,6 +54,20 @@ public final class JniProbe {
                 integrity != null && integrity.contains("\"cmdline_valid\":true"),
                 "cmdline_valid=true（argv[0] 伪装生效）");
 
+        // 1.5) 自校验：可执行段摘要必须与静态工具（tools/integrity/segment_digest.py）算出的一致。
+        //      这是"自校验不会误拦用户"的前提 —— 两侧算法必须逐字节对齐。
+        String digest = topField(integrity, "text_digest");
+        String expectedDigest = System.getProperty("expected.digest", "").trim();
+        if (expectedDigest.isEmpty()) {
+            check("text digest", digest != null && digest.length() == 64,
+                    "digest=" + trim(digest) + "（未提供 --expected 跳过对拍）");
+        } else {
+            check("text digest == 静态工具", expectedDigest.equals(digest),
+                    "运行时=" + trim(digest) + " 静态=" + expectedDigest.substring(0, Math.min(16, expectedDigest.length())) + "…");
+        }
+        check("digest 未强制（灰度观察期）", "false".equals(topField(integrity, "digest_enforced")),
+                "digest_enforced=" + topField(integrity, "digest_enforced"));
+
         // 2) 能力清单：契约版本 / op 数 / 覆盖率
         String caps = ResolverNative.capabilities();
         boolean capsOk = caps != null && "\"contract_version\"".length() > 0 && caps.contains("contract_version");
