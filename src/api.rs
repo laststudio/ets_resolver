@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// 统一接口: 单任务解析 / 批量解析 / 时间聚类 / 元信息 (与 resolver_py/api.py 行为一致)
+// 统一接口: 单任务解析 / 批量解析 / 时间聚类 / 元信息 (与 legacy/resolver_py/api.py 行为一致)
 
 use serde_json::{json, Value};
 

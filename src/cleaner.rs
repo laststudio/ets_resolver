@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// HTML 清洗与题号提取工具 (与 resolver_py/cleaner.py 行为一致)
+// HTML 清洗与题号提取工具 (与 legacy/resolver_py/cleaner.py 行为一致)
 
 /// 剥离 HTML 标签: 跳过 <script>/<style> 内容与注释, 解码实体
 pub fn strip_html(input: &str) -> String {

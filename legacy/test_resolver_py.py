@@ -6,7 +6,8 @@ import sys
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# legacy/ 归档后：resolver_py 与本脚本同目录，只需把脚本自身所在目录加进 sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from resolver_py import (
     parse_task, parse_batch, extract_meta, group_by_time, parse_word_pk,

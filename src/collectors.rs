@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// 各题型解析器 (与 resolver_py/collectors.py 行为一致)
+// 各题型解析器 (与 legacy/resolver_py/collectors.py 行为一致)
 
 use std::collections::HashMap;
 use serde_json::{json, Map, Value};

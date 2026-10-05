@@ -1,6 +1,12 @@
-# Ets Resolver (Python & Rust)
+# Ets Resolver (Rust)
 
-本项目提供了作业答案解析的两种实现：原生 Python 脚本 (`demo.py`) 与高性能 Rust 动态链接库 (`libresolver.so` / `resolver.dll` 等)。通过 Rust 编译的动态库可以被 Python、C/C++、C#、Java 等其他程序以 FFI 的方式调用。
+本项目的**唯一事实源**是 Rust 实现：高性能动态链接库 `libresolver.so`（答案解析）与 `libcloud.so`（ETS100 云端协议），可被 Python、C/C++、C#、Java 等以 FFI/JNI 方式调用。
+
+> 下游 `Fe-pro`（Android）与 `lastudio-platform`（后端）都从本仓库的 GitHub Release 拉取 so，
+> 因此**修改只在本仓库做，其他端自动同步**。
+>
+> 2026-07 时代的 Python demo 实现（`demo.py` / `resolver_py/` 等）已归档到 [`legacy/`](./legacy/README.md)，
+> 仅作历史参考与行为比对，下游与 CI 都不使用。
 
 ## 依赖与环境
 
@@ -42,11 +48,11 @@ cargo ndk --target arm64-v8a build --release
 
 ## 使用方法
 
-### 1. Python 程序 (`demo.py`) 使用
+### 1. 旧 Python demo（已归档，不再维护）
 
-直接运行脚本，根据提示输入：
+历史实现位于 [`legacy/demo.py`](./legacy/demo.py)，仅在需要行为比对时使用：
 ```bash
-python demo.py
+python3 legacy/demo.py
 ```
 
 ### 2. Rust 动态链接库使用 (以 Python 为例)
@@ -156,21 +162,6 @@ print(call(lib.resolve, input_str))
 - **统一任务格式**：`{"structure_type": "word_pk", "info": ...}`
 
 ### 3. API 与工具函数
-
-#### Python API (`resolver_py`)
-```python
-from resolver_py import parse_word_pk, parse_task, build_pk_answer, build_pk_wrong_choice
-
-# 1. 直接解析单词 PK / 词汇作业数据
-questions = parse_word_pk(pk_data)
-
-# 2. 构造做题提交结构 (与 SyncWordRepository 一致)
-ans_submission = build_pk_answer(q_type=6, q_info=q_dict)
-# {'point': 1, 'answer': 'A', 'word_id': 101, 'question_id': 5001}
-
-# 3. 智能构建错题选项 (用于控分场景)
-wrong_choice = build_pk_wrong_choice(q_dict)  # 返回错误的选项标号或值
-```
 
 #### Rust FFI 接口
 - `char* parse_word_pk(const char* pk_data)`：解析词汇作业 JSON 并返回统一题目数组 JSON。
@@ -310,12 +301,21 @@ Android 使用两个 JNI 类：`ResolverNative` 加载 `libresolver.so`，`Cloud
 
 # 测试
 
-在项目根目录下执行：
+Rust 核心测试（CI 与本地都应保持全绿）：
 ```bash
-python3 test_demo.py ..\downloaded
-python3 test_demo.py ..\downloaded_res
-python3 test_lib.py ..\downloaded
-python3 test_lib.py ..\downloaded_res
+cargo test --workspace          # 35 个用例：解析分发、PK 顺序/过滤、清洗、授权签名校验
+```
+
+线下联调（需要本地后端已运行并 seed `answer_parser` 功能）：
+```bash
+python3 test_auth_e2e.py
+```
+
+历史实现的自测（已归档，需要外部数据集，缺失时自动跳过）：
+```bash
+python3 legacy/test_resolver_py.py
+python3 legacy/test_demo.py ..\downloaded
+python3 legacy/test_lib.py ..\downloaded
 ```
 
 ## 系统和环境信息
