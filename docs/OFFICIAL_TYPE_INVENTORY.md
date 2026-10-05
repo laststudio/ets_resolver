@@ -96,9 +96,36 @@ cargo test --test official_inventory
 2. `group_name` 里可能嵌 `\r\n`（如 `必修一U4A\r\n模仿朗读`）—— 匹配时需把空白折叠后比较
    （已实现 `name_match_key`），否则挂不上模板。
 
-## 七、还没覆盖到的部分
+## 七、第 10 个家族 `collector.repeat` 与一个被真实数据抓到的真 bug
+
+广东高中还有另一种卷型：**高级中学听说能力监测（20 分卷）**，官方 res.json 是
+5 个大题各 4 分，`exam_type_collect` 里出现了第 10 个家族 **`collector.repeat`**：
+
+| 大题 | collect | 载荷形态 | 修复前 | 修复后 |
+|---|---|---|---|---|
+| 单词朗读 | `collector.read` | `content.info.value`（音标串） | 1 题 ✅ | 1 题 |
+| 课内语篇朗读 | `collector.read` | `content.info.value` | 1 题 ✅ | 1 题 |
+| **课内语篇听读** | **`collector.repeat`** | `content.info.value`（无 question/std） | **0 题 ❌** | **1 题 ✅** |
+| **课外语篇听读** | **`collector.repeat`** | 同上 | **0 题 ❌** | **1 题 ✅** |
+| 故事复述 | `collector.picture` | `info.std[].value` | 1 题 ✅ | 1 题 |
+
+**修复前整卷少 8 分（12/20）**。原因是显式分支命中 `QUESTION_TYPES` 后只尝试了
+`collect_question_based` 与 `collect_std_only`，而这两路的载荷是**纯文本听读材料**
+（`content.info.value`）。已补兜底：显式路由出空时，若载荷带 `info.value` 文本，
+按朗读/跟读类处理（与 `collector.read` 语义一致：原文即答案）。
+
+**顺带发现**：**后端 Python 兜底实现对 `collector.repeat` 同样解析出 0 题**
+（实测 5 包里 2 包为 0）——所以这两条语料没有独立参照物，golden 只能标记
+`resolver_self_recorded`（不计入 official_ratio），小题数与分值另用官方 res.json 交叉校验。
+线上因为优先走 so 不受影响，但"so 不可用时的 Python 兜底"仍有此洞，建议同步修。
+
+**另外新增一条诊断**：显式命中却出不了题时输出 `explicit_route_empty` 告警 ——
+否则这种情况会被 `layer=explicit` 掩盖成"看起来正常"。
+
+## 八、还没覆盖到的部分
 
 - **其他地区/学段的 `res.json` 字段差异**：本次抽样已跨 107 个大类、221 套模板且零失败，
   但仍建议按地区（北京/江苏/上海/山东/广东）各抽一批复核；
 - ~~`collector.3q5a`（广东高中三问五答）~~：**已用真实广东高中数据闭环** ✅（见第六节）；
+- ~~`collector.repeat`（课内外语篇听读）~~：**已修 + 已入库** ✅（见第七节）；
 - **词汇双通道**（`Symbol_*` vs `sync_pk`）：题库只有听说卷，词汇通道需要从作业接口取真实载荷核对。

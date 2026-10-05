@@ -1068,6 +1068,23 @@ pub struct RouteResult {
 }
 
 /// 带路由信息的解析（`parse_content` 的内部实现，行为完全一致）。
+/// 判断这份载荷是否属于"文本跟读/朗读"形态：文本在 `content.info.value`
+/// （真实 `collector.repeat` 载荷就是这样，且此时入参的 `info` 往往是 list，取不到 value）。
+fn has_text_value(content: &Value, info: Option<&Value>) -> bool {
+    let non_empty = |v: &Value| {
+        v.get("value")
+            .and_then(|x| x.as_str())
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+    };
+    if let Some(inner) = content.get("info") {
+        if inner.is_object() && non_empty(inner) {
+            return true;
+        }
+    }
+    info.map(|i| i.is_object() && non_empty(i)).unwrap_or(false)
+}
+
 pub fn parse_content_routed(
     content: &Value,
     content2: Option<&Value>,
@@ -1121,9 +1138,20 @@ pub fn parse_content_routed(
         if !parsed.is_empty() {
             return explicit(parsed, st);
         }
-        // 有些资源包把题目直接放在 info.std[]（没有 info.question[]），
-        // 早期这里会整个题型解析为空 —— 补一个兜底，答案取 std[].value。
-        return explicit(collect_std_only(content, st), st);
+        // 兜底 1：有些资源包把题目直接放在 info.std[]（没有 info.question[]），
+        // 早期这里会整个题型解析为空 —— 答案取 std[].value。
+        let std_only = collect_std_only(content, st);
+        if !std_only.is_empty() {
+            return explicit(std_only, st);
+        }
+        // 兜底 2：文本跟读/听读/朗读类（官方 `collector.repeat`、`collector.repeat_dialogue`，
+        // 实测"课内/课外语篇听读"就是这种）—— 载荷只有 `info.value` 原文，没有 question/std。
+        // 官方语义与 collector.read 一致：原文即答案（朗读比对学生录音与原文）。
+        // 修之前这类包会解析出 0 题（高中听说能力监测 20 分卷直接少 8 分）。
+        if has_text_value(content, info) {
+            return explicit(collect_read(content, content2, info), st);
+        }
+        return explicit(Vec::new(), st);
     }
     if st.contains("repeat") || st.contains("essay") || st.contains("dialogue") || st.contains("role") {
         return explicit(collect_question_based(content, content2, info, Some(st)), st);

@@ -1,0 +1,19 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中'听说能力监测 20 分卷'资源包；golden 来自后端 Python 兜底实现，已与 Rust 比对零差异。",
+  "structure_type": "collector.read",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.read",
+      "stid": 513465,
+      "question": "To inspire young people to take action for the environment, animals and their community, Roots & Shoots was established. This institute was set up in the early 1990s by Dr. Jane Goodall, a scientist who's the world's best-known expert on wild chimpanzees. In addition to her research, she has been whole-heartedly committed to environmental protection. The whole purpose of Roots & Shoots is to educate young people, from pre-schoolers to university students, so they can help to build a future that is secure and live together in peace with nature. The organisation is called Roots & Shoots because roots move slowly under the ground to make a firm foundation, and shoots seem small and weak, but they can break open brick walls to reach the light. The roots and shoots are you, your friends and young people all around the world. Hundreds and thousands of roots and shoots can solve the problems, change the world and make it a better place to live in.",
+      "answers": [
+        "To inspire young people to take action for the environment, animals and their community, Roots & Shoots was established. This institute was set up in the early 1990s by Dr. Jane Goodall, a scientist who's the world's best-known expert on wild chimpanzees. In addition to her research, she has been whole-heartedly committed to environmental protection. The whole purpose of Roots & Shoots is to educate young people, from pre-schoolers to university students, so they can help to build a future that is secure and live together in peace with nature. The organisation is called Roots & Shoots because roots move slowly under the ground to make a firm foundation, and shoots seem small and weak, but they can break open brick walls to reach the light. The roots and shoots are you, your friends and young people all around the world. Hundreds and thousands of roots and shoots can solve the problems, change the world and make it a better place to live in."
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}

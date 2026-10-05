@@ -1,0 +1,141 @@
+{
+  "set_score": "20",
+  "set_intro": "",
+  "exam_type_list": [
+    {
+      "exam_type_order": "1",
+      "exam_type_name": "单词朗读",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.read",
+      "exam_type_score": "4",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st1}}",
+          "exam_info": [],
+          "exam_score": "4",
+          "exam_count": "1",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "4",
+              "evaluation_type": "read_word",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "2",
+      "exam_type_name": "课内语篇朗读",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.read",
+      "exam_type_score": "4",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st2}}",
+          "exam_info": [],
+          "exam_score": "4",
+          "exam_count": "1",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "4",
+              "evaluation_type": "read_chapter",
+              "engine_area": "",
+              "engine_type": "Simulation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "3",
+      "exam_type_name": "课内语篇听读",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.repeat",
+      "exam_type_score": "4",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st3}}",
+          "exam_info": [],
+          "exam_score": "4",
+          "exam_count": "100",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "100",
+              "question_score": "4",
+              "evaluation_type": "read_sentence",
+              "engine_area": "",
+              "engine_type": "study"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "4",
+      "exam_type_name": "课外语篇听读",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.repeat",
+      "exam_type_score": "4",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st4}}",
+          "exam_info": [],
+          "exam_score": "4",
+          "exam_count": "100",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "100",
+              "question_score": "4",
+              "evaluation_type": "read_sentence",
+              "engine_area": "",
+              "engine_type": "study"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "5",
+      "exam_type_name": "故事复述",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.picture",
+      "exam_type_score": "4",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st5}}",
+          "exam_info": [],
+          "exam_score": "4",
+          "exam_count": "1",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "4",
+              "evaluation_type": "topic",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

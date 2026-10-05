@@ -133,6 +133,11 @@ pub fn diagnose(content: &Value, content2: Option<&Value>, info: Option<&Value>)
     match routed.layer {
         "generic" => warnings.push("generic_fallback"),
         "none" => warnings.push("unmatched_shape"),
+        "explicit" if questions.is_empty() => {
+            // 显式命中却出不了题：说明这个 structure_type 的载荷形态还没被兜住，
+            // 必须显式告警，否则会被 layer=explicit 掩盖成"看起来正常"。
+            warnings.push("explicit_route_empty");
+        }
         _ => {}
     }
     if questions.is_empty() {

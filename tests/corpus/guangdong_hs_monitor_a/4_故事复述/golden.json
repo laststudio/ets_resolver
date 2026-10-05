@@ -1,0 +1,37 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中'听说能力监测 20 分卷'资源包；golden 来自后端 Python 兜底实现，已与 Rust 比对零差异。",
+  "structure_type": "collector.picture",
+  "questions": [
+    {
+      "no": null,
+      "type": "collector.picture",
+      "stid": 513468,
+      "question": "Feeding Birds",
+      "answers": [
+        "Jim's friend David Smith kept birds. One day David phoned and told Jim that he would be away for a week. He asked Jim to feed the birds for him and said he would leave his key in Jim's mailbox. Unfortunately, Jim didn't remember to feed the birds until the night before David was going to return. Jim rushed out of his house and it was already dark when he arrived at David's. He soon found the key David gave him could unlock neither the front door nor the back door! Jim kept thinking of what David would say when he came back. Then Jim noticed that one bedroom window was open. He found a big stone and pushed it under the window. Because the stone was very heavy, he made a lot of noise. But in the end, he managed to climb up. Jim had one leg inside the bedroom when he suddenly realized that someone was shining a torch up at him. He looked down and saw a policeman and an old lady, one of David's neighbours. \"What are you doing up there?\" said the policeman. Feeling like a fool, Jim replied, \"I was going to feed Mr. Smith's birds.\""
+      ],
+      "options": [],
+      "important": [
+        "1. Jim's friend David Smith kept birds. One day David phoned and told Jim that he would be away for a week.",
+        "2. He asked Jim to feed the birds for him and said he would leave his key in Jim's mailbox.",
+        "3. Unfortunately, Jim didn't remember to feed the birds until the night before David was going to return.",
+        "4. Jim rushed out of his house and it was already dark when he arrived at David's.",
+        "5. He soon found the key David gave him could unlock neither the front door nor the back door! Jim kept thinking of what David would say when he came back.",
+        "6. Then Jim noticed that one bedroom window was open. He found a big stone and pushed it under the window.",
+        "7. Because the stone was very heavy, he made a lot of noise. But in the end, he managed to climb up.",
+        "8. Jim had one leg inside the bedroom when he suddenly realized that someone was shining a torch up at him.",
+        "9. He looked down and saw a policeman and an old lady, one of David's neighbours. \"What are you doing up there?\" said the policeman.",
+        "10. Feeling like a fool, Jim replied, \"I was going to feed Mr. Smith's birds.\"",
+        "梗概：",
+        "Jim忘记帮David喂鸟，在从窗户进屋时被警察和David的邻居发现了。",
+        "关键词：",
+        "birds（鸟）",
+        "rushed（猛冲）",
+        "window（窗户）",
+        "heavy（重的）",
+        "shining a torch（打手电筒）"
+      ]
+    }
+  ]
+}

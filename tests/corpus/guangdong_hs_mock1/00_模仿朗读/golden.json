@@ -1,6 +1,6 @@
 {
   "captured_from": "python_reference",
-  "note": "真实广东高中高考听说 60 分卷资源包（含 collector.3q5a 唯一真实样本）。golden 由后端 Python 兜底实现产出并已与 Rust 解析器比对一致。",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
   "structure_type": "collector.read",
   "questions": [
     {

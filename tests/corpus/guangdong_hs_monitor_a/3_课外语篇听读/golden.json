@@ -1,0 +1,20 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "真实广东高中'听说能力监测 20 分卷'的 collector.repeat 包（课文听读）。注意：**后端 Python 兜底实现对该结构同样解析出 0 题**，因此没有独立参照物，golden 只能来自修复后的解析器（故标记 self_recorded，不计入 official_ratio）。小题数与分值经官方 res.json 校验：该卷 5 个大题各 1 小题 × 4 分 = 20 分。",
+  "structure_type": "collector.repeat",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.read",
+      "stid": 513467,
+      "question": "W: What are you reading, Sam? M: The Kite Runner. It's a great book. W: What is it about? M: It's about a boy who grows up in Afghanistan during the 1980s. It's a very touching story and also a little sad. Do you like such books? W: I used to like exciting adventure stories, but now I love reading books like that. M: Jenny, would you be interested in joining a book club? W: Sure. Do you know of one? M: Yes, I'm in one now. We meet every Saturday evening and discuss the books that we've read. We begin at 8:00 p.m. and chat for about one and a half hours. We usually learn a lot and it's a lot of fun. W: I'm really interested. I really look forward to meeting other people who also love reading.",
+      "answers": [
+        "W: What are you reading, Sam? M: The Kite Runner. It's a great book. W: What is it about? M: It's about a boy who grows up in Afghanistan during the 1980s. It's a very touching story and also a little sad. Do you like such books? W: I used to like exciting adventure stories, but now I love reading books like that. M: Jenny, would you be interested in joining a book club? W: Sure. Do you know of one? M: Yes, I'm in one now. We meet every Saturday evening and discuss the books that we've read. We begin at 8:00 p.m. and chat for about one and a half hours. We usually learn a lot and it's a lot of fun. W: I'm really interested. I really look forward to meeting other people who also love reading."
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ],
+  "official_cross_check": "res.json: 5 大题 × 1 小题 × 4 分 = set_score 20"
+}

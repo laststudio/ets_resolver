@@ -261,3 +261,87 @@ fn real_guangdong_high_school_3q5a_paper_matches_official_res_json() {
     assert_eq!(scores, vec![20.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 24.0]);
     assert!((scores.iter().sum::<f64>() - 60.0).abs() < 1e-9);
 }
+
+#[test]
+fn real_collector_repeat_paper_no_longer_loses_questions() {
+    // 广东高中"听说能力监测 20 分卷"：单词朗读 4 + 课内语篇朗读 4 + 课内语篇听读 4
+    // + 课外语篇听读 4 + 故事复述 4 = 20 分（5 大题各 1 题）
+    // 修复前：collector.repeat（课内/课外语篇听读）解析出 0 题 -> 整卷少 8 分。
+    let res_json = fixture("res_json_guangdong_hs_monitor.json");
+    let parsed = resolver::res_template_value(&res_json);
+    assert_eq!(parsed["total_score"], 20.0);
+    assert_eq!(parsed["question_count"], 5);
+    let collects: Vec<&str> = parsed["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["exam_type_collect"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        collects,
+        vec!["collector.read", "collector.read", "collector.repeat", "collector.repeat", "collector.picture"]
+    );
+
+    // 逐包解析：每个包都必须出 1 题（修复的核心断言）
+    let base: std::path::PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "corpus", "guangdong_hs_monitor_a"]
+        .iter()
+        .collect();
+    let cases = ["0_单词朗读", "1_课内语篇朗读", "2_课内语篇听读", "3_课外语篇听读", "4_故事复述"];
+    let mut packages = Vec::new();
+    let mut total_questions = 0;
+    for (idx, case) in cases.iter().enumerate() {
+        let dir = base.join(case);
+        let content: Value = serde_json::from_str(&fs::read_to_string(dir.join("content.json")).unwrap()).unwrap();
+        let info: Value = serde_json::from_str(&fs::read_to_string(dir.join("info.json")).unwrap()).unwrap();
+        let content2: Value = serde_json::from_str(&fs::read_to_string(dir.join("content2.json")).unwrap()).unwrap();
+        let questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+        assert_eq!(
+            questions.len(),
+            1,
+            "{case}（structure_type={}）应出 1 题，实际 {} —— 文本跟读类不能为空",
+            content["structure_type"],
+            questions.len()
+        );
+        // 听读/朗读类：answers 直接给原文（与 collector.read 语义一致）
+        let answers = questions[0]["answers"].as_array().unwrap();
+        assert!(!answers.is_empty(), "{case} 应把原文作为答案输出");
+        assert!(answers[0].as_str().unwrap().len() > 10);
+        total_questions += questions.len();
+        packages.push(json!({
+            "structure_type": content["structure_type"],
+            "group_name": case.split('_').nth(1).unwrap(),
+            "code_id": format!("st{}", idx + 1),
+            "order": idx,
+            "questions": questions,
+        }));
+    }
+    assert_eq!(total_questions, 5);
+
+    let homework = json!({"id": "104456286", "name": "9月4日周末听说练习", "set_type": 1, "resource_id": "1784",
+        "struct": {"contents": [{"group_name": "单词朗读"}, {"group_name": "课内语篇朗读"}, {"group_name": "课内语篇听读"},
+                                {"group_name": "课外语篇听读"}, {"group_name": "故事复述"}]}});
+    let merged = resolver::parse_homework_set_value(&json!(packages), Some(&res_json), Some(&homework));
+    let paper = &merged["paper"];
+    assert_eq!(paper["totalScore"], 20.0, "修复后整卷应是 20 分（修复前 12 分）");
+    assert_eq!(paper["totalScore_source"], "res_template_set_score");
+    assert_eq!(paper["question_count"], 5);
+    assert_eq!(merged["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0);
+    let scores: Vec<f64> = paper["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|s| s["questions"].as_array().unwrap())
+        .map(|q| q["score"].as_f64().unwrap())
+        .collect();
+    assert_eq!(scores, vec![4.0, 4.0, 4.0, 4.0, 4.0]);
+}
+
+#[test]
+fn explicit_route_without_questions_is_reported() {
+    // 显式命中却出不了题，必须留下 explicit_route_empty 告警（否则会被 layer=explicit 掩盖）
+    let content = json!({"structure_type": "collector.repeat", "info": {"translate": "", "value": ""}});
+    let report = resolver::diagnose_value(&content, None, None);
+    let warnings = report["warnings"].as_array().unwrap();
+    assert!(warnings.iter().any(|w| w == "explicit_route_empty"));
+    assert!(warnings.iter().any(|w| w == "no_questions"));
+}

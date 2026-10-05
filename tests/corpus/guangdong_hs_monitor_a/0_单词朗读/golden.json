@@ -1,0 +1,19 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中'听说能力监测 20 分卷'资源包；golden 来自后端 Python 兜底实现，已与 Rust 比对零差异。",
+  "structure_type": "collector.read",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.read",
+      "stid": 513464,
+      "question": "/.ekspek'teɪʃ(ə)n/ /ˈpreʃə(r)/ /ˈtʃælɪndʒ/ /nə'sesəti/ /'ædɪkt/ /ˌkɒntrɪˈbjuːʃ(ə)n/ /'tʃæmpiən/ /dɪˈzaɪə(r)/ /ˈreɡjʊlə(r)li/ /ˈenə(r)dʒi/ /prəʊˈhɪbɪt/ /'keɪpəb(ə)l/ /ə'keɪʒ(ə)n/ /ə'kaʊnt/ /spə'sɪfɪk/ /ˈpeɪʃ(ə)ns/ /bɪˈheɪvjə(r)/ /ɪ'vent/ /ɪm'pækt/ /'ɪmɪdʒ/ variety material creative concentrate disaster escape frightened measure ambition preparation admirable academy resource protest reputation engage exhibition figure failure complex genius struggle global shoot involve current plastic flexible ignore acquire technique passionate practical access associate dominate ambitious guilty defensive average",
+      "answers": [
+        "/.ekspek'teɪʃ(ə)n/ /ˈpreʃə(r)/ /ˈtʃælɪndʒ/ /nə'sesəti/ /'ædɪkt/ /ˌkɒntrɪˈbjuːʃ(ə)n/ /'tʃæmpiən/ /dɪˈzaɪə(r)/ /ˈreɡjʊlə(r)li/ /ˈenə(r)dʒi/ /prəʊˈhɪbɪt/ /'keɪpəb(ə)l/ /ə'keɪʒ(ə)n/ /ə'kaʊnt/ /spə'sɪfɪk/ /ˈpeɪʃ(ə)ns/ /bɪˈheɪvjə(r)/ /ɪ'vent/ /ɪm'pækt/ /'ɪmɪdʒ/ variety material creative concentrate disaster escape frightened measure ambition preparation admirable academy resource protest reputation engage exhibition figure failure complex genius struggle global shoot involve current plastic flexible ignore acquire technique passionate practical access associate dominate ambitious guilty defensive average"
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}
