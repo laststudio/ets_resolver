@@ -404,3 +404,54 @@ fn real_vocabulary_payload_uses_official_question_type_name() {
     assert_eq!(en_cn["question"], "trait");
     assert!(!en_cn["answers"][0].as_str().unwrap().contains("trait"));
 }
+
+#[test]
+fn l3_salvage_recovers_answers_from_unknown_shape() {
+    // 全新的 structure_type + 全新形状：L1/L2 都认不出，L3 兜底必须尽量抢救
+    let content = json!({
+        "structure_type": "collector.brand_new_2030",
+        "info": {
+            "stid": "999",
+            "blocks": [
+                { "kind": "qa", "ask": "What is your name?", "answer": "My name is Li Hua." },
+                { "kind": "choice", "stem": "Pick one", "answer": "B",
+                  "options": [{"name": "A", "value": "a"}, {"name": "B", "value": "b"}] },
+                { "kind": "list", "std": [{"xth": "1", "value": "first"}, {"xth": "2", "value": "second"}] }
+            ]
+        }
+    });
+    let report = resolver::diagnose_value(&content, None, None);
+    assert_eq!(report["layer"], "salvage", "L3 兜底应被命中");
+    assert_eq!(report["family"], "salvage:structural_scan");
+
+    let qs = resolver::parse_task_value(&content, None, None);
+    assert_eq!(qs.len(), 4, "1 个问答 + 1 个选择 + 2 个 std 条目");
+    for q in &qs {
+        assert_eq!(q["confidence"], "low", "兜底结果必须标低置信");
+        assert_eq!(q["type"], "collector.salvaged");
+        assert!(!q["salvage_path"].as_str().unwrap().is_empty());
+        assert!(!q["answers"].as_array().unwrap().is_empty());
+    }
+    // 题号被补齐，且能看出答案来自哪里
+    let nos: Vec<i64> = qs.iter().map(|q| q["no"].as_i64().unwrap()).collect();
+    assert_eq!(nos, vec![1, 2, 3, 4]);
+    let picks: Vec<&str> = qs.iter().map(|q| q["salvage_path"].as_str().unwrap()).collect();
+    assert!(picks.iter().any(|p| p.contains("blocks")));
+    // 选项被抢救出来
+    assert!(qs.iter().any(|q| !q["options"].as_array().unwrap().is_empty()));
+}
+
+#[test]
+fn l3_salvage_does_not_touch_known_shapes() {
+    // 已知形状必须仍走 L1（显式）/L2（嗅探），不得降级到低置信兜底
+    let known = json!({"structure_type": "collector.role",
+        "info": {"stid": "1", "question": [{"ask": "Q", "std": [{"value": "A"}]}]}});
+    let qs = resolver::parse_task_value(&known, None, None);
+    assert_eq!(qs.len(), 1);
+    assert!(qs[0].get("confidence").is_none(), "正常路径不应带 confidence");
+
+    let sniffable = json!({"structure_type": "collector.unknown_2027",
+        "info": {"stid": "9", "question": [{"ask": "Q1", "std": [{"value": "A1"}]}]}});
+    let report = resolver::diagnose_value(&sniffable, None, None);
+    assert_eq!(report["layer"], "generic", "形状熟悉时应走 L2 而不是 L3");
+}

@@ -33,7 +33,7 @@
 |---|---|---|---|
 | **L1** | 显式路由 | `structure_type` 字符串 | ✅ 已实现（`collectors.rs::parse_content_routed`） |
 | **L2** | 结构嗅探 | JSON **形状**：`info.question[]/questions[]`、`info.sublist[]`、`info.std[]`(有 `xth`=填空/否则转述)、`info.xtlist[]`、`info.value`、word 形状 | ✅ 已实现（`collect_generic_routed`，输出 `generic:*` 家族名） |
-| **L3** | 兜底抽取 | 全 JSON 递归找 `std[].value` / `answer` / `answers` 等语义键，抢救出答案并标记 `confidence=low` | ⏳ 待实现（E8 的最后一道保险） |
+| **L3** | 兜底抽取 | 全 JSON 递归找 `std[].value` / `answer` / `answers` 等语义键，抢救出答案并标记 `confidence=low` + `salvage_path` | ✅ 已实现（`layer == "salvage"`） |
 
 L1/L2 命中情况已经可查：`diagnose()` 返回 `layer ∈ {explicit, generic, none}` 与 `family`。
 **`layer == "none"` 就是必须处理的信号**——它表示官方结构已经超出认知范围。

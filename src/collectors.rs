@@ -1102,6 +1102,227 @@ fn has_text_value(content: &Value, info: Option<&Value>) -> bool {
     info.map(|i| i.is_object() && non_empty(i)).unwrap_or(false)
 }
 
+
+// ============================================================================
+// L3 兜底抽取（salvage）：名字不认识、形状也没见过时，尽量把答案抢救出来
+//
+// 定位：L1 显式路由 / L2 结构嗅探 都失败时的最后一道网。它**不理解官方语义**，
+// 只按"哪里像答案"递归找，因此输出一律标记 confidence=low + salvage_path，
+// 让调用方自己决定是否展示（绝不假装与官方一致）。
+// ============================================================================
+
+const SALVAGE_MAX_DEPTH: usize = 8;
+const SALVAGE_MAX_QUESTIONS: usize = 200;
+
+fn salvage_text_of(obj: &Map<String, Value>) -> String {
+    for key in ["question", "ask", "stem", "xt_nr", "text", "title", "topic", "content"] {
+        if let Some(s) = obj.get(key).and_then(|v| v.as_str()) {
+            let cleaned = clean(s);
+            if !cleaned.is_empty() {
+                return cleaned;
+            }
+        }
+    }
+    String::new()
+}
+
+fn salvage_answers_of(obj: &Map<String, Value>) -> Vec<String> {
+    // 1) answer / answers
+    if let Some(v) = obj.get("answers").or_else(|| obj.get("answer")) {
+        let list = match v {
+            Value::Array(items) => items
+                .iter()
+                .map(|x| clean(&get_str(x)))
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>(),
+            other => {
+                let s = clean(&get_str(other));
+                if s.is_empty() { Vec::new() } else { vec![s] }
+            }
+        };
+        if !list.is_empty() {
+            return list;
+        }
+    }
+    // 2) std[] 里的 value
+    if let Some(std) = obj.get("std").and_then(|v| v.as_array()) {
+        let list: Vec<String> = std
+            .iter()
+            .filter_map(|item| item.as_object())
+            .map(|o| clean(&get_str(o.get("value").unwrap_or(&Value::Null))))
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !list.is_empty() {
+            return list;
+        }
+    }
+    Vec::new()
+}
+
+fn salvage_options_of(obj: &Map<String, Value>) -> Vec<String> {
+    for key in ["options", "xxlist", "option"] {
+        if let Some(v) = obj.get(key) {
+            let opts = parse_pk_options(v);
+            if !opts.is_empty() {
+                return opts;
+            }
+        }
+    }
+    Vec::new()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn salvage_walk(
+    value: &Value,
+    path: &str,
+    depth: usize,
+    out: &mut Vec<Value>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    if depth > SALVAGE_MAX_DEPTH || out.len() >= SALVAGE_MAX_QUESTIONS {
+        return;
+    }
+    match value {
+        Value::Object(obj) => {
+            // question[]：每个条目自成一道题（官方 question/std 语义）
+            if let Some(qs) = obj.get("question").and_then(|v| v.as_array()) {
+                for (i, item) in qs.iter().enumerate() {
+                    if let Some(child) = item.as_object() {
+                        let answers = salvage_answers_of(child);
+                        if !answers.is_empty() {
+                            let text = {
+                                let t = salvage_text_of(child);
+                                if t.is_empty() { format!("题目 {}", out.len() + 1) } else { t }
+                            };
+                            push_salvage(out, seen, &text, answers, salvage_options_of(child),
+                                         &format!("{path}.question[{i}]"));
+                        }
+                    }
+                    salvage_walk(item, &format!("{path}.question[{i}]"), depth + 1, out, seen);
+                }
+            } else {
+                // std[]：每个条目一道题（填空/转述类语义）
+                if let Some(stds) = obj.get("std").and_then(|v| v.as_array()) {
+                    for (i, item) in stds.iter().enumerate() {
+                        if let Some(child) = item.as_object() {
+                            let answer = clean(&get_str(child.get("value").unwrap_or(&Value::Null)));
+                            if !answer.is_empty() {
+                                let text = {
+                                    let t = salvage_text_of(child);
+                                    if t.is_empty() {
+                                        let xth = clean(&get_str(child.get("xth").unwrap_or(&Value::Null)));
+                                        if xth.is_empty() { format!("题目 {}", out.len() + 1) } else { format!("第 {xth} 题") }
+                                    } else { t }
+                                };
+                                push_salvage(out, seen, &text, vec![answer.clone()], Vec::new(),
+                                             &format!("{path}.std[{i}].value"));
+                            }
+                        }
+                    }
+                }
+                // xtlist[]：选择题语义
+                if let Some(xts) = obj.get("xtlist").and_then(|v| v.as_array()) {
+                    for (i, item) in xts.iter().enumerate() {
+                        if let Some(child) = item.as_object() {
+                            let answers = salvage_answers_of(child);
+                            if !answers.is_empty() {
+                                let text = {
+                                    let t = salvage_text_of(child);
+                                    if t.is_empty() { format!("题目 {}", out.len() + 1) } else { t }
+                                };
+                                push_salvage(out, seen, &text, answers, salvage_options_of(child),
+                                             &format!("{path}.xtlist[{i}]"));
+                            }
+                        }
+                    }
+                }
+                // 平铺的 answer / answers（跳过已按容器处理的 question/std/xtlist 对象，
+                // 否则同一个 std[] 会被当成"平铺答案"再产出一道重复题）
+                let has_container = obj.contains_key("question")
+                    || obj.contains_key("std")
+                    || obj.contains_key("xtlist");
+                let answers = if has_container { Vec::new() } else { salvage_answers_of(obj) };
+                if !answers.is_empty() {
+                    let text = {
+                        let t = salvage_text_of(obj);
+                        if t.is_empty() { format!("题目 {}", out.len() + 1) } else { t }
+                    };
+                    push_salvage(out, seen, &text, answers, salvage_options_of(obj), path);
+                }
+            }
+            for (k, v) in obj {
+                salvage_walk(v, &format!("{path}.{k}"), depth + 1, out, seen);
+            }
+        }
+        Value::Array(items) => {
+            for (i, item) in items.iter().enumerate() {
+                salvage_walk(item, &format!("{path}[{i}]"), depth + 1, out, seen);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn push_salvage(
+    out: &mut Vec<Value>,
+    seen: &mut std::collections::HashSet<String>,
+    text: &str,
+    answers: Vec<String>,
+    options: Vec<String>,
+    path: &str,
+) {
+    let fingerprint = format!("{text}\u{1}{}", answers.join("\u{1}"));
+    if !seen.insert(fingerprint) || out.len() >= SALVAGE_MAX_QUESTIONS {
+        return;
+    }
+    let mut extra = Map::new();
+    extra.insert("confidence".into(), Value::String("low".into()));
+    extra.insert("salvage_path".into(), Value::String(path.to_string()));
+    out.push(make_question(
+        None,
+        None,
+        "collector.salvaged",
+        None,
+        text.to_string(),
+        answers,
+        options,
+        Vec::new(),
+        Some(extra),
+    ));
+}
+
+/// L3 兜底抽取：递归扫描整份载荷，抢救出"像题目"的条目。
+/// 输出每道题都带 `confidence=low` 与 `salvage_path`，不冒充官方结果。
+pub fn collect_salvaged(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let empty = Vec::new();
+    let sources: Vec<(&str, &Value)> = vec![
+        ("content", content),
+        ("content2", content2.unwrap_or(&Value::Null)),
+        ("info", info.unwrap_or(&Value::Null)),
+    ];
+    for (name, root) in sources {
+        if root.is_null() {
+            continue;
+        }
+        if root.is_array() {
+            for (i, item) in root.as_array().unwrap_or(&empty).iter().enumerate() {
+                salvage_walk(item, &format!("{name}[{i}]"), 0, &mut out, &mut seen);
+            }
+        } else {
+            salvage_walk(root, name, 0, &mut out, &mut seen);
+        }
+    }
+    for (i, q) in out.iter_mut().enumerate() {
+        if let Some(obj) = q.as_object_mut() {
+            obj.insert("stid".into(), Value::Null);
+            obj.insert("no".into(), json!((i + 1) as i64));
+        }
+    }
+    out
+}
+
 pub fn parse_content_routed(
     content: &Value,
     content2: Option<&Value>,
@@ -1175,14 +1396,27 @@ pub fn parse_content_routed(
     }
 
     let (questions, family) = collect_generic_routed(content, content2, info, Some(st));
-    let layer = if questions.is_empty() && family == "unmatched" {
-        "none"
-    } else {
-        "generic"
-    };
+    if !questions.is_empty() {
+        return RouteResult {
+            questions,
+            layer: "generic",
+            family: format!("generic:{family}"),
+        };
+    }
+
+    // L3：名字不认识、形状也没见过 —— 最后一道网，尽量把答案抢救出来（低置信）
+    let salvaged = collect_salvaged(content, content2, info);
+    if !salvaged.is_empty() {
+        return RouteResult {
+            questions: salvaged,
+            layer: "salvage",
+            family: "salvage:structural_scan".to_string(),
+        };
+    }
+
     RouteResult {
-        questions,
-        layer,
+        questions: Vec::new(),
+        layer: "none",
         family: format!("generic:{family}"),
     }
 }

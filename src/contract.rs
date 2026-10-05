@@ -158,7 +158,8 @@ pub fn capabilities() -> Value {
         "layers": {
             "explicit": "structure_type 显式命中",
             "generic": "结构嗅探命中（形状熟悉）",
-            "none": "未识别 —— 需要新增适配（应上报形状指纹）",
+            "salvage": "L3 兜底扫描：名字与形状都陌生时抢救出的结果，每题带 confidence=low 与 \"salvage_path\"，不得当作与官方一致",
+            "none": "未识别且抢救不到 —— 需要新增适配（应上报形状指纹）",
         },
         "categories": [
             homework::CATEGORY_VOCAB_PK, homework::CATEGORY_MOCK_SUITE, homework::CATEGORY_PAPER_SET,
