@@ -181,3 +181,83 @@ fn real_res_json_template_fields_are_parsed() {
     }
     assert_eq!(parsed["warnings"].as_array().unwrap().len(), 0);
 }
+
+#[test]
+fn real_guangdong_high_school_3q5a_paper_matches_official_res_json() {
+    // 广东高中（高考听说 60 分卷）：模仿朗读 20 + 角色扮演 16(8×2) + 故事复述 24
+    let res_json = fixture("res_json_guangdong_hs.json");
+    let parsed = resolver::res_template_value(&res_json);
+    assert_eq!(parsed["total_score"], 60.0);
+    assert_eq!(parsed["total_score_source"], "set_score");
+    assert_eq!(parsed["question_count"], 10); // 1 + 8 + 1
+    let collects: Vec<&str> = parsed["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["exam_type_collect"].as_str().unwrap())
+        .collect();
+    assert_eq!(collects, vec!["collector.read", "collector.3q5a", "collector.picture"]);
+    assert_eq!(parsed["sections"][1]["exam_score"], 16.0);
+    assert_eq!(parsed["sections"][1]["questions"].as_array().unwrap().len(), 8);
+    assert_eq!(parsed["sections"][1]["questions"][0]["score"], 2.0);
+    assert_eq!(parsed["sections"][1]["questions"][0]["evaluation_type"], "simple_expression");
+
+    // 真实 3q5a 资源包（角色扮演）：三问(中文题干) + 五答(英文问题) = 8 题，每题多参考答案
+    let dir = [env!("CARGO_MANIFEST_DIR"), "tests", "corpus", "guangdong_hs_mock1", "01_角色扮演"];
+    let path: std::path::PathBuf = dir.iter().collect();
+    let content: Value =
+        serde_json::from_str(&fs::read_to_string(path.join("content.json")).unwrap()).unwrap();
+    let info: Value =
+        serde_json::from_str(&fs::read_to_string(path.join("info.json")).unwrap()).unwrap();
+    let content2: Value =
+        serde_json::from_str(&fs::read_to_string(path.join("content2.json")).unwrap()).unwrap();
+    assert_eq!(content["structure_type"], "collector.3q5a");
+
+    let questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+    assert_eq!(questions.len(), 8, "三问 + 五答 = 8 题");
+    assert!(questions.iter().all(|q| q["type"] == "collector.3q5a"));
+    // 三问：题干是中文提示，答案是英文问句（多条）
+    assert!(questions[0]["question"].as_str().unwrap().contains("父母"));
+    let first_answers = questions[0]["answers"].as_array().unwrap();
+    assert!(first_answers.len() >= 2, "三问每题应有多条参考问句");
+    // 注意：官方参考答案里用的是弯引号（U+2019，如 "don’t"），**不得**做归一化 ——
+    // E2/E3 要求逐字节与官方一致。这里只断言答案是英文（不含中日韩字符）。
+    let has_cjk = |s: &str| s.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c));
+    assert!(first_answers.iter().all(|a| !has_cjk(a.as_str().unwrap())));
+    assert!(first_answers.iter().any(|a| a.as_str().unwrap().contains('\u{2019}') || a.as_str().unwrap().contains('\'')));
+    // 五答：题干是英文问题，多条参考答案 + 采分点
+    assert!(questions[3]["question"].as_str().unwrap().starts_with("How much"));
+    assert!(!questions[3]["answers"].as_array().unwrap().is_empty());
+    assert!(!questions[3]["important"].as_array().unwrap().is_empty(), "五答应带采分点");
+    // 题号连续 1..8
+    let nos: Vec<i64> = questions.iter().map(|q| q["no"].as_i64().unwrap()).collect();
+    assert_eq!(nos, (1..=8).collect::<Vec<i64>>());
+
+    // 合并成卷（真实 3 包 + 官方模板）
+    let packages = json!([
+        {"structure_type": "collector.read", "group_name": "模仿朗读", "code_id": "st1", "order": 0,
+         "questions": [{"no": 1}]},
+        {"structure_type": "collector.3q5a", "group_name": "角色扮演", "code_id": "st2", "order": 1,
+         "questions": questions},
+        {"structure_type": "collector.picture", "group_name": "故事复述", "code_id": "st3", "order": 2,
+         "questions": [{"no": 1}]}
+    ]);
+    let homework = json!({"id": "102024948", "name": "模拟试题1", "set_type": 1, "resource_id": "1783",
+        "struct": {"contents": [{"group_name": "模仿朗读"}, {"group_name": "角色扮演"}, {"group_name": "故事复述"}]}});
+    let merged = resolver::parse_homework_set_value(&packages, Some(&res_json), Some(&homework));
+    let paper = &merged["paper"];
+    assert_eq!(paper["sections"].as_array().unwrap().len(), 3);
+    assert_eq!(paper["question_count"], 10);
+    assert_eq!(paper["totalScore"], 60.0);
+    assert_eq!(paper["totalScore_source"], "res_template_set_score");
+    assert_eq!(merged["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0);
+    let scores: Vec<f64> = paper["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|s| s["questions"].as_array().unwrap())
+        .map(|q| q["score"].as_f64().unwrap())
+        .collect();
+    assert_eq!(scores, vec![20.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 24.0]);
+    assert!((scores.iter().sum::<f64>() - 60.0).abs() < 1e-9);
+}

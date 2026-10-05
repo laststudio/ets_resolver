@@ -1,0 +1,225 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中高考听说 60 分卷资源包（含 collector.3q5a 唯一真实样本）。golden 由后端 Python 兜底实现产出并已与 Rust 解析器比对一致。",
+  "structure_type": "collector.3q5a",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "你为什么不和父母在一起？",
+      "answers": [
+        "Why don’t you stay with your parents?",
+        "Why aren’t you with your parents?",
+        "Why don’t you and your parents stay together?",
+        "Why not stay with your parents?",
+        "Why not be with your parents?",
+        "Why not stay together with your parents?"
+      ],
+      "options": [],
+      "important": [
+        "Why don’t stay parents",
+        "why aren’t parents",
+        "why don’t stay together",
+        "why not stay parents",
+        "why not be parents",
+        "why not stay together parents"
+      ],
+      "role": "a",
+      "ref_answer": "Because they are visiting a modern art exhibition. I know nothing about it and I think it’s boring.",
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "你每个月有多少零花钱呢？",
+      "answers": [
+        "How much pocket money can you get every month?",
+        "How much pocket money do you have each month?",
+        "How much pocket money do you get every month?",
+        "How much pocket money can you get each month?",
+        "How much pocket money do you get each month?",
+        "How much pocket money do you have every month?",
+        "How much pocket money a month can you get?",
+        "How much pocket money a month do you get?",
+        "How much pocket money a month do you have?"
+      ],
+      "options": [],
+      "important": [
+        "how much pocket money can get every month",
+        "how much pocket money do have each month",
+        "how much pocket money do get every month",
+        "how much pocket money can get each month",
+        "how much pocket money do get each month",
+        "how much pocket money do have every month",
+        "how much pocket money month can get",
+        "how much pocket money month do get",
+        "how much pocket money month do have"
+      ],
+      "role": "a",
+      "ref_answer": "My parents give me 10 dollars every month and I can earn some extra money by helping them with the housework.",
+      "_no_source": "local"
+    },
+    {
+      "no": 3,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "你父母知道你跑出来了吗？",
+      "answers": [
+        "Do your parents know you are out?",
+        "Do your parents have any idea that you are out?",
+        "Do your parents know that you are out?",
+        "Do your parents have any idea you are out?",
+        "Do your parents know you run outside?",
+        "Do your parents know that you run outside?",
+        "Do your parents know you come outside?",
+        "Do your parents know that you come outside?",
+        "Do your parents have any idea you run outside?",
+        "Do your parents have any idea that you run outside?",
+        "Do your parents have any idea you come outside?",
+        "Do your parents have any idea that you come outside?"
+      ],
+      "options": [],
+      "important": [
+        "Do parents know are out",
+        "do parents have idea are out",
+        "do parents know run outside",
+        "do parents know come outside",
+        "do parents have idea run outside",
+        "do parents have idea come outside"
+      ],
+      "role": "a",
+      "ref_answer": "No, if they did they wouldn’t allow me to run away alone. They left me home and asked me to take good care of myself. They kept food in the fridge for me and gave me some books and toys to kill time.",
+      "_no_source": "local"
+    },
+    {
+      "no": 4,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "How much does Ali pay for the ice cream sandwich?",
+      "answers": [
+        "Thirty-five cents.",
+        "He pays thirty-five cents for it.",
+        "He pays thirty-five cents for the ice cream sandwich.",
+        "He spends thirty-five cents on it.",
+        "He spends thirty-five cents on the ice cream sandwich.",
+        "Ali pays thirty-five cents for it.",
+        "Ali pays thirty-five cents for the ice cream sandwich.",
+        "Ali spends thirty-five cents on it.",
+        "Ali spends thirty-five cents on the ice cream sandwich."
+      ],
+      "options": [],
+      "important": [
+        "Thirty five cents"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 5,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "Whose jacket is Ali wearing?",
+      "answers": [
+        "His brother’s.",
+        "He is wearing his brother’s jacket.",
+        "Ali is wearing his brother’s jacket."
+      ],
+      "options": [],
+      "important": [
+        "his brother’s"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 6,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "What’re Ali’s parents doing?",
+      "answers": [
+        "They are visiting a modern art exhibition.",
+        "They are enjoying a modern art exhibition.",
+        "They are paying a visit to a modern art exhibition.",
+        "They’re visiting a modern art exhibition.",
+        "They’re enjoying a modern art exhibition.",
+        "They’re paying a visit to a modern art exhibition.",
+        "Ali’s parents are visiting a modern art exhibition.",
+        "Ali’s parents are enjoying a modern art exhibition.",
+        "Ali’s parents are paying a visit to a modern art exhibition."
+      ],
+      "options": [],
+      "important": [
+        "Visiting modern art exhibition",
+        "enjoying modern art exhibition",
+        "paying visit modern art exhibition"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 7,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "How can Ali earn some extra money?",
+      "answers": [
+        "By helping his parents with the housework.",
+        "He earns some extra money by helping his parents with the housework.",
+        "By doing housework at home.",
+        "He earns some extra money by doing housework at home.",
+        "Ali earns some extra money by helping his parents with the housework.",
+        "Ali earns some extra money by doing housework at home.",
+        "By helping his parents do the housework.",
+        "He earns some extra money by helping his parents do the housework.",
+        "Ali earns some extra money by helping his parents do the housework.",
+        "By helping his parents to do the housework.",
+        "He earns some extra money by helping his parents to do the housework.",
+        "Ali earns some extra money by helping his parents to do the housework."
+      ],
+      "options": [],
+      "important": [
+        "Helping parents housework",
+        "doing housework",
+        "helping parents do housework"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 8,
+      "type": "collector.3q5a",
+      "stid": 13606,
+      "question": "What did Ali’s parents prepare for him while they were away?",
+      "answers": [
+        "Some food, books and toys.",
+        "They prepared some food, books and toys for him.",
+        "They kept food in the fridge for him and gave him some books and toys.",
+        "Some food, toys and books.",
+        "They prepared some food, toys and books for him.",
+        "Toys, food and books.",
+        "They prepared toys, food and books for him.",
+        "Toys, books and food.",
+        "They prepared toys, books and food for him.",
+        "Books, toys and food.",
+        "They prepared books, toys and food for him.",
+        "Books, food and toys.",
+        "They prepared books, food and toys for him.",
+        "They gave him some books and toys and kept food in the fridge for him.",
+        "They kept food in the fridge for him and gave him some toys and books.",
+        "They gave him some toys and books and kept food in the fridge for him."
+      ],
+      "options": [],
+      "important": [
+        "Food books toys",
+        "food toys books",
+        "toys food books",
+        "toys books food",
+        "books toys food",
+        "books food toys"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ]
+}

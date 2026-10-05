@@ -1,6 +1,6 @@
 {
   "captured_from": "python_reference",
-  "note": "真实广东中考听说 30 分卷资源包。golden 由后端 Python 兜底实现产出，并已与 Rust 解析器逐字段比对：题数/题干/答案/选项 零差异（2026-10-05）。标注为 python_reference 而非 official_*：它锁定的是实现间一致性，不等于官方 UI 已核对。",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
   "structure_type": "collector.role",
   "questions": [
     {
@@ -128,6 +128,5 @@
       "role": "b",
       "_no_source": "global"
     }
-  ],
-  "verified_against": "lastudio-backend parse_raw_content_questions（Rust vs Python 14/14 题零差异）"
+  ]
 }

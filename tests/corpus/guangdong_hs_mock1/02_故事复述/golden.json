@@ -1,0 +1,31 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中高考听说 60 分卷资源包（含 collector.3q5a 唯一真实样本）。golden 由后端 Python 兜底实现产出并已与 Rust 解析器比对一致。",
+  "structure_type": "collector.picture",
+  "questions": [
+    {
+      "no": null,
+      "type": "collector.picture",
+      "stid": 13607,
+      "question": "Sell the House",
+      "answers": [
+        "When my husband Johnny was promoted, we put our house up for sale. One day the doorbell rang unexpectedly in the morning. Our agent Jack stood at the door with a couple from New York. The three people saw the dirty dishes on the kitchen table. They went into a bedroom with unmade beds. I heard the couple laughing when I went to the bathroom to comb my hair. The agent told me the couple had bought my house two days later. The buyer said my house had a warm, lived-in feeling.",
+        "When my husband Johnny was promoted, we put our house up for sale. One day the doorbell rang unexpectedly early in the morning. It was our agent Jack and a couple from New York. I had no time to clear up the mess made that morning before they walked in. They saw the dirty dishes on the kitchen table as well as the unmade beds in the bedroom. I heard the couple laughing when I went to the bathroom to comb my hair. Two days later the agent told me the couple had bought my house. The couple said my house had a warm, lived-in feeling."
+      ],
+      "options": [],
+      "important": [
+        "叙述要点：",
+        "1. My husband was promoted.",
+        "2. We put our house up for sale.",
+        "3. I became a busy housekeeper.",
+        "4. The doorbell rang unexpectedly.",
+        "5. The agent stood at the door with a couple.",
+        "6. The three people saw the dirty dishes.",
+        "7. The three people went into a bedroom with unmade beds.",
+        "8. I heard the couple saying something and laughing.",
+        "9. The couple bought my house.",
+        "10. The buyer said my house had a warm, lived-in feeling."
+      ]
+    }
+  ]
+}

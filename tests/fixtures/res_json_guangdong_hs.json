@@ -1,0 +1,143 @@
+{
+  "set_score": "60",
+  "set_intro": "",
+  "exam_type_list": [
+    {
+      "exam_type_order": "1",
+      "exam_type_name": "模仿朗读",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.read",
+      "exam_type_score": "20",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st1}}",
+          "exam_info": [],
+          "exam_score": "20",
+          "exam_count": "1",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "20",
+              "evaluation_type": "read_chapter",
+              "engine_area": "",
+              "engine_type": "study"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "2",
+      "exam_type_name": "角色扮演",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.3q5a",
+      "exam_type_score": "16",
+      "exam_type_count": "8",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st2}}",
+          "exam_info": [],
+          "exam_score": "16",
+          "exam_count": "8",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "2",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "3",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "4",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "5",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "6",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "7",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            },
+            {
+              "question_order": "8",
+              "question_count": "1",
+              "question_score": "2",
+              "evaluation_type": "simple_expression",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "exam_type_order": "3",
+      "exam_type_name": "故事复述",
+      "exam_type_intro": "",
+      "exam_type_collect": "collector.picture",
+      "exam_type_score": "24",
+      "exam_type_count": "1",
+      "exam_list": [
+        {
+          "exam_order": "1",
+          "exam_id": "{{st3}}",
+          "exam_info": [],
+          "exam_score": "24",
+          "exam_count": "1",
+          "question_list": [
+            {
+              "question_order": "1",
+              "question_count": "1",
+              "question_score": "24",
+              "evaluation_type": "topic",
+              "engine_area": "guangdong",
+              "engine_type": "Simulation"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

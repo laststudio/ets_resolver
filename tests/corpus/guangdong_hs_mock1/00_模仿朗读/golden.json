@@ -1,0 +1,19 @@
+{
+  "captured_from": "python_reference",
+  "note": "真实广东高中高考听说 60 分卷资源包（含 collector.3q5a 唯一真实样本）。golden 由后端 Python 兜底实现产出并已与 Rust 解析器比对一致。",
+  "structure_type": "collector.read",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.read",
+      "stid": 2218,
+      "question": "For almost two years she’ll protect them. They’ll have to be shown where to go and what to eat. It’s a long process. Every new advance in mothering seems to have drawbacks. It’s a 24-hour job with no help. It must be exhausting. The absent father has returned. He wouldn’t recognise his cubs and could easily harm them. It is safer to stay out of the way. It is a shame that he has got no role. The cubs play near their mother. They are like the early mammals, which were explorers and thinkers.",
+      "answers": [
+        "For almost two years she’ll protect them. They’ll have to be shown where to go and what to eat. It’s a long process. Every new advance in mothering seems to have drawbacks. It’s a 24-hour job with no help. It must be exhausting. The absent father has returned. He wouldn’t recognise his cubs and could easily harm them. It is safer to stay out of the way. It is a shame that he has got no role. The cubs play near their mother. They are like the early mammals, which were explorers and thinkers."
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}

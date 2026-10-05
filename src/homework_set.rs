@@ -89,6 +89,27 @@ pub fn normalize_section_name(raw: &str) -> String {
         .to_string()
 }
 
+/// 匹配用的名字键：两端去空白 + **把所有空白（含 `\r\n\t` 与全角空格）折叠成单个空格**。
+///
+/// 真实数据里 group_name 会带换行，例如 `必修一U4A\r\n模仿朗读`；
+/// 只 trim 两端会与模板的 `exam_type_name` 匹配不上。
+pub fn name_match_key(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_space = false;
+    for ch in raw.chars() {
+        if ch.is_whitespace() || ch == '\u{3000}' {
+            if !prev_space && !out.is_empty() {
+                out.push(' ');
+            }
+            prev_space = true;
+        } else {
+            out.push(ch);
+            prev_space = false;
+        }
+    }
+    out.trim().to_string()
+}
+
 /// 兜底用的"去序号"形式：仅当精确名两边都对不上时才用
 /// （例如资源包叫「听选信息」而模板叫「听选信息1/2/3」）。
 fn strip_trailing_index(raw: &str) -> String {
@@ -106,7 +127,7 @@ fn strip_trailing_index(raw: &str) -> String {
 }
 
 fn package_key(pkg: &Package) -> String {
-    let normalized = normalize_section_name(&pkg.group_name);
+    let normalized = name_match_key(&pkg.group_name);
     if !normalized.is_empty() {
         return normalized;
     }
@@ -153,12 +174,12 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
         }
     }
 
-    let pkg_name = normalize_section_name(&pkg.group_name);
+    let pkg_name = name_match_key(&pkg.group_name);
     if !pkg_name.is_empty() {
         if let Some(idx) = sections.iter().position(|s| {
             s.get("exam_type_name")
                 .and_then(|v| v.as_str())
-                .map(|n| normalize_section_name(n) == pkg_name)
+                .map(|n| name_match_key(n) == pkg_name)
                 .unwrap_or(false)
         }) {
             return Some(idx);
@@ -181,7 +202,7 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
         if let Some(idx) = sections.iter().position(|s| {
             s.get("exam_type_name")
                 .and_then(|v| v.as_str())
-                .map(|n| strip_trailing_index(n) == bare)
+                .map(|n| strip_trailing_index(&name_match_key(n)) == bare)
                 .unwrap_or(false)
         }) {
             return Some(idx);
@@ -583,6 +604,32 @@ mod tests {
         assert_eq!(out["coverage"]["ordered_by"], "res_template");
         // 包内原题号被保留
         assert_eq!(sections[1]["questions"][0]["package_no"], 1);
+    }
+
+    #[test]
+    fn group_name_with_crlf_still_matches_template() {
+        // 真实数据：广东高中作业的 group_name 形如 "必修一U4A\r\n模仿朗读"，
+        // 模板侧 exam_type_name 则是 "必修一U4A 模仿朗读"（空白形态不同）
+        assert_eq!(super::name_match_key("必修一U4A\r\n模仿朗读"), "必修一U4A 模仿朗读");
+        assert_eq!(super::name_match_key("  模仿朗读\u{3000}"), "模仿朗读");
+
+        let res = json!({
+            "set_score": "20",
+            "exam_type_list": [{
+                "exam_type_order": "1", "exam_type_name": "必修一U4A 模仿朗读",
+                "exam_type_collect": "collector.read", "exam_type_score": "20",
+                "exam_list": [{"exam_id": "{{st1}}", "exam_score": "20",
+                               "question_list": [{"question_order": "1", "question_score": "20"}]}]
+            }]
+        });
+        let packages = json!([
+            {"structure_type": "collector.read", "group_name": "必修一U4A\r\n模仿朗读",
+             "order": 0, "questions": [{"no": 1}]}
+        ]);
+        let out = merge(&packages, Some(&res), None);
+        assert_eq!(out["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0,
+                   "含换行的 group_name 必须能挂上模板");
+        assert_eq!(out["paper"]["sections"][0]["questions"][0]["score"], 20.0);
     }
 
     #[test]
