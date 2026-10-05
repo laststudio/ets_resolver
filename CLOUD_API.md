@@ -167,6 +167,44 @@ char* json = cloud_get_homework_list(token, parent_account_id, "1");
 
 每个 content 同时返回 ETS100 原始 `url` 和已解析的 HTTPS `download_url`。
 
+### 5.1 获取试卷集结构与官方 res.json 模板
+
+```c
+char* json = cloud_get_homework_struct(token, homework_id, resource_id, parent_account_id);
+```
+
+返回：
+
+```json
+{
+  "ok": true,
+  "result": {
+    "set_name": "广州8年级离线个人版模拟试题2(copy)",
+    "template": { "id": "5", "url": "834c62a1....zip", "size": 1798943,
+                  "download_url": "https://cdn.subject.ets100.com/made/834c62a1....zip" },
+    "contents": [ { "order": 0, "code_id": "st1", "group_name": "模仿朗读",
+                    "real_id": "49062", "url": "6799....zip",
+                    "download_url": "https://cdn.subject.ets100.com/made/6799....zip" } ]
+  }
+}
+```
+
+**官方 res.json 的获取链路（这是卷面满分/大题顺序的权威来源）**：
+
+```
+/m/homework/struct → audio[0].template.url（模板包，含 res.json）
+                   → audio[0].contents[].code_id（st1…）与模板 exam_list[].exam_id（{{st1}}）一一对应
+   下载 template.download_url（模板包**未加密**，直接 zipfile 解压）
+   → 读 res.json → {"set_score":"30","exam_type_list":[{exam_type_order,exam_type_name,
+                     exam_type_collect,exam_type_score,exam_list:[{exam_score,
+                     question_list:[{question_order,question_score,evaluation_type,engine_type}]}]}]}
+   → 交给 libresolver 的 op: res_template / parse_homework_set
+```
+
+注意：`cdn.subject.ets100.com` 返回的是 `default.chinanetcenter.com` 证书，
+`cloud_download_file` 对该精确主机做了证书名校验例外（证书链/有效期仍正常验证），
+自行用其他 HTTP 客户端下载模板包时需要同样的处理。
+
 ### 6. 解析职责
 
 `libcloud.so` 仅负责登录、列表、下载和 ZIP 协议。答案解析统一调用 `libresolver.so` 的 `parse_task_authorized` / `parse_batch_authorized`。

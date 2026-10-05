@@ -27,6 +27,12 @@ CLOUD_EXPORT char* cloud_send_device_binding_code(const char*);
 CLOUD_EXPORT char* cloud_bind_device(const char*, const char*, const char*, const char*);
 CLOUD_EXPORT char* cloud_get_ecard_selection(const char*, const char*);
 CLOUD_EXPORT char* cloud_get_homework_list(const char*, const char*, const char*);
+/* 试卷集结构: /m/homework/struct。返回 set_name / template{url,download_url,size}
+ * / contents[{code_id,group_name,real_id,url,download_url}]。
+ * 这是取官方 res.json（逐题满分、大题顺序）的唯一入口：
+ * 下载 template.download_url → 解压（模板包未加密）→ 读取 res.json
+ * → 交给 resolver 的 op: res_template / parse_homework_set。 */
+CLOUD_EXPORT char* cloud_get_homework_struct(const char*, const char*, const char*, const char*);
 CLOUD_EXPORT char* cloud_download_file(const char*, const char*);
 CLOUD_EXPORT char* cloud_zip_password(const char*);
 CLOUD_EXPORT void cloud_free_string(char* ptr);

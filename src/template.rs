@@ -44,21 +44,21 @@ fn as_array(value: Option<&Value>) -> Vec<Value> {
 
 /// 规范化一份 res.json 模板。
 ///
-/// ```json
+/// 真实字段（实测 `834c62a165faa2e86182c97bba2ab925.zip` 内的 res.json，广东 30 分卷）：
+/// ```jsonc
 /// {
-///   "sections": [
-///     { "index": 0, "exam_type_name": "模仿朗读", "exam_type_collect": "collector.read",
-///       "exam_score": 6.0, "question_count": 1, "question_score_total": 6.0,
-///       "questions": [ { "order": 0, "count": 1, "score": 6.0,
-///                        "evaluation_type": "read_passage", "engine_type": "eduspeak",
-///                        "exam_id": "exam_reading_01" } ] }
-///   ],
-///   "section_order": ["collector.read", "listen_choice_standard"],
-///   "section_names": ["模仿朗读", "听选信息"],
-///   "total_score": 12.0,
-///   "total_score_source": "exam_score_sum",
-///   "question_count": 3,
-///   "warnings": []
+///   "set_score": "30",
+///   "exam_type_list": [{
+///     "exam_type_order": "1", "exam_type_name": "模仿朗读",
+///     "exam_type_collect": "collector.read", "exam_type_score": "6", "exam_type_count": "1",
+///     "exam_list": [{
+///       "exam_order": "1", "exam_id": "{{st1}}", "exam_score": "6", "exam_count": "1",
+///       "question_list": [{
+///         "question_order": "1", "question_count": "1", "question_score": "6",
+///         "evaluation_type": "read_chapter", "engine_area": "", "engine_type": "study"
+///       }]
+///     }]
+///   }]
 /// }
 /// ```
 pub fn parse(res: &Value) -> Value {
@@ -74,6 +74,11 @@ pub fn parse(res: &Value) -> Value {
     for (index, exam_type) in type_list.iter().enumerate() {
         let name = get_str(exam_type, "exam_type_name", "examTypeName");
         let collect = get_str(exam_type, "exam_type_collect", "examTypeCollect");
+        // 大题序号：官方字段优先（数组顺序与它一致，但它是显式的、可用于校验）
+        let type_order = get_f64(exam_type, "exam_type_order", "examTypeOrder")
+            .map(|v| v as i64)
+            .unwrap_or(index as i64 + 1);
+        let type_score = get_f64(exam_type, "exam_type_score", "examTypeScore");
         if collect.is_empty() {
             warnings.push(format!("section[{index}] 缺少 exam_type_collect，无法与资源包对应"));
         }
@@ -112,26 +117,40 @@ pub fn parse(res: &Value) -> Value {
                     "score": score,
                     "evaluation_type": get_str(q, "evaluation_type", "evaluationType"),
                     "engine_type": get_str(q, "engine_type", "engineType"),
+                    "engine_area": get_str(q, "engine_area", "engineArea"),
                     "exam_id": exam_id,
                 }));
             }
         }
 
-        let section_score = if section_has_exam_score {
-            exam_score_sum += section_score_from_exams;
-            section_score_from_exams
+        // 大题分优先级：exam_list[].exam_score 求和 → exam_type_score（真实文件两级都有）
+        let (section_score, section_score_source) = if section_has_exam_score {
+            (section_score_from_exams, "exam_score_sum")
+        } else if let Some(score) = type_score {
+            (score, "exam_type_score")
         } else {
-            questions
-                .iter()
-                .filter_map(|q| q.get("score").and_then(|v| v.as_f64()))
-                .sum()
+            (
+                questions
+                    .iter()
+                    .filter_map(|q| q.get("score").and_then(|v| v.as_f64()))
+                    .sum(),
+                "question_score_sum",
+            )
         };
+        if section_has_exam_score {
+            exam_score_sum += section_score_from_exams;
+        } else if let Some(score) = type_score {
+            exam_score_sum += score;
+        }
 
         sections.push(json!({
             "index": index,
+            "exam_type_order": type_order,
             "exam_type_name": name,
             "exam_type_collect": collect,
+            "exam_type_score": type_score,
             "exam_score": section_score,
+            "score_source": section_score_source,
             "question_count": questions.len(),
             "question_score_total": questions.iter()
                 .filter_map(|q| q.get("score").and_then(|v| v.as_f64()))
@@ -140,15 +159,31 @@ pub fn parse(res: &Value) -> Value {
         }));
     }
 
-    let (total_score, total_score_source) = if exam_score_sum > 0.0 {
-        (exam_score_sum, "exam_score_sum")
-    } else if question_score_sum > 0.0 {
-        (question_score_sum, "question_score_sum")
-    } else {
-        (0.0, "none")
+    // 大题顺序以 exam_type_order 显式排序为准（真实文件里有该字段）
+    sections.sort_by_key(|s| {
+        s.get("exam_type_order")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(i64::MAX)
+    });
+
+    // 卷面总分优先级：set_score（官方显式）→ exam_score 合计 → 逐题和
+    let set_score = get_f64(res, "set_score", "setScore");
+    let (total_score, total_score_source) = match set_score {
+        Some(v) if v > 0.0 => (v, "set_score"),
+        _ if exam_score_sum > 0.0 => (exam_score_sum, "exam_score_sum"),
+        _ if question_score_sum > 0.0 => (question_score_sum, "question_score_sum"),
+        _ => (0.0, "none"),
     };
     if total_score == 0.0 && question_total > 0 {
         warnings.push("res.json 未提供任何分值，无法校正卷面总分".into());
+    }
+    // 官方 set_score 与逐题和/大题和不一致时要能看见（不静默采信任一方）
+    if let Some(v) = set_score {
+        if v > 0.0 && question_score_sum > 0.0 && (v - question_score_sum).abs() > 0.01 {
+            warnings.push(format!(
+                "set_score({v}) 与逐题满分之和({question_score_sum})不一致，请核对模板"
+            ));
+        }
     }
     warnings.dedup();
 
@@ -156,6 +191,7 @@ pub fn parse(res: &Value) -> Value {
         "sections": sections,
         "section_order": section_order,
         "section_names": section_names,
+        "set_score": set_score,
         "total_score": total_score,
         "total_score_source": total_score_source,
         "question_count": question_total,

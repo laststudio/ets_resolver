@@ -263,6 +263,23 @@ pub extern "C" fn cloud_get_homework_list(
     ))
 }
 
+/// 试卷集结构 (含模板包地址，用于取官方 res.json)。
+#[cfg(not(target_os = "android"))]
+#[no_mangle]
+pub extern "C" fn cloud_get_homework_struct(
+    token: *const c_char,
+    homework_id: *const c_char,
+    resource_id: *const c_char,
+    parent_account_id: *const c_char,
+) -> *mut c_char {
+    crate::json_to_ptr(cloud_get_homework_struct_json(
+        &crate::read_str(token),
+        &crate::read_str(homework_id),
+        &crate::read_str(resource_id),
+        &crate::read_str(parent_account_id),
+    ))
+}
+
 #[cfg(not(target_os = "android"))]
 #[no_mangle]
 pub extern "C" fn cloud_download_file(
@@ -338,6 +355,22 @@ pub fn cloud_get_ecard_selection_json(token: &str, preferred_account_id: &str) -
 
 pub fn cloud_get_homework_list_json(token: &str, parent_account_id: &str, status: &str) -> Value {
     cloud_authorized_response(|| get_homework_list(token, parent_account_id, status))
+}
+
+/// 试卷集结构: 拿官方"试卷集名 + 模板包地址 + 每个大题的资源包清单"。
+///
+/// 这是获取官方 **res.json（逐题满分/大题顺序）** 的唯一入口：
+///   `/m/homework/struct` → `audio[0].template.url`（模板包，内含 res.json）
+///                        → `audio[0].contents[].code_id`（`st1`… 与模板 exam_id `{{st1}}` 对应）
+pub fn cloud_get_homework_struct_json(
+    token: &str,
+    homework_id: &str,
+    resource_id: &str,
+    parent_account_id: &str,
+) -> Value {
+    cloud_authorized_response(|| {
+        get_homework_struct(token, homework_id, resource_id, parent_account_id)
+    })
 }
 
 pub fn cloud_download_file_json(url: &str, destination: &str) -> Value {
@@ -762,6 +795,122 @@ fn normalize_account(key: &str, account: &Map<String, Value>) -> Value {
     })
 }
 
+fn get_homework_struct(
+    token: &str,
+    homework_id: &str,
+    resource_id: &str,
+    parent_account_id: &str,
+) -> Result<Value, CloudError> {
+    validate_required(token, "token")?;
+    validate_required(homework_id, "homework_id")?;
+    let mut params = json!({
+        "sn": "test",
+        "token": token,
+        "id": homework_id,
+        "resource_id": resource_id,
+        "version": "3",
+        "system": "4",
+        "global_client_version": "5.4.5",
+        "sign_response": 1
+    });
+    if !parent_account_id.trim().is_empty() {
+        params["parent_account_id"] = json!(parent_account_id);
+    }
+    let value = post_request("/m/homework/struct", "m/homework/struct", params)?;
+    check_api_code(&value, true)?;
+    parse_homework_struct(&value)
+}
+
+/// 解析 `/m/homework/struct` 响应。
+///
+/// 真实响应形态（广东 30 分卷实测）：
+/// ```jsonc
+/// {"body": {
+///   "audio": [{
+///     "set_name": "广州8年级离线个人版模拟试题2(copy)",
+///     "follow_type": 0,
+///     "template": {"id": "5", "size": 1798943, "url": "834c62a1....zip"},
+///     "contents": [{"code_id": "st1", "group_name": "模仿朗读", "real_id": "49062",
+///                   "url": "6799....zip", "size": 577212, "min_unit": 1,
+///                   "read_type": 5, "ppr": "7c11....zip"}]
+///   }],
+///   "combination": []
+/// }}
+/// ```
+/// `contents[].code_id`（`st1`…）与模板 `exam_list[].exam_id`（`{{st1}}`）一一对应，
+/// 这就是"资源包 → 官方大题"的官方挂载键。
+fn parse_homework_struct(value: &Value) -> Result<Value, CloudError> {
+    let body = value
+        .get("body")
+        .ok_or_else(|| CloudError::new("invalid_response", "homework/struct 响应缺少 body"))?;
+    let default_cdn = format!("{}/made", config_guard().cdn_base_url.trim_end_matches('/'));
+    let audio = body
+        .get("audio")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let first = audio.first().and_then(Value::as_object);
+    if first.is_none() {
+        return Err(CloudError::new(
+            "invalid_response",
+            "homework/struct 未返回 audio（该作业可能没有试卷集模板）",
+        ));
+    }
+    let first = first.unwrap();
+    let template = first.get("template").and_then(Value::as_object);
+    let template_url = template
+        .map(|t| value_as_string(t.get("url")))
+        .unwrap_or_default();
+    let contents = first
+        .get("contents")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_object)
+                .enumerate()
+                .map(|(index, c)| {
+                    let url = value_as_string(c.get("url"));
+                    json!({
+                        "order": index,
+                        "code_id": value_as_string(c.get("code_id")),
+                        "group_name": value_as_string(c.get("group_name")),
+                        "real_id": value_as_string(
+                            c.get("real_id").or_else(|| c.get("entity_id"))
+                        ),
+                        "url": url,
+                        "download_url": resolve_download_url(&default_cdn, &url),
+                        "ppr": value_as_string(c.get("ppr")),
+                        "size": c.get("size").and_then(value_as_i64).unwrap_or(0),
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Ok(json!({
+        "set_name": value_as_string(first.get("set_name")),
+        "follow_type": first.get("follow_type").and_then(value_as_i64).unwrap_or(0),
+        "template": {
+            "id": template.map(|t| value_as_string(t.get("id"))).unwrap_or_default(),
+            "url": template_url,
+            "download_url": if template_url.is_empty() {
+                String::new()
+            } else {
+                resolve_download_url(&default_cdn, &template_url)
+            },
+            "size": template
+                .and_then(|t| t.get("size"))
+                .and_then(value_as_i64)
+                .unwrap_or(0),
+        },
+        "contents": contents,
+        "combination": body.get("combination").cloned().unwrap_or_else(|| json!([])),
+        // res.json 在模板包里，需要调用方下载解压后交给解析器的 res_template/parse_homework_set
+        "res_json_hint": "下载 template.download_url → 解压 → 读取 res.json（模板包未加密）"
+    }))
+}
+
 fn parse_homework_list(value: &Value, status: &str) -> Result<Value, CloudError> {
     let body = value
         .get("body")
@@ -1136,6 +1285,9 @@ fn now_unix() -> i64 {
 
 #[cfg(test)]
 mod tests {
+    /// 真实 /m/homework/struct 响应（contents 裁到 2 项）
+    const REAL_HOMEWORK_STRUCT: &str = r#"{"body": {"audio": [{"template": {"size": 1798943, "id": "5", "url": "834c62a165faa2e86182c97bba2ab925.zip"}, "follow_type": 0, "set_name": "广州8年级离线个人版模拟试题2(copy)", "group_name": "", "set_id": "4030", "zip_url": "", "contents": [{"read_type": 5, "is_repeat_type": 0, "entity_foreign_id": "", "ppr": "7c1188510e0edea75dbc6c7603383bc0.zip", "entity_type": "1", "size": 577212, "min_unit": 1, "real_id": "49062", "group_name": "模仿朗读", "code_id": "st1", "url": "6799094efc8204a4adc040076e8fedf1.zip", "first_type_name": "模仿朗读"}, {"read_type": 5, "is_repeat_type": 0, "entity_foreign_id": "", "ppr": "c19699c63b3a1a10629999a7733f39fa.zip", "entity_type": "1", "size": 448728, "min_unit": 1, "real_id": "49063", "group_name": "听选信息1", "code_id": "st2", "url": "aa1f8fdfba8704a6ee90f7be48659b60.zip", "first_type_name": "听选信息"}]}], "combination": []}}"#;
+
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -1212,6 +1364,38 @@ mod tests {
             parsed["homeworks"][0]["contents"][0]["download_url"],
             "https://cdn.example.test/a.zip"
         );
+    }
+
+    #[test]
+    fn homework_struct_exposes_template_url_and_code_ids() {
+        // 真实 /m/homework/struct 响应（广东 30 分卷，contents 裁到 2 项）
+        let fixture: Value = serde_json::from_str(REAL_HOMEWORK_STRUCT).unwrap();
+        let parsed = parse_homework_struct(&fixture).unwrap();
+
+        assert_eq!(parsed["set_name"], "广州8年级离线个人版模拟试题2(copy)");
+        assert_eq!(parsed["template"]["id"], "5");
+        assert_eq!(parsed["template"]["url"], "834c62a165faa2e86182c97bba2ab925.zip");
+        assert_eq!(parsed["template"]["size"], 1798943);
+        assert!(parsed["template"]["download_url"]
+            .as_str()
+            .unwrap()
+            .ends_with("/made/834c62a165faa2e86182c97bba2ab925.zip"));
+
+        let contents = parsed["contents"].as_array().unwrap();
+        assert_eq!(contents.len(), 2);
+        assert_eq!(contents[0]["code_id"], "st1");
+        assert_eq!(contents[0]["group_name"], "模仿朗读");
+        assert_eq!(contents[0]["real_id"], "49062");
+        assert!(contents[0]["download_url"].as_str().unwrap().ends_with(".zip"));
+        assert_eq!(contents[1]["code_id"], "st2");
+    }
+
+    #[test]
+    fn homework_struct_without_audio_is_a_clear_error() {
+        let value = json!({"body": {"audio": [], "combination": []}});
+        let err = parse_homework_struct(&value).unwrap_err();
+        assert_eq!(err.code, "invalid_response");
+        assert!(err.message.contains("模板"));
     }
 
     #[test]

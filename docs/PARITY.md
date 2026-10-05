@@ -153,6 +153,22 @@ Fe-pro `normalizeCloudParsedSections` 的合并逻辑收口进来（`res.json` �
 
 以上能力在 **Android 端统一走 `ResolverNative.resolveRequest(json)`**（新增 op 无需改客户端声明）。
 
+### res.json 权威链路已闭环（真实数据）
+
+```text
+/m/homework/struct → audio[0].template.url（模板包，内含 res.json）
+                   → audio[0].contents[].code_id（st1…）↔ 模板 exam_list[].exam_id（{{st1}}）
+下载模板包（未加密；CDN 需主机级证书名例外）→ res.json
+  → op: res_template（set_score / exam_type_order / question_score）
+  → op: parse_homework_set（与资源包按 code_id 挂载，1:1 取逐题满分）
+```
+
+真实广东 30 分卷实测：`set_score=30`、**7 个大题**（听选信息拆成 1/2/3）、14 小题、
+逐题满分 `[6, 1.5×2, 1.5×2, 1.5×2, 1.5×4, 6, 1.5×2]`、合计 30.0；
+7 个资源包 100% 挂上模板，`totalScore_source = res_template_set_score`。
+
+> 修正：官方**不合并**「听选信息1/2/3」——它们是三个独立大题，序号是官方分节依据。
+
 ### 官方权威规格带来的修正（本轮）
 
 - `listen_choice_standard` 不含 "choose"，原先会掉进结构嗅探 → 现已显式路由到选择题；

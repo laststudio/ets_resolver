@@ -73,7 +73,7 @@ fn real_homework_list_classification_matches_calibrated_expectations() {
 }
 
 #[test]
-fn real_guangdong_paper_merges_into_official_five_sections() {
+fn real_guangdong_paper_matches_official_res_json() {
     // 真实作业 ' 模拟试题1' 的 7 个包（group_name / structure_type / real_id / 题数）
     let packages = json!([
         {"structure_type": "collector.read",    "group_name": "模仿朗读",  "real_id": "49062", "order": 0, "questions": [{"no": 1}]},
@@ -94,24 +94,18 @@ fn real_guangdong_paper_merges_into_official_five_sections() {
         ]}
     });
 
+    // 官方大题划分（来自真实 res.json）：听选信息被拆成 1/2/3 三个大题，序号必须保留
+    let official_captions = vec![
+        "模仿朗读", "听选信息1", "听选信息2", "听选信息3", "回答问题", "信息转述", "询问信息",
+    ];
+
+    // ---- 情形 A：无模板（只能靠资源包自己的 group_name 分节）----
     let merged = resolver::parse_homework_set_value(&packages, None, Some(&homework));
     let paper = &merged["paper"];
     let sections = paper["sections"].as_array().unwrap();
-
     let captions: Vec<&str> = sections.iter().map(|s| s["caption"].as_str().unwrap()).collect();
-    assert_eq!(
-        captions,
-        vec!["模仿朗读", "听选信息", "回答问题", "信息转述", "询问信息"],
-        "无模板时必须按归一化大题名分节（不能按 structure_type 把 role 三类并成一节）"
-    );
-
-    // 听选信息1/2/3 合并为一个大题（6 题），包内题号接续
-    let listening = &sections[1];
-    assert_eq!(listening["package_count"], 3);
-    assert_eq!(listening["questions"].as_array().unwrap().len(), 6);
-    assert_eq!(listening["real_ids"], json!(["49063", "49067", "49068"]));
-
-    // 全局卷面题号连续 1..14（与广东 30 分卷结构 1+6+4+1+2 一致）
+    assert_eq!(captions, official_captions, "无模板时也必须与官方 7 大题划分一致");
+    assert_eq!(merged["coverage"]["ordered_by"], "package_order");
     let nos: Vec<i64> = sections
         .iter()
         .flat_map(|s| s["questions"].as_array().unwrap())
@@ -120,8 +114,70 @@ fn real_guangdong_paper_merges_into_official_five_sections() {
     assert_eq!(nos, (1..=14).collect::<Vec<i64>>());
     assert_eq!(paper["question_count"], 14);
 
-    // 分类随作业一起带出
+    // ---- 情形 B：带真实 res.json（官方模板）----
+    let res_json = fixture("res_json_guangdong_mock1.json");
+    let merged = resolver::parse_homework_set_value(&packages, Some(&res_json), Some(&homework));
+    let paper = &merged["paper"];
+    let sections = paper["sections"].as_array().unwrap();
+    assert_eq!(merged["coverage"]["ordered_by"], "res_template");
+    assert_eq!(merged["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0,
+               "7 个包都应挂上模板");
+    let captions: Vec<&str> = sections.iter().map(|s| s["caption"].as_str().unwrap()).collect();
+    assert_eq!(captions, official_captions);
+
+    // 卷面总分与来源都取官方模板
+    assert_eq!(paper["totalScore"], 30.0);
+    assert_eq!(paper["totalScore_source"], "res_template_set_score");
+
+    // 逐题满分与官方 question_list[].question_score 完全一致
+    let scores: Vec<f64> = sections
+        .iter()
+        .flat_map(|s| s["questions"].as_array().unwrap())
+        .map(|q| q["score"].as_f64().unwrap())
+        .collect();
+    assert_eq!(
+        scores,
+        vec![6.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 6.0, 1.5, 1.5]
+    );
+    assert!((scores.iter().sum::<f64>() - 30.0).abs() < 1e-9);
+
+    // 分类随作业一起带出（真实作业是模拟套卷，7 包）
     assert_eq!(paper["category"], "mock_suite");
     assert_eq!(paper["is_exercise_set"], true);
-    assert_eq!(paper["totalScore"], 30.0);
+
+    // res_template 自身也要给出官方口径
+    let parsed = resolver::res_template_value(&res_json);
+    assert_eq!(parsed["total_score"], 30.0);
+    assert_eq!(parsed["total_score_source"], "set_score");
+    assert_eq!(parsed["question_count"], 14);
+    assert_eq!(parsed["sections"].as_array().unwrap().len(), 7);
+}
+
+#[test]
+fn real_res_json_template_fields_are_parsed() {
+    let res_json = fixture("res_json_guangdong_mock1.json");
+    let parsed = resolver::res_template_value(&res_json);
+    let sections = parsed["sections"].as_array().unwrap();
+
+    // 大题顺序按官方 exam_type_order
+    let orders: Vec<i64> = sections.iter().map(|s| s["exam_type_order"].as_i64().unwrap()).collect();
+    assert_eq!(orders, (1..=7).collect::<Vec<i64>>());
+
+    let first = &sections[0];
+    assert_eq!(first["exam_type_name"], "模仿朗读");
+    assert_eq!(first["exam_type_collect"], "collector.read");
+    assert_eq!(first["exam_type_score"], 6.0);
+    assert_eq!(first["exam_score"], 6.0);
+    assert_eq!(first["questions"][0]["evaluation_type"], "read_chapter");
+    assert_eq!(first["questions"][0]["engine_type"], "study");
+    assert_eq!(first["questions"][0]["score"], 6.0);
+
+    // 三个听选信息大题各 3 分 2 题
+    for idx in [1, 2, 3] {
+        let s = &sections[idx];
+        assert!(s["exam_type_name"].as_str().unwrap().starts_with("听选信息"));
+        assert_eq!(s["exam_score"], 3.0);
+        assert_eq!(s["questions"].as_array().unwrap().len(), 2);
+    }
+    assert_eq!(parsed["warnings"].as_array().unwrap().len(), 0);
 }

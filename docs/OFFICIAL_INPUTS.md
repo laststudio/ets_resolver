@@ -10,7 +10,7 @@
 | P0-1 | 官方题型全集（`structure_type` + 词汇 `question_type`） | ✅ | `src/spec.rs` → `op: spec` |
 | P0-2 | 每类题型的官方展示要素表 | ✅ | `src/spec.rs::DISPLAY_ELEMENTS` |
 | P0-3 | 关键边界判定（多答案顺序 / 填空题号 / 朗读 answers / 广东 exam_type_name） | ✅ | `src/spec.rs::boundary_rules` |
-| P0-4 | `res.json` 题号与满分权威结构 | 🟡 结构已确认，**仍缺真实样本** | `src/template.rs` → `op: res_template` |
+| P0-4 | `res.json` 题号与满分权威结构 | ✅ 真实 res.json 已获取、已入库、已闭环 | `src/template.rs` + `src/cloud.rs::cloud_get_homework_struct` |
 | P1-1 | 习题集（一整套多卷）样例 | 🟡 真实 `模拟试题1`（7 包）已跑通并入库 | `src/homework_set.rs` + `tests/corpus/guangdong_mock1/`；仍缺官方客户端展示截图做最终核对 |
 | P1-2 | 官方接口响应样例 | 🟡 `g/homework/list`(status 1/2/3) 真实响应已用于校准 | `tests/fixtures/homework_list_guangdong.json`；PK/词汇响应仍缺 |
 | P1-3 | 字段字典（`set_type`/`kind`/`mock`/`exam`/`set_id`/`resource_id`） | 🟡 已用真实数据反推校准（`set_type=1` 不是模拟卷标记） | `src/homework.rs`；仍缺官方明文定义 |
@@ -19,6 +19,50 @@
 | P2-3 | CDN 主机与证书异常清单 | ⬜ | 待 TLS 精确放行定稿 |
 | P3-1 | 官方更新的"变更前后对照" | ⬜ | 待新形状自动发现流程 |
 | P4-1 | 能力边界选择（解析库 / +评分TTS / +提交） | ⬜ | 待你确认 |
+
+---
+
+## 📍 res.json 在哪里获取（链路已在你后端里，无需去客户端找）
+
+**结论：不用去官方客户端找，你后端已经实现了这条链路** ——
+`homework.py::fetch_official_res_json(template_url)` + `parse_official_res_json(bytes)`。
+
+完整的四步（已实测跑通，广东 30 分卷真实数据）：
+
+```text
+① POST /m/homework/struct   {id: homework_id, resource_id, parent_account_id, token, ...}
+   → body.audio[0].set_name                    # 试卷集名："广州8年级离线个人版模拟试题2(copy)"
+   → body.audio[0].template.url                # 模板包："834c62a165faa2e86182c97bba2ab925.zip"
+   → body.audio[0].contents[].code_id          # "st1"… 与模板 exam_list[].exam_id 的 "{{st1}}" 对应
+   → body.audio[0].contents[].group_name/real_id/url
+
+② GET https://cdn.subject.ets100.com/made/<template.url>     （1.8 MB，**未加密**）
+   ⚠️ 该 CDN 返回 default.chinanetcenter.com 证书 —— 必须做**主机级**证书名例外
+      （解析器 cloud_download_file 就是这么做的；别用全局 trust-all）
+
+③ 解压模板包 → res.json（+ ctrl.json / info.json / material/*）
+
+④ res.json 真实结构（全部字段已实测）：
+   set_score: "30"
+   exam_type_list[]: exam_type_order, exam_type_name, exam_type_intro,
+                     exam_type_collect, exam_type_score, exam_type_count, exam_list[]
+     exam_list[]:    exam_order, exam_id("{{st1}}"), exam_info[], exam_score, exam_count, question_list[]
+       question_list[]: question_order, question_count, question_score,
+                        evaluation_type, engine_area, engine_type
+```
+
+**解析器侧已把这条链路补齐**（`libcloud.so`）：
+新增 `cloud_get_homework_struct(token, homework_id, resource_id, parent_account_id)`
+一次返回 `set_name` / `template{url,download_url,size}` / `contents[{code_id,group_name,real_id,download_url}]`，
+调用方下载模板包（未加密）解压后把 `res.json` 交给 `op: res_template` / `op: parse_homework_set` 即可。
+
+**实测结果（真实广东 30 分卷）**：`set_score=30`，7 个大题、
+逐题满分合计 30.0；用真实 7 个资源包 + 真实 res.json 合并 → **7/7 包全部挂上模板、0 未匹配、
+逐题满分全部来自模板（`template_per_question`）、卷面分 30.0（`res_template_set_score`）**。
+
+**真实 res.json 也纠正了一个假设**：官方把「听选信息」拆成 **听选信息1/2/3 三个大题**
+（各 3 分、2 题），资源包 group_name 同样带序号 —— 所以分节必须**保留序号**，
+不能按名字去重合并（此前的"合并成 6 题一节"是错的，已修）。
 
 ---
 
@@ -88,12 +132,13 @@
 
 ## ⬜ 仍然需要你提供的（按优先级）
 
-### 1. 真实 `res.json` 样例 ★（P0-4 的验证件）
+### 1. 其他地区/学段的 `res.json`（P0-4 已完成广东初中，仍想看差异）
 
-- **要什么**：每地区/学段 2–3 份**真实** `res.json`（广东初中、广东高中、北京初中、北京高中），
-  特别要含 `exam_type_name` / `exam_type_collect` / `exam_score` / `question_list` 的真实取值。
-- **为什么**：结构我已按你给的模板实现，但真实文件里字段大小写、缺省字段、多 `exam_list` 合并方式
-  都可能不同。有真实样本我才能确认解析没有偏差，并把 `group_name_weights` 彻底废掉。
+- **要什么**：**北京初中 / 北京高中 / 广东高中** 各 1–2 份真实 `res.json`
+  （走上面那条 `/m/homework/struct → template.url` 链路即可自己取，不必人工翻客户端）。
+- **为什么**：广东初中已闭环（7 大题、30 分、`collector.*`）。想确认其它地区是否：
+  ① `exam_type_collect` 出现新的取值；② 是否存在一个 `exam_type_list` 里多个 `exam_list`；
+  ③ `evaluation_type` / `engine_type` 的取值域；④ 卷面分是否只有 `exam_type_score` 没有 `exam_score`。
 - **形态**：`res.json` 原文 + 对应作业名/地区。
 
 ### 2. 一个真实习题集（P1-1）★

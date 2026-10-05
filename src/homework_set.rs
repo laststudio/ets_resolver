@@ -47,6 +47,9 @@ struct Package {
     structure_type: String,
     group_name: String,
     real_id: String,
+    /// 官方挂载键：/m/homework/struct 的 contents[].code_id（`st1`…），
+    /// 与模板 exam_list[].exam_id 的 `{{st1}}` 一一对应。有它就用它，最可靠。
+    code_id: String,
     order: i64,
     questions: Vec<Value>,
 }
@@ -69,6 +72,7 @@ fn read_packages(value: &Value) -> Vec<Package> {
                 structure_type: get_str(pkg, "structure_type"),
                 group_name: get_str(pkg, "group_name"),
                 real_id: get_str(pkg, "real_id"),
+                code_id: get_str(pkg, "code_id"),
                 order: get_i64(pkg, "order").unwrap_or(index as i64),
                 questions,
             }
@@ -76,26 +80,29 @@ fn read_packages(value: &Value) -> Vec<Package> {
         .collect()
 }
 
-/// 归一化大题名，用于"无模板时按大题分组"与"有模板时按中文名挂载"。
-///
-/// 真实数据形态：同一个大题会被拆成多个包，名字带序号 ——
-/// 广东 30 分卷的 `听选信息1/听选信息2/听选信息3` 同属"听选信息"大题（各 2 题，合计 6 题）。
-/// 因此必须去掉尾部序号与空白后比较，否则要么把三个包拆成三节，要么按 structure_type
-/// 把"听选信息/回答问题/询问信息"（同为 `collector.role`）错误地并成一节。
+/// 归一化大题名：去空白/全角空格。**保留尾部序号** ——
+/// 真实官方 res.json 会把"听选信息"拆成「听选信息1/2/3」三个大题（各 3 分、2 题），
+/// 资源包的 group_name 也带同样的序号，所以序号是**官方的分节依据**，不能剥掉。
 pub fn normalize_section_name(raw: &str) -> String {
-    let trimmed = raw
+    raw.trim()
+        .trim_matches(|c: char| c == '\u{3000}' || c.is_whitespace())
+        .to_string()
+}
+
+/// 兜底用的"去序号"形式：仅当精确名两边都对不上时才用
+/// （例如资源包叫「听选信息」而模板叫「听选信息1/2/3」）。
+fn strip_trailing_index(raw: &str) -> String {
+    let s: String = raw
         .trim()
-        .trim_matches(|c: char| c == '\u{3000}' || c.is_whitespace());
-    // 去掉尾部序号：阿拉伯数字、全角数字、以及 `_1` / `-1` / `(1)` 之类的收尾
-    let mut s: String = trimmed
         .trim_end_matches(|c: char| c.is_ascii_digit() || ('０'..='９').contains(&c))
         .trim_end_matches(['_', '-', ' ', '（', '('])
         .trim()
         .to_string();
     if s.is_empty() {
-        s = trimmed.to_string();
+        raw.trim().to_string()
+    } else {
+        s
     }
-    s
 }
 
 fn package_key(pkg: &Package) -> String {
@@ -109,12 +116,42 @@ fn package_key(pkg: &Package) -> String {
     format!("#{}", pkg.index)
 }
 
-/// 把某个包挂到模板的哪一节。匹配优先级（真实数据标定）：
-///   1. 归一化大题名 == `exam_type_name`（广东卷的 group_name 就是官方大题中文名，最可靠）
+/// 模板里的 `exam_id` 是占位符（真实值形如 `{{st1}}`），与 contents 的 `code_id`（`st1`）对应。
+fn normalize_exam_id(raw: &str) -> String {
+    raw.trim()
+        .trim_start_matches("{{")
+        .trim_end_matches("}}")
+        .trim()
+        .to_string()
+}
+
+/// 把某个包挂到模板的哪一节。匹配优先级（真实 res.json + /m/homework/struct 标定）：
+///   0. `code_id` == 模板 `exam_list[].exam_id`（官方挂载键，最可靠）
+///   1. 精确大题名 == `exam_type_name`
 ///   2. `structure_type` == `exam_type_collect`
-///   3. handler 家族相同（例如 read_passage_standard 与 collector.read 同属朗读家族）
+///   3. 去序号后的名字相等（应对两边一处带序号、一处不带）
+///   4. handler 家族相同
 fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
     let sections = template.get("sections")?.as_array()?;
+
+    if !pkg.code_id.is_empty() {
+        let want = pkg.code_id.trim();
+        if let Some(idx) = sections.iter().position(|s| {
+            s.get("questions")
+                .and_then(|v| v.as_array())
+                .map(|qs| {
+                    qs.iter().any(|q| {
+                        q.get("exam_id")
+                            .and_then(|v| v.as_str())
+                            .map(|raw| normalize_exam_id(raw) == want)
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+        }) {
+            return Some(idx);
+        }
+    }
 
     let pkg_name = normalize_section_name(&pkg.group_name);
     if !pkg_name.is_empty() {
@@ -133,6 +170,18 @@ fn section_index_for_package(template: &Value, pkg: &Package) -> Option<usize> {
             s.get("exam_type_collect")
                 .and_then(|v| v.as_str())
                 .map(|c| c.eq_ignore_ascii_case(&pkg.structure_type))
+                .unwrap_or(false)
+        }) {
+            return Some(idx);
+        }
+    }
+
+    if !pkg_name.is_empty() {
+        let bare = strip_trailing_index(&pkg_name);
+        if let Some(idx) = sections.iter().position(|s| {
+            s.get("exam_type_name")
+                .and_then(|v| v.as_str())
+                .map(|n| strip_trailing_index(n) == bare)
                 .unwrap_or(false)
         }) {
             return Some(idx);
@@ -262,9 +311,9 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
         None => {
             sorted.sort_by_key(|p| (p.order, p.index));
             for pkg in sorted.iter() {
-                // 无模板时按"归一化大题名"分组：同一大题被拆成多个包（听选信息1/2/3）
-                // 要合并成一节；不同大题即使是同一个 structure_type（collector.role）
-                // 也必须分开。
+                // 无模板时按"精确大题名"分组（保留序号）：真实官方 res.json 会把
+                // 听选信息拆成「听选信息1/2/3」三个大题，资源包也一一对应，因此
+                // 序号必须保留；而不同大题即使同为 collector.role 也绝不能并成一节。
                 let key = package_key(pkg);
                 if let Some(existing) = sections.iter_mut().find(|s| s.key == key) {
                     existing.packages.push(pkg.clone());
@@ -406,36 +455,50 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
 
     // 分类与总分
     let classification = homework_value.map(homework::classify_homework);
-    let (total_score, total_score_source) = if total_from_template > 0.0 {
-        (round2(total_from_template), "res_template")
-    } else if let Some(tpl) = parsed_template.as_ref() {
-        let t = tpl.get("total_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        if t > 0.0 {
-            (t, "res_template_exam_score_sum")
-        } else if let Some(c) = classification.as_ref() {
-            (
+    let tpl_section_total = parsed_template
+        .as_ref()
+        .and_then(|t| t.get("sections"))
+        .and_then(|v| v.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+    let covered_from_template = sections
+        .iter()
+        .filter(|s| s.template_index.is_some())
+        .count();
+    // 只有把模板里的每个大题都挂上包，官方的 set_score 才是这张卷的卷面分；
+    // 只合并了一部分包时，用已合并部分的分值之和才诚实。
+    let full_template_coverage = tpl_section_total > 0 && covered_from_template == tpl_section_total;
+
+    let (total_score, total_score_source) = match parsed_template.as_ref() {
+        Some(tpl) if full_template_coverage => {
+            let set_score = tpl.get("set_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            if set_score > 0.0 {
+                (set_score, "res_template_set_score")
+            } else if total_from_template > 0.0 {
+                (round2(total_from_template), "res_template")
+            } else {
+                (
+                    tpl.get("total_score").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    "res_template_exam_score_sum",
+                )
+            }
+        }
+        Some(_) if total_from_template > 0.0 => {
+            warnings.push(format!(
+                "partial_template_coverage:{covered_from_template}/{tpl_section_total}"
+            ));
+            (round2(total_from_template), "res_template_partial")
+        }
+        _ => match classification.as_ref() {
+            Some(c) => (
                 c.get("expected_total_score")
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0),
                 "classification_estimate",
-            )
-        } else {
-            (0.0, "none")
-        }
-    } else if let Some(c) = classification.as_ref() {
-        (
-            c.get("expected_total_score")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0),
-            "classification_estimate",
-        )
-    } else {
-        (0.0, "none")
+            ),
+            None => (0.0, "none"),
+        },
     };
-
-    if sorted.is_empty() && sections.len() > 1 && unmatched.is_empty() {
-        // 全部包都挂上了模板
-    }
 
     json!({
         "paper": {
@@ -520,6 +583,43 @@ mod tests {
         assert_eq!(out["coverage"]["ordered_by"], "res_template");
         // 包内原题号被保留
         assert_eq!(sections[1]["questions"][0]["package_no"], 1);
+    }
+
+    #[test]
+    fn code_id_is_the_official_mount_key() {
+        // 官方挂载键：contents[].code_id = "st1" <-> 模板 exam_list[].exam_id = "{{st1}}"
+        // 即使大题名两边不一致，也应按 code_id 挂载。
+        let res = json!({
+            "set_score": "30",
+            "exam_type_list": [
+                {"exam_type_order": "1", "exam_type_name": "模仿朗读",
+                 "exam_type_collect": "collector.read", "exam_type_score": "6",
+                 "exam_list": [{"exam_id": "{{st1}}", "exam_score": "6",
+                                "question_list": [{"question_order": "1", "question_score": "6"}]}]},
+                {"exam_type_order": "2", "exam_type_name": "听选信息1",
+                 "exam_type_collect": "collector.role", "exam_type_score": "3",
+                 "exam_list": [{"exam_id": "{{st2}}", "exam_score": "3",
+                                "question_list": [{"question_order": "1", "question_score": "1.5"},
+                                                  {"question_order": "2", "question_score": "1.5"}]}]}
+            ]
+        });
+        // 包名故意与模板名不同，且传入顺序颠倒
+        let packages = json!([
+            {"structure_type": "collector.role", "group_name": "题目组B", "code_id": "st2", "order": 9,
+             "questions": [{"no": 1}, {"no": 2}]},
+            {"structure_type": "collector.read", "group_name": "题目组A", "code_id": "st1", "order": 8,
+             "questions": [{"no": 1}]}
+        ]);
+        let out = merge(&packages, Some(&res), None);
+        let sections = out["paper"]["sections"].as_array().unwrap();
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0]["caption"], "模仿朗读");
+        assert_eq!(sections[1]["caption"], "听选信息1");
+        assert_eq!(sections[0]["questions"][0]["score"], 6.0);
+        assert_eq!(sections[1]["questions"][0]["score"], 1.5);
+        assert_eq!(out["paper"]["totalScore"], 30.0);
+        assert_eq!(out["paper"]["totalScore_source"], "res_template_set_score");
+        assert_eq!(out["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0);
     }
 
     #[test]
