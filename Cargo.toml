@@ -1,6 +1,6 @@
 [package]
 name = "resolver"
-version = "1.1.4"
+version = "1.2.0"
 edition = "2021"
 
 [workspace]
@@ -13,7 +13,9 @@ cloud-library = []
 
 [lib]
 name = "resolver"
-crate-type = ["cdylib"]   # 编译为动态链接库: libresolver.so / resolver.dll
+# cdylib: libresolver.so / resolver.dll（下游 FFI/JNI 用）
+# rlib:   供 tests/ 集成测试与未来的 CLI 直接 use（不改变 .so 的导出符号）
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

@@ -27,6 +27,18 @@ RESOLVER_EXPORT char* parse_batch(const char* tasks_json);
 RESOLVER_EXPORT char* group_by_time(const char* items_json, int64_t threshold_ms);
 RESOLVER_EXPORT char* extract_meta(const char* content);
 
+/* 诊断与一致性工具（parity 基础设施），返回值均由 resolver_free_string 释放。
+ *
+ * diagnose:          这份资源包为什么出题/没出题：命中的路由层、形状指纹、告警。
+ *                    输出不含题目文本，可安全进日志。
+ * shape_fingerprint: 结构指纹。官方新增题型时用它判定"只是改名"还是"结构变了"。
+ * classify_homework: 作业分类（含"老师布置的一整套多卷/习题集"识别）与卷面满分推算。
+ * classify_homework_list: 作业列表批量分类，给出 exercise_set_ids 清单。 */
+RESOLVER_EXPORT char* diagnose(const char* content, const char* info, const char* content2);
+RESOLVER_EXPORT char* shape_fingerprint(const char* content, const char* info, const char* content2);
+RESOLVER_EXPORT char* classify_homework(const char* homework_json);
+RESOLVER_EXPORT char* classify_homework_list(const char* list_json);
+
 /* 解析单个文件夹或JSON字符串，返回 JSON 字符串 */
 RESOLVER_EXPORT char* resolve(const char* path);
 

@@ -111,8 +111,85 @@ extern "system" fn native_parse_task_authorized(
     )
 }
 
-extern "system" fn native_parse_batch_authorized(
+// ============== 诊断与作业分类 (parity 工具, 只做运行时完整性校验) ==============
+
+/// 解析诊断: 返回 {structure_type, layer, family, question_count, shape, warnings}。
+/// 输出不含题目文本，可安全打日志；用于"官方又出新题型了吗 / 这份包为什么没出题"。
+extern "system" fn native_diagnose(
     mut env: JNIEnv,
+    _class: JClass,
+    content: JString,
+    info: JString,
+    content2: JString,
+) -> jstring {
+    if !perform_runtime_integrity_check(Some(&mut env)) {
+        return to_jstring(
+            &mut env,
+            &serde_json::json!({"error": "integrity_check_failed"}).to_string(),
+        );
+    }
+    let content = get_string(&mut env, &content);
+    let info = get_string(&mut env, &info);
+    let content2 = get_string(&mut env, &content2);
+    let value = match crate::parse_json(&content) {
+        Some(v) => v,
+        None => return to_jstring(&mut env, "null"),
+    };
+    let report = crate::diagnose_value(
+        &value,
+        crate::parse_json(&content2).as_ref(),
+        crate::parse_json(&info).as_ref(),
+    );
+    to_jstring(&mut env, &report.to_string())
+}
+
+/// 作业分类: 识别"词汇PK / 模拟套卷 / 老师布置的一整套多卷(习题集) / 作文 / 在线 / 常规"。
+extern "system" fn native_classify_homework(
+    mut env: JNIEnv,
+    _class: JClass,
+    homework_json: JString,
+) -> jstring {
+    if !perform_runtime_integrity_check(Some(&mut env)) {
+        return to_jstring(
+            &mut env,
+            &serde_json::json!({"error": "integrity_check_failed"}).to_string(),
+        );
+    }
+    let payload = get_string(&mut env, &homework_json);
+    let value = match crate::parse_json(&payload) {
+        Some(v) => v,
+        None => return to_jstring(&mut env, "null"),
+    };
+    to_jstring(
+        &mut env,
+        &crate::classify_homework_value(&value).to_string(),
+    )
+}
+
+/// 作业列表批量分类: 返回 {category_counts, exercise_set_ids, homeworks[]}。
+extern "system" fn native_classify_homework_list(
+    mut env: JNIEnv,
+    _class: JClass,
+    list_json: JString,
+) -> jstring {
+    if !perform_runtime_integrity_check(Some(&mut env)) {
+        return to_jstring(
+            &mut env,
+            &serde_json::json!({"error": "integrity_check_failed"}).to_string(),
+        );
+    }
+    let payload = get_string(&mut env, &list_json);
+    let value = match crate::parse_json(&payload) {
+        Some(v) => v,
+        None => return to_jstring(&mut env, "null"),
+    };
+    to_jstring(
+        &mut env,
+        &crate::classify_homework_list_value(&value).to_string(),
+    )
+}
+
+extern "system" fn native_parse_batch_authorized(    mut env: JNIEnv,
     _class: JClass,
     tasks_json: JString,
 ) -> jstring {
@@ -769,6 +846,21 @@ pub extern "system" fn JNI_OnLoad(vm: *mut JavaVM, _reserved: *mut c_void) -> ji
             name: obfstring!("selfIntegrityCheck").into(),
             sig: obfstring!("()Ljava/lang/String;").into(),
             fn_ptr: native_self_integrity_check as *mut c_void,
+        },
+        NativeMethod {
+            name: obfstring!("diagnose").into(),
+            sig: obfstring!("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;").into(),
+            fn_ptr: native_diagnose as *mut c_void,
+        },
+        NativeMethod {
+            name: obfstring!("classifyHomework").into(),
+            sig: obfstring!("(Ljava/lang/String;)Ljava/lang/String;").into(),
+            fn_ptr: native_classify_homework as *mut c_void,
+        },
+        NativeMethod {
+            name: obfstring!("classifyHomeworkList").into(),
+            sig: obfstring!("(Ljava/lang/String;)Ljava/lang/String;").into(),
+            fn_ptr: native_classify_homework_list as *mut c_void,
         },
     ];
 

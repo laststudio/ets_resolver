@@ -1,0 +1,31 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.fill",
+  "questions": [
+    {
+      "no": 15,
+      "type": "collector.fill",
+      "stid": 7,
+      "question": "",
+      "answers": [
+        "答案1"
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    },
+    {
+      "no": 16,
+      "type": "collector.fill",
+      "stid": 7,
+      "question": "",
+      "answers": [
+        "答案2"
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}

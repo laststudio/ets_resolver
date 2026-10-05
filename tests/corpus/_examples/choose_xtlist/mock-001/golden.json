@@ -1,0 +1,23 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.choose",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.choose",
+      "stid": 3,
+      "question": "What did the man forget to do?",
+      "answers": [
+        "C"
+      ],
+      "options": [
+        "A. Take the bag.",
+        "B. Lock the door.",
+        "C. Leave food for the cat."
+      ],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}

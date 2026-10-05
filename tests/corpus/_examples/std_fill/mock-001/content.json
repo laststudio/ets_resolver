@@ -1,0 +1,10 @@
+{
+  "structure_type": "collector.fill",
+  "info": {
+    "stid": "7",
+    "std": [
+      {"xth": "15", "value": "答案1"},
+      {"xth": "16", "value": "答案2"}
+    ]
+  }
+}

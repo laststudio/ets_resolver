@@ -299,11 +299,66 @@ Android 使用两个 JNI 类：`ResolverNative` 加载 `libresolver.so`，`Cloud
 
 ---
 
+## 诊断、形状指纹与作业分类（parity 工具）
+
+这三个能力是"与官方客户端完全一致"的基础设施，Android 端同样有 JNI 入口
+（`ResolverNative.diagnose` / `classifyHomework` / `classifyHomeworkList`）。
+
+| C FFI | 说明 |
+| --- | --- |
+| `char* diagnose(content, info, content2)` | 命中层（`explicit`/`generic`/`none`）、命中的解析家族、形状指纹、告警、输入在场情况。**输出不含题目文本**，可安全进日志 |
+| `char* shape_fingerprint(content, info, content2)` | 结构指纹：不含取值、不含 `structure_type`。官方改名不改结构 → 指纹不变；结构变了 → 指纹变化 |
+| `char* classify_homework(homework_json)` | 作业分类 + 卷面满分口径。`is_exercise_set=true` 即"老师布置的一整套多卷（习题集）"，需要多包合并成一张卷 |
+| `char* classify_homework_list(list_json)` | 作业列表批量分类，返回 `category_counts` 与 `exercise_set_ids` 清单 |
+
+`diagnose` 示例输出：
+
+```json
+{
+  "structure_type": "collector.choose",
+  "layer": "explicit",
+  "family": "collector.choose",
+  "question_count": 1,
+  "answer_count": 1,
+  "shape": { "hash": "df3956bcdc86ea06", "path_count": 11, "paths": ["info.stid", "info.xtlist[]", "..."] },
+  "warnings": [],
+  "preview": [{ "no": 1, "type": "collector.choose", "question_len": 38, "answers": 1, "options": 3 }]
+}
+```
+
+`classify_homework` 示例输出（习题集）：
+
+```json
+{
+  "category": "paper_set",
+  "is_exercise_set": true,
+  "package_count": 6,
+  "expected_total_score": 11.5,
+  "score_source": "group_name_weights",
+  "set_id": "set-9981",
+  "reasons": ["packages:6", "set_id:set-9981"],
+  "warnings": []
+}
+```
+
+判定原则：模拟考只信官方显式字段（`kind=mock` / `mock=1` / `exam=1` / `set_type=1`），
+名字关键词（套题/模考/…）降级为 `is_mock_suspected` 告警——历史启发式曾把普通作业误判成模拟考。
+
+---
+
 # 测试
 
 Rust 核心测试（CI 与本地都应保持全绿）：
 ```bash
-cargo test --workspace          # 35 个用例：解析分发、PK 顺序/过滤、清洗、授权签名校验
+cargo test --workspace          # 67 个用例：解析分发、PK 顺序/过滤、清洗、诊断指纹、作业分类、授权签名校验
+```
+
+一致性回归（与官方客户端对齐的门禁，方法论见 [`docs/PARITY.md`](./docs/PARITY.md)）：
+```bash
+cargo test --test corpus_parity -- --nocapture                    # 打印覆盖率/路由家族/形状指纹报告
+PARITY_CORPUS=/path/to/corpus cargo test --test corpus_parity     # 指向仓库外的全量语料库
+PARITY_REQUIRE_CORPUS=1 PARITY_STRICT_OFFICIAL=1 cargo test --test corpus_parity   # CI 门禁
+PARITY_UPDATE=1 cargo test --test corpus_parity                   # 录制 golden（自录，不算一致性证据）
 ```
 
 线下联调（需要本地后端已运行并 seed `answer_parser` 功能）：

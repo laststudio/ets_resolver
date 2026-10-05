@@ -883,14 +883,16 @@ fn apply_explicit_pk_order(questions: &mut Vec<Value>, content: &Value, root: &V
     }
 }
 
-pub fn collect_generic(
+/// 结构嗅探结果：题目 + 命中的形状家族名。
+/// 家族名用于诊断与覆盖率统计（`generic:*`），空结果统一记为 `unmatched`。
+pub fn collect_generic_routed(
     content: &Value,
     content2: Option<&Value>,
     info: Option<&Value>,
     qtype: Option<&str>,
-) -> Vec<Value> {
+) -> (Vec<Value>, &'static str) {
     if content.is_array() {
-        return collect_word_pk(content);
+        return (collect_word_pk(content), "word_pk");
     }
     let info_obj = content.get("info");
     if !info_obj.map_or(false, |v| v.is_object()) {
@@ -901,9 +903,9 @@ pub fn collect_generic(
             || content.get("words").is_some()
             || content.get("word").is_some()
         {
-            return collect_word_pk(content);
+            return (collect_word_pk(content), "word_pk");
         }
-        return Vec::new();
+        return (Vec::new(), "unmatched");
     }
     let info_obj = info_obj.unwrap();
     if info_obj.get("word_question").is_some()
@@ -911,15 +913,18 @@ pub fn collect_generic(
         || info_obj.get("words").is_some()
         || info_obj.get("word").is_some()
     {
-        return collect_word_pk(content);
+        return (collect_word_pk(content), "word_pk");
     }
     if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
-        return collect_repeat_essay(content, content2, info);
+        return (collect_repeat_essay(content, content2, info), "repeat_essay");
     }
     if info_obj.get("question").map_or(false, |v| v.is_array())
         || info_obj.get("questions").map_or(false, |v| v.is_array())
     {
-        return collect_question_based(content, content2, info, qtype);
+        return (
+            collect_question_based(content, content2, info, qtype),
+            "question_based",
+        );
     }
     if let Some(std) = info_obj.get("std").and_then(|v| v.as_array()) {
         if std
@@ -927,15 +932,15 @@ pub fn collect_generic(
             .and_then(|s| s.get("xth"))
             .map_or(false, |_| true)
         {
-            return collect_fill(content, content2, info);
+            return (collect_fill(content, content2, info), "std_fill");
         }
-        return collect_picture(content, content2, info);
+        return (collect_picture(content, content2, info), "std_picture");
     }
     if info_obj.get("xtlist").map_or(false, |v| v.is_array()) {
-        return collect_choose(content, content2, info);
+        return (collect_choose(content, content2, info), "xtlist_choose");
     }
     if info_obj.get("value").map_or(false, |v| !v.is_null()) {
-        return collect_read(content, content2, info);
+        return (collect_read(content, content2, info), "read_value");
     }
     if content.get("word_question").is_some()
         || content.get("word_questions").is_some()
@@ -943,51 +948,109 @@ pub fn collect_generic(
         || content.get("words").is_some()
         || content.get("word").is_some()
     {
-        return collect_word_pk(content);
+        return (collect_word_pk(content), "word_pk");
     }
-    Vec::new()
+    (Vec::new(), "unmatched")
 }
 
-pub fn parse_content(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
+/// 结构嗅探（只取题目，不关心命中的家族名）。诊断与覆盖率统计请用
+/// [`collect_generic_routed`]，它额外返回形状家族名。
+#[allow(dead_code)]
+pub fn collect_generic(
+    content: &Value,
+    content2: Option<&Value>,
+    info: Option<&Value>,
+    qtype: Option<&str>,
+) -> Vec<Value> {
+    collect_generic_routed(content, content2, info, qtype).0
+}
+
+/// 解析路由结果：题目 + 命中的路由层 + 命中的家族名。
+///
+/// `layer` 用于回答"这题是靠显式 structure_type 认出来的，还是靠结构嗅探兜住的，
+/// 还是根本没认出来"，是覆盖率统计与线上排错的基础（见 `src/diagnose.rs`）。
+#[derive(Debug, Clone)]
+pub struct RouteResult {
+    pub questions: Vec<Value>,
+    /// `explicit` 显式 structure_type 路由 / `generic` 结构嗅探 / `none` 两者都没命中
+    pub layer: &'static str,
+    /// 命中的解析家族，如 `collector.choose` / `generic:std_fill` / `word_pk` / `unmatched`
+    pub family: String,
+}
+
+/// 带路由信息的解析（`parse_content` 的内部实现，行为完全一致）。
+pub fn parse_content_routed(
+    content: &Value,
+    content2: Option<&Value>,
+    info: Option<&Value>,
+) -> RouteResult {
+    let explicit = |questions: Vec<Value>, family: &str| RouteResult {
+        questions,
+        layer: "explicit",
+        family: family.to_string(),
+    };
+
     if content.is_array() {
-        return collect_word_pk(content);
+        return explicit(collect_word_pk(content), "word_pk");
     }
-    let structure_type = content.get("structure_type").map(|v| get_str(v)).unwrap_or_default();
+    let structure_type = content
+        .get("structure_type")
+        .map(|v| get_str(v))
+        .unwrap_or_default();
     let st = structure_type.as_str();
     if st.contains("choose") {
-        return collect_choose(content, content2, info);
+        return explicit(collect_choose(content, content2, info), TYPE_CHOOSE);
     }
     if st == TYPE_REPEAT_ESSAY {
-        return collect_repeat_essay(content, content2, info);
+        return explicit(
+            collect_repeat_essay(content, content2, info),
+            TYPE_REPEAT_ESSAY,
+        );
     }
-    if st.contains("pk") || st.contains("word_pk") || st.contains("vocabulary") || st.contains("word_homework") {
-        return collect_word_pk(content);
+    if st.contains("pk") || st.contains("word_pk") || st.contains("vocabulary") || st.contains("word_homework")
+    {
+        return explicit(collect_word_pk(content), "word_pk");
     }
     if content.get("word_question").is_some() || content.get("word_questions").is_some() {
-        return collect_word_pk(content);
+        return explicit(collect_word_pk(content), "word_pk");
     }
     if st.contains("read") || st.contains("word") {
-        return collect_read(content, content2, info);
+        return explicit(collect_read(content, content2, info), TYPE_READ);
     }
     if st.contains("fill") {
-        return collect_fill(content, content2, info);
+        return explicit(collect_fill(content, content2, info), TYPE_FILL);
     }
     if st.contains("picture") {
-        return collect_picture(content, content2, info);
+        return explicit(collect_picture(content, content2, info), TYPE_PICTURE);
     }
     if QUESTION_TYPES.contains(&st) {
         let parsed = collect_question_based(content, content2, info, Some(st));
         if !parsed.is_empty() {
-            return parsed;
+            return explicit(parsed, st);
         }
         // 有些资源包把题目直接放在 info.std[]（没有 info.question[]），
         // 早期这里会整个题型解析为空 —— 补一个兜底，答案取 std[].value。
-        return collect_std_only(content, st);
+        return explicit(collect_std_only(content, st), st);
     }
     if st.contains("repeat") || st.contains("essay") || st.contains("dialogue") || st.contains("role") {
-        return collect_question_based(content, content2, info, Some(st));
+        return explicit(collect_question_based(content, content2, info, Some(st)), st);
     }
-    collect_generic(content, content2, info, Some(st))
+
+    let (questions, family) = collect_generic_routed(content, content2, info, Some(st));
+    let layer = if questions.is_empty() && family == "unmatched" {
+        "none"
+    } else {
+        "generic"
+    };
+    RouteResult {
+        questions,
+        layer,
+        family: format!("generic:{family}"),
+    }
+}
+
+pub fn parse_content(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
+    parse_content_routed(content, content2, info).questions
 }
 
 #[cfg(test)]
