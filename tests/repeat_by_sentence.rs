@@ -59,3 +59,23 @@ fn repeat_without_fj_keeps_old_text_collection_behaviour() {
     let (qs, _family) = resolver::collectors::collect_generic_routed(&content, None, None, None);
     assert!(!qs.is_empty(), "没有 fj 时不能一题都不出");
 }
+
+#[test]
+fn read_family_with_fj_is_not_expanded() {
+    // 「模仿朗读」是 collector.read：官方整段 1 题，**不按句拆**。
+    // 即使某个 read 包恰好带 info.fj，也不能被展开（语料实测 fj 只在 repeat，但要有守卫）。
+    let content = json!({
+        "structure_type": "collector.read",
+        "info": {
+            "stid": "77",
+            "value": "Della searched the stores. She found a watch chain.",
+            "fj": [
+                {"xh": "1", "value": "Della searched the stores."},
+                {"xh": "2", "value": "She found a watch chain."}
+            ]
+        }
+    });
+    let (qs, family) = resolver::collectors::collect_generic_routed(&content, None, None, Some("collector.read"));
+    assert_ne!(family, "repeat_by_sentence", "read 族不能被逐句展开");
+    assert_eq!(qs.len(), 1, "read 族应保持 1 题，实际 {}", qs.len());
+}

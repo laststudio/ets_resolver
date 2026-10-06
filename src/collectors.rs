@@ -1227,7 +1227,19 @@ pub fn collect_generic_routed(
     if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
         return (collect_repeat_essay(content, content2, info), "repeat_essay");
     }
-    if info_obj.get("fj").map_or(false, |v| v.is_array()) {
+    // 通用嗅探里用 fj 逐句切题前，先排除"明确的其它族"：
+    // 「模仿朗读」是 `collector.read`（整段 1 题，官方不按句拆），若某个 read 包恰好也带
+    // `info.fj` 就会被误展开成 N 题 —— 语料实测 fj 只出现在 collector.repeat，但这里加守卫兜住。
+    let st_lower = content
+        .get("structure_type")
+        .map(|v| get_str(v).to_lowercase())
+        .unwrap_or_default();
+    let explicit_other_family = [
+        "read", "word", "picture", "choose", "role", "fill", "3q5a", "dialogue", "sentence",
+    ]
+    .iter()
+    .any(|k| st_lower.contains(k));
+    if !explicit_other_family && info_obj.get("fj").map_or(false, |v| v.is_array()) {
         let qs = collect_repeat_by_sentence(content, content2, info);
         if !qs.is_empty() {
             return (qs, "repeat_by_sentence");
