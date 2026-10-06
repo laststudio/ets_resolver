@@ -693,3 +693,51 @@ fn unified_question_schema_across_all_official_families() {
         }
     }
 }
+
+#[test]
+fn word_submit_answer_matches_official_option_letters() {
+    // 提交给官方的值必须与官方判分口径一致：官方比的是 option_name（选项字母）
+    // （WordBattleFragment.java:1061、jadx_exam/.../fragment/h.java:230-234）。
+    // 我们的 answers 是给人看的可读答案（19 给中文释义、20 给单词），直接用会判错 ——
+    // 所以每题另给 submit_answer。真实载荷：广东高中单词PK（3 词 × 6 题）。
+    let fx = fixture("word_struct_guangdong_hs_pk.json");
+    let questions = resolver::parse_word_pk_value(&fx["body"]);
+    let mut checked = 0;
+    for q in &questions {
+        let name = q["question_type_name"].as_str().unwrap_or("");
+        let submit = q["submit_answer"].as_str().expect("每题都必须带 submit_answer");
+        let readable = q["answers"][0].as_str().unwrap_or("");
+        let official = q["official_answer"].as_str().unwrap_or("");
+        match name {
+            // 听音选义 / 英译中 / 中译英：上交官方选项字母
+            "听音选义" | "英译中" | "中译英" => {
+                assert_eq!(submit, official, "{name} 应交官方选项字母");
+                assert!(!submit.is_empty(), "{name} 字母不该为空");
+            }
+            // 默写 / 听写：上交单词本身
+            "默写词汇" | "听写词汇" => {
+                assert_eq!(submit, official, "{name} 应交单词");
+                assert_eq!(submit, readable);
+            }
+            // 朗读：官方 answer 为空（分数由服务端评测），不能拿单词去顶
+            "朗读词汇" => {
+                assert_eq!(submit, "", "朗读题不该上交单词文本");
+                assert!(!readable.is_empty(), "可读答案仍应保留原文");
+            }
+            other => panic!("fixture 出现未覆盖的题型: {other}"),
+        }
+        checked += 1;
+    }
+    assert_eq!(checked, 3 * 6, "3 词 × 6 题型都要检查");
+
+    // 英译中的关键点：可读答案（中文释义）与上交值（字母）必须分开
+    let en_cn = questions
+        .iter()
+        .find(|q| q["question_type_name"] == "英译中")
+        .unwrap();
+    assert_ne!(
+        en_cn["answers"][0].as_str().unwrap(),
+        en_cn["submit_answer"].as_str().unwrap(),
+        "19 的可读答案不该被改成字母"
+    );
+}

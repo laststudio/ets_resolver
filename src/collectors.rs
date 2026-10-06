@@ -739,8 +739,36 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
         if !raw_answer.is_empty() {
             // 官方原始答案（选择题是选项字母 "A"/"B"…）。我们的 answers 是归一化后的
             // 可读答案，这里保留官方原值以便逐字节对账。
-            extra.insert("official_answer".into(), Value::String(raw_answer));
+            extra.insert("official_answer".into(), Value::String(raw_answer.clone()));
         }
+
+        // ── 上交值（submit_answer）：**提交给官方时应填的那个值** ─────────────
+        // 官方判分比的是 option_name（选项字母）：`optionName == question.getAnswer()`
+        // （WordBattleFragment.java:1061、jadx_exam/.../fragment/h.java:230-234）。
+        // 我们的 `answers` 是给人看的可读答案（19 给中文释义、20 给单词），直接上交会判错 ——
+        // 所以单独给一个"上交值"，各端（后端/Android/Fe_web）统一用它，避免每端各修一遍。
+        //   6 听音选义 / 19 英译中 / 20 中译英 -> 官方选项字母
+        //   16 默写 / 18 听写            -> 单词
+        //   17 朗读                     -> 空串（官方 answer 为空，分数由服务端评测给出）
+        let submit_answer = match qtype_num {
+            6 | 19 | 20 => raw_answer.clone(),
+            16 | 18 => {
+                if !w_content.is_empty() {
+                    w_content.clone()
+                } else {
+                    raw_answer.clone()
+                }
+            }
+            17 => String::new(),
+            _ => {
+                if !raw_answer.is_empty() {
+                    raw_answer.clone()
+                } else {
+                    ans_text.clone()
+                }
+            }
+        };
+        extra.insert("submit_answer".into(), Value::String(submit_answer));
         if crate::spec::is_ambiguous_qtype(qtype_num) {
             // 该 question_type 在两个通道语义不同，客户端如需精确语义请自行判定通道
             extra.insert("ambiguous_across_channels".into(), Value::Bool(true));
@@ -780,7 +808,11 @@ pub fn collect_word_pk(content: &Value) -> Vec<Value> {
             Some(explicit_no),
             Some("local"),
             &qtype_str,
-            if word_id > 0 { Some(word_id) } else { None },
+            // stid 是"这道题的身份"。词汇题官方按 (word_id, question_id) 成对配对
+            // （SyncWordRepository.java:1338），所以身份只能是 question_id：
+            // 旧实现用 word_id 顶替，会把 (wid, wid) 配成对 -> 判错（"PK 顺序全乱"的真因之一）。
+            // 取不到 question_id 就留空，由调用方决定跳过（word_id 仍在 extras 里，不丢信息）。
+            if q_id > 0 { Some(q_id) } else { None },
             question_text,
             answers,
             options,
