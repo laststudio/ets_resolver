@@ -324,3 +324,23 @@ C 认为 `option_name` 是选项**键**、D 认为它是选项**文本**。用�
 **静态资料库**（已固化，不再依赖 `/tmp`）：
 - `ets源码恢复/pc_client_web/index-5543d811.js` + `chunks/`（**185/193** 个 chunk）
 - `ets源码恢复/iframe_web/`（6.8 MB，55 个 JS，含带中文注释的示例数据）
+
+---
+
+## 11. ⚠️ 未决口径差异：`rate_scale` / `graduation`（两个官方客户端自己就不一致）
+
+| 来源 | `graduation` | `rate_scale` |
+|---|---|---|
+**官方 PC 端**（`index-5543d811.js::requestAnswerLogs` 原文） | **条件字符串** `"0.125"`，仅 1.25 倍率列且 `rate_scale` 存在时才给 | `c ? t.rate_scale : undefined`，最终 `u \|\| 0`（非 125 列 = 0） |
+**官方移动端**（`ReadFollowAnswerBean.java:28`） | `private int graduation`（**整数**） | 需另查 |
+**我方线上（旧路径）** | 无条件数字 `0.125` | 恒为 `1` |
+**我方官方模式（`AUTO_COMPLETE_OFFICIAL_PAYLOAD=1`）** | 条件字符串 `"0.125"` ✓ 同 PC | 非 125 列 = 0 ✓ 同 PC |
+
+**处置**：**不动线上旧路径**（服务端长期实测可用、回读官方 point 能对上），把它作为已知口径差异
+就地注释；要切 PC 口径时打开 flag。**待验证项**：服务端是否真的在意这两个字段
+（需要一次"仅改这两字段"的 A/B 提交才能定论）。
+
+> 附带教训（已落测试）：`runner.py` 的官方/旧两条分支**必须保持关键字参数兼容**——
+> 曾因只给 `official_payload.build_score_detail` 加 `choose_id` 导致默认分支逐题 `TypeError`，
+> 而 runner 路径测试依赖数据库、CI 跑不全。现加 `test_both_score_detail_builders_accept_the_same_kwargs`
+> 用签名一致性兜住这类问题。

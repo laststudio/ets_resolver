@@ -1,0 +1,1387 @@
+{
+  "doc": "E. iframe web（明文 JS）题型数据结构与标准答案字段",
+  "scope": {
+    "iframe_root": "/home/shuaiqiu/Projects/ets源码恢复/iframe_web/",
+    "cross_reference": "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/ (index-5543d811.js + chunks/*.js)",
+    "our_impl": [
+      "/home/shuaiqiu/Projects/ets_resolver/src/collectors.rs",
+      "/home/shuaiqiu/Projects/ets_resolver/src/spec.rs"
+    ],
+    "method": "只读静态阅读；未运行客户端、未抓包、未联网、未 sudo"
+  },
+  "families": [
+    {
+      "name": "collector.read",
+      "question_container": "set[] 的一个元素（无子数组容器；多小题时 set.length>1，小题号=数组下标+1）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "家族标识，值 collector.read",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 A1 首段 {\"structure_type\":\"collector.read\",\"info\":{...}}",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "题目实体 id（DOM id / 提交 entity_id）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:36 :id=\"set_id+'_'+one.info.stid+'_'+1\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.value",
+          "meaning": "朗读原文（HTML 片段）。朗读题的标准答案就是原文本身（评分由录音引擎与服务端比对）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"value\":\"</p><p>At this time of year, there are still only five hours of daylight. ...\" ；iframe_web/pc-listen-answer.html:37 <p class=\"original\" v-html='one.info.value'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文标准音（content.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"audio\":\"content.mp3\"",
+          "kind": "UI/DEMO"
+        },
+        {
+          "name": "info.video",
+          "meaning": "视频素材（content.mp4）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"video\":\"content.mp4\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.image",
+          "meaning": "图片素材，A1 为空",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"image\":\"\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.symbol",
+          "meaning": "原文的逐词标注版；答案页已注释掉",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:41 <!-- <p v-html=\"one.info.symbol\"></p> -->",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "info.ai",
+          "meaning": "value 的断句版（每行尾插入 </br>）；两端 0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"ai\":\"</p><p>At this time of year, there are still only five hours of </br>daylight. ...\" ；grep -rn '\\.ai\\b' iframe_web/ -> 0 命中",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "info.videotime",
+          "meaning": "带时间戳的文本 \"<00:00><00:01> ...\"；全仓 0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"videotime\":\"<00:00><00:01> At this time of year, </br>...\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "info.translate",
+          "meaning": "译文，A1 为空，答案页 translate_con 未绑定",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"translate\":\"\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.analyze",
+          "meaning": "解析，A1 为空",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 \"analyze\":\"\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.xh",
+          "meaning": "read 族不存在此字段；小题号取数组下标",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:61 A1 无 xh 键",
+          "kind": "UI"
+        },
+        {
+          "name": "new_xh",
+          "meaning": "运行时注入的显示号（非内容包字段）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:120 v-text='i.new_xh || i.xh'",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "答案=info.value（原文）。判分在服务端/评测引擎：pc_client_web/chunks/index-4d5eea96.js 走 Score_Content/<textName>.txt 与 xmlPath。多小题是 set[] 多元素（各自独立 stid），不是 sublist（iframe 9 族内 grep sublist = 0）。"
+    },
+    {
+      "name": "collector.repeat",
+      "question_container": "info.fj[] （分句数组；每句=1 小题，order= fj[].xh）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "collector.repeat",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 A6",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:481",
+          "kind": "UI"
+        },
+        {
+          "name": "info.value",
+          "meaning": "整段原文",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"value\":\"</p><p>One day in ancient Greece, King Hiero asked a crown maker ...\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "fj[].value",
+          "meaning": "分句原文 = 该小题的标准答案",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"fj\":[{\"value\":\"One day in ancient Greece, King Hiero asked a crown maker to make him a golden crown.\",\"xh\":\"1\",...}] ；iframe_web/pc-listen-answer.html:507 <p v-html='i.value'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "fj[].xh",
+          "meaning": "分句号 = 提交 order",
+          "is_standard_answer": false,
+          "evidence": "pc_client_web/chunks/useExamResult-d9fb4671.js case\"collector.repeat\":for(const n of r.info.fj)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(e=>e.entity_id===r.info.stid&&String(e.order)===n.xh)",
+          "kind": "KEY"
+        },
+        {
+          "name": "fj[].audio",
+          "meaning": "该分句标准音（fj1.mp3..fj5.mp3），UI 标签 原文试听",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"audio\":\"fj1.mp3\" ；iframe_web/pc-listen-answer.html:504 :id=\"set_id+'_'+one.info.stid+i.audio\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "fj[].ai",
+          "meaning": "与 value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "fj[].fs",
+          "meaning": "数值字符串 \"0.8\"；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"fs\":\"0.8\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "fj[].time",
+          "meaning": "数值秒字符串 \"11\"/\"7\"/\"8\"；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"time\":\"11\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.fj[]",
+          "meaning": "分句数组本身 = 小题容器",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen-answer.html:484 <div class=\"mb45 q3a5\" v-for='i in one.info.fj'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "整段原文录音 content.mp3",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"audio\":\"content.mp3\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.symbol",
+          "meaning": "同 read，答案页未渲染",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"symbol\":\"...\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "info.ai",
+          "meaning": "断句版；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:71 \"ai\":\"...\"",
+          "kind": "UNUSED"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "逐句标准答案在 fj[].value（客户端答案页直接渲染）。此外 PC 侧会读 content_<real_id>/info_extra.json 来补齐 collector.repeat 的 question_list 长度与每题分值，并且 iframe 不读该文件。"
+    },
+    {
+      "name": "collector.word",
+      "question_container": "set[] 的一个元素（info 即小题；小题号=info.xh，多小题同批时原生/前端注入 new_xh 重编号）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "collector.word",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 A7",
+          "kind": "UI"
+        },
+        {
+          "name": "info.xh",
+          "meaning": "小题号 = 提交 order",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"xh\":\"1\" ；pc_client_web/chunks/useExamResult-d9fb4671.js case\"collector.word\":e=`${D}_${r.info.stid}_${r.info.xh}`",
+          "kind": "KEY"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"stid\":\"105971\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.value",
+          "meaning": "原文（带 ets_thN 前缀）= 标准答案",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"value\":\"ets_th1 He is lucky to have such nice parents who always support him in his decisions.\" ；iframe_web/pc-listen-answer.html:580 <p v-html='one.info.value'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "info.value_bz",
+          "meaning": "与 value 同值；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"value_bz\":\"ets_th1 He is lucky ...\" ；grep -ro value_bz pc_client_web/ iframe_web/ 仅命中示例数据",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.value_pf",
+          "meaning": "与 value 同值；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"value_pf\":\"ets_th1 He is lucky ...\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.read_title",
+          "meaning": "朗读提示标题（音标/字母组合）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"read_title\":\"\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.image",
+          "meaning": "值为 \"N\"（非 URL）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"image\":\"N\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.mpg",
+          "meaning": "空字符串；0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"mpg\":\"\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.translate",
+          "meaning": "译文",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"translate\":\"\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.analyze",
+          "meaning": "解析",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:73 \"analyze\":\"\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "new_xh",
+          "meaning": "运行时注入的显示号（同批 stid 不一致时按序重编号）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-default.js:29-49 for(var i in set){...'collector.word'...if(same==0){ ... set[i].info.new_xh = index; index++; }} ；iframe_web/pc-listen-answer.html:539 v-text='one.info.new_xh || one.info.xh'",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "官方 iframe 有独立的 collector.word 渲染块（pc-listen-answer.html:522）。我方 collectors.rs 把 collector.word 路由到 TYPE_READ（st.contains(\"word\")），未使用 TYPE_WORD，也未做 new_xh 重编号。"
+    },
+    {
+      "name": "collector.3q5a",
+      "question_container": "info.question[]",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "info.question[]",
+          "meaning": "小题容器",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen-answer.html:132 <div class=\"questions\"><div class=\"mb45 q3a5\" v-for='i in one.info.question'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.xh",
+          "meaning": "小题号 = 提交 order",
+          "is_standard_answer": false,
+          "evidence": "pc_client_web/chunks/useExamResult-d9fb4671.js case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":for(const n of r.info.question)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(...String(e.order)===n.xh)",
+          "kind": "KEY"
+        },
+        {
+          "name": "q.new_xh",
+          "meaning": "运行时显示号",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:127 v-text='i.new_xh || i.xh'",
+          "kind": "UI"
+        },
+        {
+          "name": "q.std[].value",
+          "meaning": "参考答案（角色 a=标准问句，角色 b=标准答句）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 A2 xh=1 {\"std\":[{\"value\":\"Did you graduate from Cambridge?\",...}]} ；iframe_web/pc-listen-answer.html:149-155 <p>参考答案:</p><p v-for='s in i.std' v-if='$index<3'><span v-html=\"'● '+s.value\">",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.answer",
+          "meaning": "示范回答（model answer），官方 UI 标签 回答:",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:157-166 <div class=\"hd mb20\" v-show=\"i.answer!=''\"><p>回答:</p>...<p v-html='i.answer'> ；iframe_web/js/pc-listen-data.js:63 xh=1 \"answer\":\"Yes. I graduated from King’s College. ...\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.aswaudio",
+          "meaning": "示范回答音频（ques1aswaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh=1 \"aswaudio\":\"ques1aswaudio.mp3\" ；iframe_web/pc-listen-answer.html:161",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.ask",
+          "meaning": "题干（角色 a 为中文提示；角色 b 为英文问题）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ask\":\"你是剑桥大学毕业的吗？\" / \"ask\":\"What does Lily Cole do?\" ；iframe_web/pc-listen-answer.html:148 <p v-html='i.ask'>",
+          "kind": "UI"
+        },
+        {
+          "name": "q.askaudio",
+          "meaning": "问题音频（ques4askaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"askaudio\":\"ques4askaudio.mp3\"",
+          "kind": "UI/DEMO"
+        },
+        {
+          "name": "q.askimg",
+          "meaning": "问题配图（A2 样本无此键，模板有）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:143 <img v-show=\"i.askimg\" :src=\"page[theIndex]+i.askimg\">",
+          "kind": "UI"
+        },
+        {
+          "name": "q.keywords",
+          "meaning": "| 分隔的判分关键词；客户端 0 消费者（服务端/AI 判分用）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"keywords\":\"did graduate Cambridge|are graduate Cambridge|were graduate Cambridge\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.role",
+          "meaning": "a=学生发问 / b=学生作答；客户端 0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh1-3 \"role\":\"a\"，xh4-8 \"role\":\"b\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.analyze",
+          "meaning": "解析；答案页 3q5a/role/dialogue 块内是 ACTIVE 展示项",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:135-137 <div class=\"mb20\" v-show=\"i.analyze!=''\"><p v-html='i.analyze'></p></div>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.sucai",
+          "meaning": "素材标记，样本全空；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"sucai\":\"\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.ref[]",
+          "meaning": "空数组；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ref\":[] ；grep -roE '\\.ref\\b' iframe_web/ -> 0",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.std[].ai",
+          "meaning": "与 std[].value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ai\":\"Did you graduate from Cambridge?\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "q.std[].audio",
+          "meaning": "标准答案音频（样本全空），模板用 s.audio 生成播放按钮",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:152 :id=\"set_id+'_'+one.info.stid+s.audio\" v-show=\"s.audio!=''\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.value",
+          "meaning": "整段听力原文（对话/独白）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:130 <p class=\"original noIndent\" v-html='one.info.value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.image",
+          "meaning": "配图",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:124 <img :src=\"page[theIndex]+one.info.image\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文录音",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:126 <div class=\"original_record\" v-show=\"one.info.audio!=''\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:118",
+          "kind": "UI"
+        },
+        {
+          "name": "info.video",
+          "meaning": "视频素材 content.mp4（A2）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"video\":\"content.mp4\"",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "标准答案 = info.question[].std[].value（答案页标签 参考答案:）；info.question[].answer 是 示范回答（标签 回答:），属参考不属判分依据。PC bundle 只读 info.question[].xh 生成录音回放 id，从不读 std/answer -> 判分在服务端。"
+    },
+    {
+      "name": "collector.role",
+      "question_container": "info.question[]（推定：与 3q5a 共用同一渲染块，无独立字段处理）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "info.question[]",
+          "meaning": "小题容器",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen-answer.html:132 <div class=\"questions\"><div class=\"mb45 q3a5\" v-for='i in one.info.question'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.xh",
+          "meaning": "小题号 = 提交 order",
+          "is_standard_answer": false,
+          "evidence": "pc_client_web/chunks/useExamResult-d9fb4671.js case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":for(const n of r.info.question)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(...String(e.order)===n.xh)",
+          "kind": "KEY"
+        },
+        {
+          "name": "q.new_xh",
+          "meaning": "运行时显示号",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:127 v-text='i.new_xh || i.xh'",
+          "kind": "UI"
+        },
+        {
+          "name": "q.std[].value",
+          "meaning": "参考答案（角色 a=标准问句，角色 b=标准答句）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 A2 xh=1 {\"std\":[{\"value\":\"Did you graduate from Cambridge?\",...}]} ；iframe_web/pc-listen-answer.html:149-155 <p>参考答案:</p><p v-for='s in i.std' v-if='$index<3'><span v-html=\"'● '+s.value\">",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.answer",
+          "meaning": "示范回答（model answer），官方 UI 标签 回答:",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:157-166 <div class=\"hd mb20\" v-show=\"i.answer!=''\"><p>回答:</p>...<p v-html='i.answer'> ；iframe_web/js/pc-listen-data.js:63 xh=1 \"answer\":\"Yes. I graduated from King’s College. ...\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.aswaudio",
+          "meaning": "示范回答音频（ques1aswaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh=1 \"aswaudio\":\"ques1aswaudio.mp3\" ；iframe_web/pc-listen-answer.html:161",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.ask",
+          "meaning": "题干（角色 a 为中文提示；角色 b 为英文问题）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ask\":\"你是剑桥大学毕业的吗？\" / \"ask\":\"What does Lily Cole do?\" ；iframe_web/pc-listen-answer.html:148 <p v-html='i.ask'>",
+          "kind": "UI"
+        },
+        {
+          "name": "q.askaudio",
+          "meaning": "问题音频（ques4askaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"askaudio\":\"ques4askaudio.mp3\"",
+          "kind": "UI/DEMO"
+        },
+        {
+          "name": "q.askimg",
+          "meaning": "问题配图（A2 样本无此键，模板有）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:143 <img v-show=\"i.askimg\" :src=\"page[theIndex]+i.askimg\">",
+          "kind": "UI"
+        },
+        {
+          "name": "q.keywords",
+          "meaning": "| 分隔的判分关键词；客户端 0 消费者（服务端/AI 判分用）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"keywords\":\"did graduate Cambridge|are graduate Cambridge|were graduate Cambridge\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.role",
+          "meaning": "a=学生发问 / b=学生作答；客户端 0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh1-3 \"role\":\"a\"，xh4-8 \"role\":\"b\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.analyze",
+          "meaning": "解析；答案页 3q5a/role/dialogue 块内是 ACTIVE 展示项",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:135-137 <div class=\"mb20\" v-show=\"i.analyze!=''\"><p v-html='i.analyze'></p></div>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.sucai",
+          "meaning": "素材标记，样本全空；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"sucai\":\"\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.ref[]",
+          "meaning": "空数组；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ref\":[] ；grep -roE '\\.ref\\b' iframe_web/ -> 0",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.std[].ai",
+          "meaning": "与 std[].value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ai\":\"Did you graduate from Cambridge?\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "q.std[].audio",
+          "meaning": "标准答案音频（样本全空），模板用 s.audio 生成播放按钮",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:152 :id=\"set_id+'_'+one.info.stid+s.audio\" v-show=\"s.audio!=''\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.value",
+          "meaning": "整段听力原文（对话/独白）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:130 <p class=\"original noIndent\" v-html='one.info.value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.image",
+          "meaning": "配图",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:124 <img :src=\"page[theIndex]+one.info.image\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文录音",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:126 <div class=\"original_record\" v-show=\"one.info.audio!=''\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:118",
+          "kind": "UI"
+        },
+        {
+          "name": "info.video",
+          "meaning": "视频素材 content.mp4（A2）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"video\":\"content.mp4\"",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "role/dialogue 在 iframe 全仓各只出现 1 次（pc-listen-answer.html:105 的 v-if），无示例内容包、无独立分支。字段结构按 FC 渲染代码推定与 3q5a 完全一致。判分在服务端（pc_client_web 只用于 set3q5aScore 展示分数）。"
+    },
+    {
+      "name": "collector.dialogue",
+      "question_container": "info.question[]（推定：与 3q5a 共用同一渲染块，无独立字段处理）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "info.question[]",
+          "meaning": "小题容器",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen-answer.html:132 <div class=\"questions\"><div class=\"mb45 q3a5\" v-for='i in one.info.question'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.xh",
+          "meaning": "小题号 = 提交 order",
+          "is_standard_answer": false,
+          "evidence": "pc_client_web/chunks/useExamResult-d9fb4671.js case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":for(const n of r.info.question)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(...String(e.order)===n.xh)",
+          "kind": "KEY"
+        },
+        {
+          "name": "q.new_xh",
+          "meaning": "运行时显示号",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:127 v-text='i.new_xh || i.xh'",
+          "kind": "UI"
+        },
+        {
+          "name": "q.std[].value",
+          "meaning": "参考答案（角色 a=标准问句，角色 b=标准答句）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 A2 xh=1 {\"std\":[{\"value\":\"Did you graduate from Cambridge?\",...}]} ；iframe_web/pc-listen-answer.html:149-155 <p>参考答案:</p><p v-for='s in i.std' v-if='$index<3'><span v-html=\"'● '+s.value\">",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "q.answer",
+          "meaning": "示范回答（model answer），官方 UI 标签 回答:",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:157-166 <div class=\"hd mb20\" v-show=\"i.answer!=''\"><p>回答:</p>...<p v-html='i.answer'> ；iframe_web/js/pc-listen-data.js:63 xh=1 \"answer\":\"Yes. I graduated from King’s College. ...\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.aswaudio",
+          "meaning": "示范回答音频（ques1aswaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh=1 \"aswaudio\":\"ques1aswaudio.mp3\" ；iframe_web/pc-listen-answer.html:161",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.ask",
+          "meaning": "题干（角色 a 为中文提示；角色 b 为英文问题）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ask\":\"你是剑桥大学毕业的吗？\" / \"ask\":\"What does Lily Cole do?\" ；iframe_web/pc-listen-answer.html:148 <p v-html='i.ask'>",
+          "kind": "UI"
+        },
+        {
+          "name": "q.askaudio",
+          "meaning": "问题音频（ques4askaudio.mp3）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"askaudio\":\"ques4askaudio.mp3\"",
+          "kind": "UI/DEMO"
+        },
+        {
+          "name": "q.askimg",
+          "meaning": "问题配图（A2 样本无此键，模板有）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:143 <img v-show=\"i.askimg\" :src=\"page[theIndex]+i.askimg\">",
+          "kind": "UI"
+        },
+        {
+          "name": "q.keywords",
+          "meaning": "| 分隔的判分关键词；客户端 0 消费者（服务端/AI 判分用）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"keywords\":\"did graduate Cambridge|are graduate Cambridge|were graduate Cambridge\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.role",
+          "meaning": "a=学生发问 / b=学生作答；客户端 0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 xh1-3 \"role\":\"a\"，xh4-8 \"role\":\"b\"",
+          "kind": "KEY/SERVER"
+        },
+        {
+          "name": "q.analyze",
+          "meaning": "解析；答案页 3q5a/role/dialogue 块内是 ACTIVE 展示项",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:135-137 <div class=\"mb20\" v-show=\"i.analyze!=''\"><p v-html='i.analyze'></p></div>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "q.sucai",
+          "meaning": "素材标记，样本全空；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"sucai\":\"\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.ref[]",
+          "meaning": "空数组；两端 0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ref\":[] ；grep -roE '\\.ref\\b' iframe_web/ -> 0",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "q.std[].ai",
+          "meaning": "与 std[].value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"ai\":\"Did you graduate from Cambridge?\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "q.std[].audio",
+          "meaning": "标准答案音频（样本全空），模板用 s.audio 生成播放按钮",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:152 :id=\"set_id+'_'+one.info.stid+s.audio\" v-show=\"s.audio!=''\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.value",
+          "meaning": "整段听力原文（对话/独白）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:130 <p class=\"original noIndent\" v-html='one.info.value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.image",
+          "meaning": "配图",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:124 <img :src=\"page[theIndex]+one.info.image\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文录音",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:126 <div class=\"original_record\" v-show=\"one.info.audio!=''\">",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:118",
+          "kind": "UI"
+        },
+        {
+          "name": "info.video",
+          "meaning": "视频素材 content.mp4（A2）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:63 \"video\":\"content.mp4\"",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "同 collector.role。grep -oE \"collector\\.[a-z0-9_]+\" iframe_web/ 统计：role 1 次、dialogue 1 次，均只在该 v-if。"
+    },
+    {
+      "name": "collector.picture",
+      "question_container": "info（无子数组；一题 = 一个 info，参考答案在 info.std[]）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "collector.picture",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 A3",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"stid\":\"100114\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.topic",
+          "meaning": "故事标题",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"topic\":\"A King and His Servant\" ；iframe_web/pc-listen-answer.html:230 <p align=\"center\" v-html='one.info.topic'>",
+          "kind": "UI"
+        },
+        {
+          "name": "info.value",
+          "meaning": "听力短文原文",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:231 <p class=\"original noIndent\" v-html='one.info.value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.std[].value",
+          "meaning": "参考答案（3 篇范文）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"std\":[{\"value\":\"<\\/p><p>There was once a king who was very proud of his boots. ...\",\"ai\":\"...\",\"audio\":\"\"},...] ；iframe_web/pc-listen-answer.html:245-250 <p class=\"bold\">参考答案</p><p v-for='i in one.info.std' v-if='$index<3'>",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "info.std[].ai",
+          "meaning": "与 std[].value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "info.std[].audio",
+          "meaning": "范文音频（样本空）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:248 :id=\"set_id+'_'+one.info.stid+i.audio\" v-show=\"i.audio!=''\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.keypoint",
+          "meaning": "叙述要点列表（编号，</br> 分隔）；答案页已注释",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"keypoint\":\"1. There was once a king who was prouder of his boots than of anything else that he wore. </br>2. ...\" ；iframe_web/pc-listen-answer.html:239-244 整块被 <!-- --> 包住，标题 叙述要点",
+          "kind": "DEMO/COMMENTED"
+        },
+        {
+          "name": "info.analyze",
+          "meaning": "同一份叙述要点（带 叙述要点： 前缀）；答案页已注释",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"analyze\":\"叙述要点：</br>1. There was once a king who was very proud of his boots.</br>2. ...\" ；iframe_web/pc-listen-answer.html:234-238 注释块，标题 提示句",
+          "kind": "DEMO/COMMENTED"
+        },
+        {
+          "name": "info.image",
+          "meaning": "配图 content.jpg",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"image\":\"content.jpg\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文录音 content.mp3",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"audio\":\"content.mp3\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.ref[]",
+          "meaning": "空数组；0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:65 \"ref\":[]",
+          "kind": "UNKNOWN"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "答案 = info.std[].value（范文），答案页只渲染前 3 篇。info.keypoint 与 info.analyze 在 A3 中是同一份 10 条要点，且两块渲染在答案页均被注释 —— 我方把两者拼进 important 会重复一倍。"
+    },
+    {
+      "name": "collector.choose",
+      "question_container": "info.xtlist[] （小题）；info.xtlist[].xxlist[] （选项）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "collector.choose",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 A4",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "大题实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen.html:167 :id=\"set.choose_con.stid+'_'+j.xt_xh\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.st_sm",
+          "meaning": "大题说明（含 {{smN}} 占位符）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen.html:158 <div class=\"description\" v-html=\"set.choose_con.st_sm\"> ；A4 \"st_sm\":\"{{sm1}}\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.st_nr",
+          "meaning": "对话/独白原文",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen.html:194 ；iframe_web/pc-listen-answer.html:322 v-html='one.info.st_nr'",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "大题录音 content.mp3",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"audio\":\"content.mp3\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.st_pic",
+          "meaning": "大题配图",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen.html:159 <img :src=\"page+set.choose_con.st_pic\">",
+          "kind": "UI"
+        },
+        {
+          "name": "xtlist[].xt_xh",
+          "meaning": "小题号（DOM id 尾段 / order）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:326 v-show='orderFormat(i.xt_xh,theIndex)' ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js r.find(e=>e.xt_xh===o)",
+          "kind": "KEY"
+        },
+        {
+          "name": "xtlist[].xt_nr",
+          "meaning": "小题题干（含 {{thN}} 占位符）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xt_nr\":\"{{th1}} What is the lecture about?\"",
+          "kind": "UI"
+        },
+        {
+          "name": "xtlist[].answer",
+          "meaning": "标准答案 = 选项字母（A/B/C/D）",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"answer\":\"A\" / \"answer\":\"B\" ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js return s?(e.answer===s.xx_mc&&(l=m(a.question_score/a.question_count)),{entity_id:t,order:o,score_detail:{total_score:l,choose:s.xx_mc,choose_id:n,category:a.evaluation_type}}):null",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "xtlist[].xt_value",
+          "meaning": "小题录音原文（答案页对该族唯一额外展示的题目文本）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 第2题 \"xt_value\":\"W: What would you like to do, Walter?</br>M: Oh, I want to buy some food for lunch.\" ；iframe_web/pc-listen-answer.html:339-345 <div v-show=\"i.xt_value!=''\">录音原文:</br><span v-html='i.xt_value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "xtlist[].xt_wj",
+          "meaning": "小题音频文件名 content_1.mp3",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xt_wj\":\"content_1.mp3\"",
+          "kind": "UI"
+        },
+        {
+          "name": "xtlist[].xt_pic",
+          "meaning": "小题配图",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:352 <img :src=\"page[theIndex]+i.xt_pic\" v-show='i.xt_pic!=\"\"'>",
+          "kind": "UI"
+        },
+        {
+          "name": "xxlist[].xx_xh",
+          "meaning": "选项序号 1/2/3 = DOM id 尾段 = 官方 choose_id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xx_xh\":\"1\" ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js score_detail:{...,choose_id:n}",
+          "kind": "KEY"
+        },
+        {
+          "name": "xxlist[].xx_mc",
+          "meaning": "选项字母 A/B/C",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xx_mc\":\"A\" ；pc_client_web/chunks/Practice-1694d88a.js i.xxlist.find(a=>a.xx_mc===e.answer)",
+          "kind": "KEY"
+        },
+        {
+          "name": "xxlist[].xx_nr",
+          "meaning": "选项文本",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xx_nr\":\" The history of TV.\"",
+          "kind": "UI"
+        },
+        {
+          "name": "xxlist[].xx_wj",
+          "meaning": "选项图片文件名",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:67 \"xx_wj\":\"content_1_1.jpg\" ；有图判定 iframe_web/js/pc-listen.js:37 if(val.xxlist[0].xx_wj!='')",
+          "kind": "UI"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "客户端本地判分，两处官方实现：套题 chunks/useExamStepper-8ad3fbd7.js 函数 G()（e.answer===s.xx_mc，数据源 content_<real_id>/content.json 的 info.xtlist）；听说同步 chunks/Practice-1694d88a.js 函数 _t()（i.xxlist.find(a=>a.xx_mc===e.answer)）。答案与 xx_mc 都是字母。iframe 自己从不读 xtlist[].answer；原生把正确项转成序号(xx_xh)经 setPCChoose/kttb_setPcChoise 灌进来。"
+    },
+    {
+      "name": "collector.fill",
+      "question_container": "info.std[] （每空=1 小题，order = std[].xth 或 std[].th）",
+      "info_path": "<set[i]>.info",
+      "fields": [
+        {
+          "name": "structure_type",
+          "meaning": "collector.fill",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 A5",
+          "kind": "UI"
+        },
+        {
+          "name": "info.stid",
+          "meaning": "实体 id",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:405 :id='one.info.stid+\"_\"+i.xth'",
+          "kind": "UI"
+        },
+        {
+          "name": "info.value",
+          "meaning": "短文原文（挖空）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:399 <p v-html='one.info.value'>",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.image",
+          "meaning": "配图 content.jpg",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"image\":\"content.jpg\"",
+          "kind": "UI"
+        },
+        {
+          "name": "info.audio",
+          "meaning": "原文录音 content.mp3（UI 标签 原文录音）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:389-394",
+          "kind": "UI"
+        },
+        {
+          "name": "info.analyze",
+          "meaning": "解析，A5 为空",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"analyze\":\"\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "info.topic",
+          "meaning": "空字符串；语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"topic\":\"\"",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.ref[]",
+          "meaning": "空数组；0 消费者，语义未找到",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"ref\":[]",
+          "kind": "UNKNOWN"
+        },
+        {
+          "name": "info.std[]",
+          "meaning": "答案数组 = 小题容器",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen-answer.html:403 <span v-for='i in one.info.std'> ；:411 <p v-for='i in one.info.std'><span v-html=\"'● '+i.th+'.'+i.value\">",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "std[].value",
+          "meaning": "标准答案，/ 分隔多解",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 {\"xth\":\"4\",\"th\":\"4\",\"value\":\"19th/nineteenth/19<sup>th</sup>\",...} ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "std[].xth",
+          "meaning": "空序号 = input id 后缀 / 提交 order（套题判分通道用）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/pc-listen-answer.html:405 :id='one.info.stid+\"_\"+i.xth' ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js const[t,a]=e.id.split(\"_\"),...r.find(e=>e.xth===a)",
+          "kind": "KEY"
+        },
+        {
+          "name": "std[].th",
+          "meaning": "显示题号（听说同步判分通道用它做键）",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-answer.html:411 '● '+i.th+'.'+i.value ；pc_client_web/chunks/Practice-1694d88a.js info.std.find(e=>e.th===l[1]).value.split(\"/\").map(e=>encodeURIComponent(e))",
+          "kind": "KEY"
+        },
+        {
+          "name": "std[].ai",
+          "meaning": "与 value 同值；0 消费者",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"ai\":\"middle\"",
+          "kind": "UNUSED"
+        },
+        {
+          "name": "std[].audio",
+          "meaning": "预留标准音，样本空",
+          "is_standard_answer": false,
+          "evidence": "iframe_web/js/pc-listen-data.js:69 \"audio\":\"\"",
+          "kind": "DEMO"
+        },
+        {
+          "name": "content_fill_answer",
+          "meaning": "独立通道：[{stid, xth, answer, th}]，answer 同样是标准答案",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/js/pc-listen-data.js:19 content_fill_answer: '[{\"stid\":\"115862\",\"xth\":\"1\",\"answer\":\"middle\",\"th\":\"1.\"},{\"stid\":\"115862\",\"xth\":\"4\",\"answer\":\"19th/nineteenth/19<sup>th</sup>\",\"th\":\"4.\"}]' ；iframe_web/pc-listen.html:298-304 v-for='j in set.content_fill_answer' :id='j.stid+\"_\"+j.xth' :name='j.stid+\"_\"+j.th'",
+          "kind": "ANSWER"
+        },
+        {
+          "name": "content_fill_answer_enable",
+          "meaning": "回显模式同结构；PC 侧会用用户作答覆盖 answer",
+          "is_standard_answer": true,
+          "evidence": "iframe_web/pc-listen.html:308-313 v-if=\"ifThis(set.content_fill_answer_enable) && set.show_topic_blank==1\" <input ... disabled=\"disabled\" :value=\"j.answer\"/> ；pc_client_web/chunks/useExamStepper-8ad3fbd7.js e.forEach(e=>{const t=o.find(t=>String(t.entity_id)===e.stid&&String(t.order)===e.xth);t&&t.detail&&(e.answer=(typeof t.detail===\"string\"?JSON.parse(t.detail):t.detail)?.choose)}),s.content_fill_answer_enable=JSON.stringify(e),s.show_topic_blank=\"1\"",
+          "kind": "ANSWER/OVERRIDDEN"
+        }
+      ],
+      "answer_available_client_side": "yes",
+      "notes": "客户端本地判分，两处官方实现且定位键不一致：套题 chunks/useExamStepper-8ad3fbd7.js 用 std[].xth + X() 归一化后 split('/')+trim+toLowerCase；听说同步 chunks/Practice-1694d88a.js 函数 mt() 用 std[].th + split('/')+encodeURIComponent（无 trim/lowercase）。数据源都是 content_<real_id>/content.json 的 info.std。"
+    }
+  ],
+  "answer_js_files": {
+    "files": [
+      "iframe_web/js/answer1.js",
+      "iframe_web/js/answer2.js",
+      "iframe_web/js/answer3.js"
+    ],
+    "identity": "三个文件逐字节相同：md5sum = b3049c8bdafe5689cd9b1f4f7c0e1ce5（三者一致），各 578 字节",
+    "what_it_is": "不是数据模板、不含任何答案数据。内容是 3 个 jQuery 事件委托：.show_m/.hide_m 折叠 .test_title；.my_record 取父父节点 id + 自身 id 调用 user_audio(id,fileId)；.stander_record 调用 stander_audio(id)。判为『已被弃用的答案页 v1/v2/v3 脚本残留』。",
+    "evidence": [
+      "iframe_web/js/answer1.js 全文：$(function(){ $(document).on(\"click\",\".show_m\",...); $(document).on(\"click\",\".my_record\",function(){ var id = $(this).parent().parent().attr(\"id\"); var fileId = $(this).attr(\"id\"); user_audio(id,fileId); }); $(document).on(\"click\",\".stander_record\",function(){ var id = $(this).attr(\"id\"); stander_audio(id); }) })",
+      "无引用：for f in answer1.js answer2.js answer3.js view1.js view2.js view3.js PC-choose.js method.js pc-ch1.js pc-ch2.js bj_title_text.js zoom.js pc-view-kttb2.js pc-view-kttb3.js pc-view-kttb5.js paperview.js; do grep -rl --include=*.html --include=*.js \"$f\" . | grep -v \"/$f\"; done  -> 全部无输出",
+      "被调函数无定义：grep -rn \"user_audio|stander_audio\" iframe_web/ 仅命中 answer1/2/3.js 内部调用",
+      "依赖的 DOM 类只在无人加载的 CSS 里：css/answer.css:212 .my_record{ ；grep -rl answer.css --include=*.html iframe_web/ -> 无输出；grep -rn stander_record css/ -> 无输出",
+      "同批残留：iframe_web/js/view1.js / view2.js / view3.js（老题目页三套版式），其依赖的 css/view.css 同样无任何 HTML 加载"
+    ],
+    "conclusion": "用途＝旧答案页的交互脚本（题面折叠 + 我的录音回放 + 标准录音回放），与 9 族的字段/答案无关；当前死代码。"
+  },
+  "version_conflicts": {
+    "same_build": "no",
+    "build_relation": "iframe web 未被压缩的 jQuery1.8.3+Vue2 多页应用；pc bundle 为 Vue3+Vite 压缩产物。iframe 由 pc bundle 通过 <iframe> 加载：pc_client_web/chunks/html-8e3719a4.js 枚举 e.PcListen=\"pc-listen.html\",e.PcListenAnswer=\"pc-listen-answer.html\",e.PcListenWarnResult=\"pc-listen-warn-result.html\"；pc_client_web/chunks/useExamStepper-8ad3fbd7.js htmlUrl:`${Y}/${V.PcListen}`；pc_client_web/chunks/useExamResult-d9fb4671.js const P=`${L}/${k.PcListenAnswer}`",
+    "version_timestamps": [
+      "iframe_web：未找到任何版本号字符串；iframe_web/config 是 24 字节文件（内容 trans = {\"translate\": 1}），不是目录、无版本/示例数据；文件 mtime 全为容器解包时间 10月 6日 19:53",
+      "pc_client_web：index-5543d811.js 内含 version:\"2.0.1\" / \"3.0.0\" / \"3.16.0\"（多为第三方组件版本）；文件 mtime 全为 10月 6日 19:44；APK 文件名为 E听说中学_7.0.65.2439.apk"
+    ],
+    "conflicts": [
+      {
+        "id": 1,
+        "field": "xtlist[].answer 的取值域",
+        "iframe": "不使用该字段；从原生灌入的 right_answer 是选项序号：iframe_web/js/pc-listen-choose.js:98-126 var x = String.fromCharCode(0x01); var arr = item.split(x); var id = arr[0], right_answer = arr[1]; var right_answer_index = parseInt(right_answer,10)-1; $(...).find('.choose2:eq('+right_answer_index+')')",
+        "pc_bundle": "字母对字母：pc_client_web/chunks/useExamStepper-8ad3fbd7.js e.answer===s.xx_mc（s=e.xxlist.find(e=>e.xx_xh==n)）",
+        "resolution": "数据层=字母；iframe 桥接层=xx_xh 序号。转换在 PC 侧：pc_client_web/chunks/useExamResult-d9fb4671.js function b(e){...if(r>=65&&r<=90)o+=(r-64).toString();...}（A->\"1\"），并把 u?.xx_xh 放在 `${entity_id}_${order}_${xx_xh}` 里传给 iframe",
+        "impact": "我方映射 answer(字母)->choose_id(xx_xh) 与官方一致，无需改；但不要假设 iframe 收到的是字母。"
+      },
+      {
+        "id": 2,
+        "field": "setPCChoose2",
+        "iframe": "未定义（iframe_web/js/pc-listen-choose.js 只有 setPCChoose；PC-choose.js 有 setPCChoose/setPCCheckChoose）",
+        "pc_bundle": "答案展示模式会调用：pc_client_web/chunks/useExamStepper-8ad3fbd7.js if(1==t.displayAnswerContent&&y.setPCChoose2){const e=o.map(e=>`${e.entity_id}_${e.order}_${e.choose_id}`);y.setPCChoose2.apply(null,e),r()}",
+        "resolution": "PC 侧有 &&y.setPCChoose2 保护，静默跳过",
+        "impact": "选择题的『答案展示』模式下 iframe 不标记正确项。是否为本次解包缺文件，未找到决定性证据（记为 unknown，不推测）。"
+      },
+      {
+        "id": 3,
+        "field": "content_highlight",
+        "iframe": "0 命中；set.content 原样渲染 iframe_web/pc-listen.html:230 <div class=\"content\" v-show=\"ifThis(set.content)\" v-html=\"formatString(set.content)\">",
+        "pc_bundle": "存在并在 setData 前回写：pc_client_web/index-5543d811.js o.content_highlight&&(o.content=o.content.replace(o.content_highlight,`<span class=\"color_repeat\">${o.content_highlight}</span>`))",
+        "resolution": "高亮由 PC 侧负责",
+        "impact": "我方若直接读内容包的 content 而未应用 content_highlight，会丢掉『跟读高亮片段』（color_repeat）。"
+      },
+      {
+        "id": 4,
+        "field": "fill 的 std 定位键",
+        "iframe": "不判分",
+        "pc_bundle": "两条官方通道键不一致：套题 std.find(e=>e.xth===order)（chunks/useExamStepper-8ad3fbd7.js）；听说同步 std.find(e=>e.th===order)（chunks/Practice-1694d88a.js）",
+        "impact": "我方必须同时接受 xth 与 th（并容忍 th 尾部 '.'，如 content_fill_answer 里 \"th\":\"1.\"），否则其中一条通道会找不到答案。"
+      },
+      {
+        "id": 5,
+        "field": "collector.repeat 的小题扩容",
+        "iframe": "只认 info.fj[]；不读 info_extra.json",
+        "pc_bundle": "pc_client_web/index-5543d811.js if(\"collector.repeat\"===e.exam_type_collect){ ... const t=await this.getJson(replacePathSeparator(`${this.getContentFilePath(r.real_id)}\\\\info_extra.json`)); let o=cloneDeep(r.question_list), i=Number(t.length)-o.length; ... r.exam_count=String(l),r.exam_score=String(s),r.question_list=o }",
+        "impact": "跟读题的题数/每题分值由 info_extra.json 的长度决定；只读 info.value 会严重少题。"
+      },
+      {
+        "id": 6,
+        "field": "content_fill_answer_enable[].answer",
+        "iframe": "只做展示 :value=\"j.answer\"（iframe_web/pc-listen.html:313）",
+        "pc_bundle": "到达 iframe 前可能已被用户作答覆盖（chunks/useExamStepper-8ad3fbd7.js e.answer=(...t.detail)?.choose, s.show_topic_blank=\"1\"）",
+        "impact": "该字段到 iframe 时不一定等于内容包标准答案。"
+      },
+      {
+        "id": 7,
+        "field": "collector.role / collector.dialogue 的字段差异",
+        "iframe": "仅 1 行 v-if 与 3q5a 共用渲染块（iframe_web/pc-listen-answer.html:105），无独立分支、无示例数据",
+        "pc_bundle": "只出现在 pc_client_web/chunks/useExamResult-d9fb4671.js 的 switch case 聚合分支（case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":）",
+        "resolution": "cannot distinguish",
+        "impact": "两端都无法证实 role/dialogue 与 3q5a 在字段上是否有差异；只能确认渲染路径完全相同。"
+      },
+      {
+        "id": 8,
+        "field": "占位符 {{thN}}/{{smN}}",
+        "iframe": "iframe_web/js/pc-listen.js:45 与 pc-listen-answer.js:46 定义了 thFormat 但从未被使用（grep -rn thFormat iframe_web/ 只命中这两行定义），iframe 不做替换",
+        "pc_bundle": "原生在 setData 前替换：pc_client_web/index-5543d811.js processJsParam 内 l=e=>s.reduce((e,t)=>e.replace(new RegExp(t.id,\"g\"),t.value),e)（s=t.exam_info）；processPaperContentJson 里对 content.json 也做同样的 reduce",
+        "impact": "我方解析 xt_nr 时必须自己处理 {{thN}}（existing cleaner 的 extract_global_no/strip_ets_th 都不认 {{th1}}）。"
+      }
+    ]
+  },
+  "dispatch_summary": {
+    "families_in_iframe": [
+      "collector.read",
+      "collector.repeat",
+      "collector.word",
+      "collector.3q5a",
+      "collector.role",
+      "collector.dialogue",
+      "collector.picture",
+      "collector.choose",
+      "collector.fill"
+    ],
+    "family_count": 9,
+    "repeat_essay_or_repeat_dialogue": "0 引用：grep -rn \"repeat_essay|repeat_dialogue\" iframe_web/ pc_client_web/ 无命中",
+    "client_side_judged": [
+      "collector.choose",
+      "collector.fill"
+    ],
+    "server_or_engine_scored": [
+      "collector.read",
+      "collector.repeat",
+      "collector.word",
+      "collector.3q5a",
+      "collector.role",
+      "collector.dialogue",
+      "collector.picture"
+    ]
+  },
+  "gaps_vs_our_collectors_rs": [
+    {
+      "field": "info.fj[].value / info.fj[].xh (collector.repeat)",
+      "ours": "完全未读取；collector.repeat 被 QUESTION_TYPES 分支接住后兜底到 collect_read -> 只产出 1 题（info.value 整段）",
+      "official": "fj[] 每句 = 1 小题（iframe_web/pc-listen-answer.html:484；pc_client_web/chunks/useExamResult-d9fb4671.js for(const n of r.info.fj)...n.xh）",
+      "priority": 1
+    },
+    {
+      "field": "info.std[].value 的 / 多解拆分与归一化 (collector.fill)",
+      "ours": "原样塞进 answers[0]，未按 / 拆分，未 trim/lowercase",
+      "official": "X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)（pc_client_web/chunks/useExamStepper-8ad3fbd7.js）",
+      "priority": 2
+    },
+    {
+      "field": "info.std[].th (collector.fill)",
+      "ours": "只把 xth 当题号，th 丢弃",
+      "official": "听说同步通道用 th 做键：info.std.find(e=>e.th===l[1])（pc_client_web/chunks/Practice-1694d88a.js）",
+      "priority": 2
+    },
+    {
+      "field": "info.xtlist[].xt_value (collector.choose)",
+      "ours": "未读",
+      "official": "答案页唯一额外展示的题目文本『录音原文』（iframe_web/pc-listen-answer.html:339-345）",
+      "priority": 3
+    },
+    {
+      "field": "info.st_nr / info.st_sm (collector.choose)",
+      "ours": "未读",
+      "official": "iframe_web/pc-listen.html:158/194，iframe_web/pc-listen-answer.html:322",
+      "priority": 3
+    },
+    {
+      "field": "info.question[].analyze (collector.3q5a/role/dialogue)",
+      "ours": "未采集",
+      "official": "答案页 ACTIVE 展示项 iframe_web/pc-listen-answer.html:135-137",
+      "priority": 4
+    },
+    {
+      "field": "info.question[].answer 的输出键名",
+      "ours": "extra.ref_answer（语义偏『ref』）",
+      "official": "UI 标签是『回答:』= 示范回答 model answer（iframe_web/pc-listen-answer.html:157-166）",
+      "priority": 4
+    },
+    {
+      "field": "info.question[].askaudio / aswaudio / askimg",
+      "ours": "未读",
+      "official": "答案页各一个播放按钮/图片（iframe_web/pc-listen-answer.html:140/143/161）",
+      "priority": 4
+    },
+    {
+      "field": "info.value_bz / info.value_pf (collector.word)",
+      "ours": "未读",
+      "official": "两端 0 消费者，语义未找到；但先原样透传以免丢失（iframe_web/js/pc-listen-data.js:73）",
+      "priority": 5
+    },
+    {
+      "field": "new_xh 重编号 (collector.word)",
+      "ours": "未实现",
+      "official": "iframe_web/js/pc-listen-default.js:29-49",
+      "priority": 5
+    },
+    {
+      "field": "collector.word 的族路由",
+      "ours": "st.contains(\"word\") 命中 collect_read，TYPE_WORD 常量未用于路由（collectors.rs:15/1421）",
+      "official": "iframe 有独立渲染块 iframe_web/pc-listen-answer.html:522",
+      "priority": 5
+    },
+    {
+      "field": "content_fill_answer / content_fill_answer_enable / show_topic_blank",
+      "ours": "完全未处理",
+      "official": "iframe_web/pc-listen.html:298-313；pc-listen-default.js:60-68 JSON.parse",
+      "priority": 5
+    },
+    {
+      "field": "content_choose / content_choose2（内嵌 answer 的注入形态）",
+      "ours": "未处理",
+      "official": "iframe_web/pc-listen-data.js:12；pc-listen-default.js:57-59 JSON.parse；pc-listen.html:244-286",
+      "priority": 5
+    },
+    {
+      "field": "collector.picture 的 important 去重",
+      "ours": "keypoint + analyze 拼接，A3 里两者是同一份 10 条要点 -> 重复一倍",
+      "official": "两块在答案页均被注释（iframe_web/pc-listen-answer.html:234-244）",
+      "priority": 5
+    },
+    {
+      "field": "collector.repeat 的 info_extra.json 扩容",
+      "ours": "未处理",
+      "official": "pc_client_web/index-5543d811.js 读 content_<real_id>/info_extra.json 决定小题数与分值",
+      "priority": 1
+    },
+    {
+      "field": "collector.repeat_essay / sublist",
+      "ours": "有 TYPE_REPEAT_ESSAY（collectors.rs:16）+ collect_repeat_essay 用 info.sublist",
+      "official": "repeat_essay 两端 0 引用；sublist 只属于朗读/背诵模块 pc_client_web/chunks/textInfo-82764d4d.js 与 readSentence-80965549.js，不属 collector 9 族",
+      "priority": 4
+    }
+  ],
+  "not_found": [
+    "collector.role / collector.dialogue 的示例内容包（两端都没有）",
+    "iframe 侧的任何版本号字符串；iframe_web/config 是 24 字节文件（trans = {\"translate\": 1}），非目录、无示例数据",
+    "value_bz / value_pf / mpg / sucai / ref / fj.fs / fj.time / videotime / info.ai / std[].ai 的语义与消费者（两端 0 命中）",
+    "audio_url 在听力口语套题链路的任何使用（仅 iframe_web/word-symbol.html:84-86 单词发音）",
+    "content_highlight 在 iframe 侧的任何使用（仅 PC bundle 3 处）"
+  ],
+  "search_keywords": [
+    "structure_type",
+    "collector.*",
+    "xtlist",
+    "xt_xh",
+    "xt_nr",
+    "xt_wj",
+    "xt_value",
+    "xt_pic",
+    "xxlist",
+    "xx_xh",
+    "xx_mc",
+    "xx_nr",
+    "xx_wj",
+    "xth",
+    "th",
+    "fj",
+    "std",
+    "ref",
+    "answer",
+    "aswaudio",
+    "askaudio",
+    "askimg",
+    "keywords",
+    "analyze",
+    "sucai",
+    "role",
+    "topic",
+    "keypoint",
+    "content_highlight",
+    "audio_url",
+    "detail_file",
+    "info_extra",
+    "content.json",
+    "info.json",
+    "sublist",
+    "value_bz",
+    "value_pf",
+    "videotime",
+    "symbol",
+    "fs",
+    "time",
+    "new_xh",
+    "st_sm",
+    "st_nr",
+    "st_pic",
+    "content_fill_answer",
+    "content_fill_answer_enable",
+    "show_topic_blank",
+    "repeat_essay",
+    "repeat_dialogue",
+    "setPCChoose2",
+    "setPCChoose",
+    "getChoice",
+    "ReturnChoose",
+    "kttb_setPcChoise"
+  ]
+}
