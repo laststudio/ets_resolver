@@ -33,6 +33,7 @@ prod_priv = Ed25519PrivateKey.generate()
 prod_pub_b64 = B64(prod_priv.public_key().public_bytes_raw())
 prod_kid = hashlib.sha256(prod_priv.public_key().public_bytes_raw()).hexdigest()[:16]
 other_priv = Ed25519PrivateKey.generate()
+other_pub_b64 = B64(other_priv.public_key().public_bytes_raw())
 
 MODE = {"mode": "forged_prod_kid"}
 FEATURE = {"value": "answer_parser"}
@@ -134,6 +135,8 @@ cases = [
     ("④ 合法签名但来自不相干私钥", "valid_unknown_key", False, prod_pub_b64),
     ("⑤ 合法：后端私钥签发 + 不传动态公钥（走内置默认钥）", "valid_builtin", True, ""),
     ("⑥ 伪造：内置 key_id + 垃圾签名", "forged_builtin_kid", False, ""),
+    ("⑦ 伪造：不传动态公钥 + 生产 key_id + 垃圾签名", "forged_prod_kid", False, ""),
+    ("⑧ 伪造：配置一把错钥 + 生产 key_id + 垃圾签名", "forged_prod_kid", False, other_pub_b64),
 ]
 ok_all = True
 for idx, (label, mode, should_pass, pk) in enumerate(cases):

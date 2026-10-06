@@ -34,6 +34,24 @@ fn default_key_id() -> String {
     obfstr!("86b43e5b9b0bdb12").to_string()
 }
 
+/// **生产**签名公钥（api.lastudio.cc 实际签发 grant 的那把）。
+///
+/// 实测来源：`GET https://api.lastudio.cc/software/fe/config` 的 `signingPublicKey`
+/// = `8i06qnGdq6lm6wj8NDm22Nh0_nP6_k38Kg_Lz0xHIiY`，其 `signingKeyId` = `51b812c67199c51b`，
+/// 与本地按 sha256(公钥) 计算一致 —— 也就是 Fe-pro 里那个常量。
+///
+/// 为什么必须有它：历史故障正是"内置默认钥是 SECRET_KEY 派生的开发钥、与生产钥不一致"
+/// → 线上验签必然失败 → 有人加了"key_id 命中即放行"的后门来救急。把生产钥作为候选之一
+/// 烘进来，客户端**即使没成功拉到动态配置**也能验过，后门就没有存在必要。
+fn production_public_key_b64() -> String {
+    obfstr!("8i06qnGdq6lm6wj8NDm22Nh0_nP6_k38Kg_Lz0xHIiY").to_string()
+}
+
+/// 生产钥的 key id（与后端 `init.SOFTWARE_AUTH_SIGNING_KEY_ID` 一致）。
+fn production_key_id() -> String {
+    obfstr!("51b812c67199c51b").to_string()
+}
+
 /// 依据 key_id 计算公钥指纹（与后端一致：sha256(原始 32 字节) 的前 16 位 hex）。
 fn key_id_of(public_key: &PublicKey) -> String {
     use sha2::{Digest, Sha256};
@@ -62,16 +80,21 @@ fn candidate_keys(configured_b64: &str, grant_key_id: &str) -> Vec<(String, Publ
     };
     // ① 运行时配置的钥（客户端从后端配置动态下发，换钥无需发版）
     push(configured_b64, &mut candidates);
-    // ② 内置默认钥（离线兜底）
+    // ② 生产钥（烘进产物，配置拉不到时的兜底 —— 见 production_public_key_b64 的说明）
+    let production_b64 = production_public_key_b64();
+    push(&production_b64, &mut candidates);
+    // ③ 内置默认钥（SECRET_KEY 派生的开发钥，本地/自建后端用）
     let default_b64 = default_public_key_b64();
     push(&default_b64, &mut candidates);
 
+    // 命中 grant 声明的 key_id 的候选排到最前（省一次验签；其余仍会依次尝试）。
+    // key_id 只影响**顺序**，任何一把都验不过就必须拒绝。
     if !grant_key_id.is_empty() {
-        // 命中 key_id 的候选排到最前（省一次验签；失败仍会继续试其余候选）
         candidates.sort_by_key(|(b64, pk)| {
-            let matches = key_id_of(pk) == grant_key_id
-                || (!default_key_id().is_empty() && b64 == &default_b64 && default_key_id() == grant_key_id);
-            if matches { 0 } else { 1 }
+            let decl_matches = key_id_of(pk) == grant_key_id;
+            let baked_matches = (b64 == &production_b64 && production_key_id() == grant_key_id)
+                || (b64 == &default_b64 && default_key_id() == grant_key_id);
+            if decl_matches || baked_matches { 0 } else { 1 }
         });
     }
     candidates
@@ -799,18 +822,37 @@ mod tests {
     }
 
     #[test]
+    fn test_production_key_is_a_candidate_and_key_id_matches() {
+        // 生产钥必须作为候选存在（客户端没拉到动态配置时的兜底），
+        // 且它自算的 key_id 必须等于后端声明的生产 key_id。
+        let prod = PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(production_public_key_b64().as_bytes()).unwrap()).unwrap();
+        assert_eq!(key_id_of(&prod), production_key_id(), "生产钥与 key_id 必须自洽");
+        assert_eq!(production_key_id(), "51b812c67199c51b");
+
+        let candidates = candidate_keys("", "");
+        assert_eq!(candidates.len(), 2, "空配置时应有 生产钥 + 开发默认钥");
+        // 声明生产 key_id 时，生产钥排最前
+        let ordered = candidate_keys("", &production_key_id());
+        assert_eq!(ordered[0].1.as_ref(), prod.as_ref());
+        // 声明开发钥 key_id 时，开发钥排最前
+        let dev = PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(default_public_key_b64().as_bytes()).unwrap()).unwrap();
+        let ordered_dev = candidate_keys("", &default_key_id());
+        assert_eq!(ordered_dev[0].1.as_ref(), dev.as_ref());
+    }
+
+    #[test]
     fn test_candidate_keys_include_configured_and_builtin() {
         let configured = URL_SAFE_NO_PAD.encode(KeyPair::from_seed(Seed::new([31u8; 32])).pk.as_ref());
-        // 配置钥与内置钥都应进入候选集合（去重后 2 把）
+        // 配置钥 + 生产钥 + 开发默认钥都应进入候选集合（去重后 3 把）
         let candidates = candidate_keys(&configured, "");
-        assert_eq!(candidates.len(), 2, "应有配置钥 + 内置默认钥");
+        assert_eq!(candidates.len(), 3, "应有配置钥 + 生产钥 + 开发默认钥");
         // key_id 命中内置钥时，内置钥被排到最前（仅影响顺序，不影响是否放行）
         let builtin_id = key_id_of(&PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(default_public_key_b64().as_bytes()).unwrap()).unwrap());
         let ordered = candidate_keys(&configured, &builtin_id);
-        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered.len(), 3);
         assert!(ordered[0].1.as_ref() == PublicKey::from_slice(&URL_SAFE_NO_PAD.decode(default_public_key_b64().as_bytes()).unwrap()).unwrap().as_ref());
-        // 非法配置钥直接忽略，只剩内置钥
-        assert_eq!(candidate_keys("not-base64!!", "").len(), 1);
+        // 非法配置钥直接忽略，只剩烘进产物的两把（生产钥 + 开发默认钥）
+        assert_eq!(candidate_keys("not-base64!!", "").len(), 2);
     }
 
     #[test]

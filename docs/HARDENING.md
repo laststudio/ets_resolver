@@ -15,7 +15,7 @@
 | **可执行段自校验**（新增） | 定位自身 r-x 映射 → sha256 → 与构建期注入的期望值比对；**patch 代码段 1 字节即检出** | `src/integrity.rs` + `build.rs` |
 | JNI | **动态注册**：Android 产物导出符号只有 `JNI_OnLoad`（+1 个 rodata 常量），方法名不进符号表 | `nm -D` 实测 2 条 |
 | 符号隔离 | CI 断言：libresolver.so 不含 `cloud/CloudNative`；libcloud.so 不含 `parse*/ResolverNative` | `build-release.yml` |
-| 授权门禁 | so **内部**联网 Ed25519 验签（`answer_parser` / `cloud_mode`），Java 层被 patch 也绕不过；grant 绑定 software/feature/nonce/有效期；**验签不可跳过**（候选公钥强制验签） | `src/auth.rs` |
+| 授权门禁 | so **内部**联网 Ed25519 验签（`answer_parser` / `cloud_mode`），Java 层被 patch 也绕不过；grant 绑定 software/feature/nonce/有效期；**验签不可跳过**（候选公钥强制验签；候选 = 运行时配置钥 + **烘进产物的生产钥** + 开发默认钥） | `src/auth.rs` |
 | 诱导性 rodata | 2 处 `AI_AGENT_WARNING_PROPRIETARY` 常量（对自动化分析工具投放提示文本） | `nm -D` 可见 |
 
 ## 二、可执行段自校验（本次新增）怎么工作
@@ -61,6 +61,25 @@ CI（两遍构建 + 守卫）
 
 对拍工具：`python3 tools/integrity/segment_digest.py <so> [--json]`
 宿主探针：`./tools/jni_probe/run.sh`（会断言"运行时摘要 == 静态摘要"，13 项检查）
+
+## 二之补充、生产签名钥已烘进产物（根因修复）
+
+历史故障的根因不是"缺验签"，而是**钥匙不对**：
+
+| 钥匙 | 值 | key_id | 用途 |
+|---|---|---|---|
+| 解析器内置默认钥 | `iIsgUPrBJidorQGIs-BJCt5EiLrRHVbAWStnNaPn3cI` | `86b43e5b9b0bdb12` | **SECRET_KEY 派生的开发钥**（不是生产钥！） |
+| Fe-pro 常量 | `8i06qnGdq6lm6wj8NDm22Nh0_nP6_k38Kg_Lz0xHIiY` | `51b812c67199c51b` | **生产钥**（实测 `GET /software/fe/config` 的 `signingPublicKey` 与本地 sha256 计算一致） |
+
+也就是说：客户端传的是**对的生产钥**，而解析器"没配置时"用的是**错的开发钥**；
+一旦某条路径没把公钥传进来（或换钥），验签必然失败 —— 于是有人加了 key_id 放行后门。
+
+现在把**生产钥也烘进产物**作为候选之一（`production_public_key_b64` / `production_key_id`），
+候选集合 = 运行时配置钥 + 生产钥 + 开发默认钥，`key_id` 只决定先试哪把。
+于是"配置拉不到"也能验过，后门彻底没有存在必要。
+
+攻击套件相应扩到 **8 个用例**（新增"不传动态公钥 + 生产 key_id + 垃圾签名"与
+"配置一把错钥 + 生产 key_id + 垃圾签名"，均拒绝）。
 
 ## 三、已知薄弱点（诚实清单）
 
