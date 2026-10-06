@@ -1,0 +1,8 @@
+{
+  "region": "北京初中（真实官方内容包）",
+  "type": "collector.role",
+  "stid": "729065",
+  "source": "官方内容包 fd09d81d8632af20e2aa7806d6a15218（随官方客户端下发；由 Fe-pro/ets读取 收录）",
+  "captured_at": "2026-10-06",
+  "note": "真实官方模板：xxlist[] 含 xx_xh(序号)/xx_mc(字母)/xx_nr(文本)，xtlist[].answer 为字母"
+}

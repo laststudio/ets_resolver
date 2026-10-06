@@ -1,0 +1,75 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.choose",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.choose",
+      "stid": 729063,
+      "question": "What can we learn from the talk?",
+      "answers": [
+        "C"
+      ],
+      "options": [
+        "A. People can learn about computers on Wednesday.",
+        "B. There is a talk every Friday.",
+        "C. A child ticket is 1.75 pounds."
+      ],
+      "important": [],
+      "choose_id": "3",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "People can learn about computers on Wednesday."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "There is a talk every Friday."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "A child ticket is 1.75 pounds."
+        }
+      ],
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.choose",
+      "stid": 729063,
+      "question": "Why does the speaker give the talk?",
+      "answers": [
+        "B"
+      ],
+      "options": [
+        "A. To teach people how to use computers.",
+        "B. To share information about Science World events.",
+        "C. To organize a school field trip to Science World."
+      ],
+      "important": [],
+      "choose_id": "2",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "To teach people how to use computers."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "To share information about Science World events."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "To organize a school field trip to Science World."
+        }
+      ],
+      "_no_source": "local"
+    }
+  ]
+}

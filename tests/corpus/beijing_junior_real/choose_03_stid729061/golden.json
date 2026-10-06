@@ -1,0 +1,75 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.choose",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.choose",
+      "stid": 729061,
+      "question": "What's wrong with the boy?",
+      "answers": [
+        "B"
+      ],
+      "options": [
+        "A. He has a fever.",
+        "B. He has a headache.",
+        "C. He has a sore throat."
+      ],
+      "important": [],
+      "choose_id": "2",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "He has a fever."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "He has a headache."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "He has a sore throat."
+        }
+      ],
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.choose",
+      "stid": 729061,
+      "question": "What does the doctor suggest the boy do?",
+      "answers": [
+        "B"
+      ],
+      "options": [
+        "A. Do some sports.",
+        "B. Get enough sleep.",
+        "C. Take some medicine."
+      ],
+      "important": [],
+      "choose_id": "2",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "Do some sports."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "Get enough sleep."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "Take some medicine."
+        }
+      ],
+      "_no_source": "local"
+    }
+  ]
+}

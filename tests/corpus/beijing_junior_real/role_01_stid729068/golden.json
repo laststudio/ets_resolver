@@ -1,0 +1,86 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 729068,
+      "question": "What does the boy think of history books?",
+      "answers": [
+        "They are a bit boring.",
+        "He thinks they are a bit boring.",
+        "The boy thinks they are a bit boring.",
+        "They are a little boring.",
+        "He thinks they are a little boring.",
+        "The boy thinks they are a little boring.",
+        "Boring.",
+        "The boy thinks history books are a bit boring.",
+        "He thinks history books are a bit boring.",
+        "History books are a bit boring.",
+        "A bit boring.",
+        "A little boring.",
+        "History books make him feel bored.",
+        "They make him feel bored.",
+        "They're a bit boring.",
+        "They are boring.",
+        "He thinks they are boring.",
+        "The boy thinks they are boring.",
+        "He thinks history books are boring.",
+        "The boy thinks history books are boring.",
+        "Tim thinks history books are a bit boring.",
+        "Tim thinks they are a bit boring.",
+        "He finds history books boring."
+      ],
+      "options": [],
+      "important": [
+        "boring",
+        "bored"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.role",
+      "stid": 729068,
+      "question": "Why does the boy prefer e-books?",
+      "answers": [
+        "Because they are more convenient to carry around.",
+        "Because they are easier to carry around.",
+        "Because e-books are more convenient to carry around.",
+        "Because e-books are easier to carry around.",
+        "They are more convenient to carry around.",
+        "They are easier to carry around.",
+        "E-books are more convenient to carry around.",
+        "E-books are easier to carry around.",
+        "Because they're more convenient to carry around.",
+        "Because they're easier to carry around.",
+        "They're more convenient to carry around.",
+        "They're easier to carry around.",
+        "They are more convenient to carry around, so the boy prefers them.",
+        "E-books are more convenient to carry around, so the boy prefers e-books.",
+        "They are more convenient to carry around, so he prefers them.",
+        "E-books are more convenient to carry around, so he prefers e-books.",
+        "They are easier to carry around, so the boy prefers them.",
+        "E-books are easier to carry around, so the boy prefers e-books.",
+        "They are easier to carry around, so he prefers them.",
+        "E-books are easier to carry around, so he prefers e-books.",
+        "It is more convenient to carry e-books around.",
+        "He prefers e-books because they are more convenient to carry around.",
+        "He prefers e-books because they are easier to carry around.",
+        "Tim prefers e-books because e-books are more convenient to carry around.",
+        "Tim prefers e-books because e-books are easier to carry around.",
+        "He likes e-books better because it is easier for him to carry them around."
+      ],
+      "options": [],
+      "important": [
+        "more convenient carry around",
+        "easier carry around"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ]
+}

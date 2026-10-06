@@ -1,0 +1,47 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 729064,
+      "question": "When does the library close on weekends?",
+      "answers": [
+        "At four p.m.",
+        "It closes at four p.m.",
+        "The library closes at four p.m.",
+        "The closing time of the library is four p.m.",
+        "It closes at four p.m. on weekends.",
+        "The library closes at four p.m. on weekends.",
+        "The closing time of the library is four p.m. on weekends.",
+        "The library is open until four p.m.",
+        "The library is open until four p.m. on weekends.",
+        "It closes at four in the afternoon.",
+        "The library closes at four in the afternoon.",
+        "The closing time of the library is four in the afternoon.",
+        "It closes at four in the afternoon on weekends.",
+        "The library closes at four in the afternoon on weekends.",
+        "The closing time of the library is four in the afternoon on weekends.",
+        "The library is open until four o'clock in the afternoon.",
+        "The library is open until four o'clock in the afternoon on weekends.",
+        "At four in the afternoon.",
+        "At four o'clock in the afternoon.",
+        "On weekends, the library closes at four p.m.",
+        "It closes at four p.m. on the weekend.",
+        "It closes at four p.m. at the weekend.",
+        "It closes at four p.m. at weekends."
+      ],
+      "options": [],
+      "important": [
+        "four p.m.",
+        "four afternoon",
+        "four pm",
+        "pm"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ]
+}

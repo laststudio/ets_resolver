@@ -1,0 +1,220 @@
+{
+  "_meta": {
+    "title": "B 组：读写类四族官方解析语义（机器可读摘要）",
+    "method": "纯静态代码阅读；未运行客户端、未抓包、未联网、未 sudo",
+    "primary_sources": [
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/index-5543d811.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamResult-d9fb4671.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/html-8e3719a4.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/DynamicIframe-bafff5bc.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useAudioSync-0603b875.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useRecordResult-fbe9e75b.js",
+      "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/Examine-d229829d.js"
+    ],
+    "corroborating_sources": {
+      "official_resources_on_disk": [
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/北京初中resoure/4cd4f71f0e7b205b705b1ebedfe80ac5/content.json",
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/北京初中resoure/a1a211102349900f381c4d6ff00d58c9/content.json",
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/北京初中resoure/e0e718fa3547f95e42cf58e623a8767d/content.json",
+        "/home/shuaiqiu/Projects/ets_resolver/tests/corpus/guangdong_hs_mock1/01_角色扮演/content.json",
+        "/home/shuaiqiu/Projects/ets_resolver/tests/corpus/guangdong_mock1/05_信息转述/content.json"
+      ],
+      "android_bean": "/home/shuaiqiu/Projects/ets源码恢复/jadx_template_info/sources/com/ets100/secondary/model/mock/InfoObjBean.java",
+      "other_generation_rw_iframe_app": [
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/广东初中resoure/common/rw-index-1.html",
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/广东初中resoure/common/rw-index-2.html",
+        "/home/shuaiqiu/Projects/Fe-pro/ets读取/广东初中resoure/common/js/rw-index-2.js"
+      ]
+    },
+    "hard_gaps": [
+      "本次下载的 194 个被引用 chunk 中 114 个缺失，含 useReadingWritingStructConverter-0e20e02c.js / ReadingWritingDetails-1b8d0987.js / ReadingWritingResult-93fd0909.js / ReadingWritingList-35f22288.js / ReadingWritingStart-6a005565.js / SpecialReadingWritingStart-d2af4bf6.js / QuestionListItem-229d65bc.js / MockExamResult-789f2f57.js / readAloud-*.js / readSentence-*.js",
+      "IFRAME_LOCAL_PATH=\"./common\" 下的 iframe 页面未下载：pc-listen.html / pc-listen-answer.html / read-write.html / read-write-answer.html / js/read-write.js / js/read-write-data.js / js/pc-listen.js / js/pc-listen-choose.js / js/PC-choose.js 等",
+      "桥接函数 getChoice / ReturnChoose / getPcBlank / returnPcBlank / setPCChoose / setPCChoose2 / setPcBlank / set3q5aScore 的定义体在整个 PC web bundle + 82 chunks 中命中 0，位于上述未下载的 iframe 页面内"
+    ]
+  },
+  "families": [
+    {
+      "name": "collector.choose",
+      "dispatch_evidence": "1) 作答判分点：chunks/useExamStepper-8ad3fbd7.js 的 practise 步骤处理器 `practise:async()=>{...if(\"collector.choose\"===w.value.exam_type_collect){y.ReturnChoose=e=>{...},await _();const t=y.getChoice(),a=await G(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)})...}`（触发条件：ctrl.json 步骤 filetype===\"practise\"）。2) 结果页回填点：chunks/useExamResult-d9fb4671.js 的 switch `case\"collector.choose\":setTimeout(()=>{const t=(o=n.htmlData,i=e,o.reduce((e,t)=>{const o=i.filter(e=>e.entity_id===t.info.stid).reduce((e,o)=>{const i=b(t.info.xtlist.find(e=>e.xt_xh===\"\"+o.order)?.answer);return o.detail.choose?e.push(`${o.entity_id}_${o.order}_${b(o.detail.choose)}${String.fromCharCode(1)}${i}`):e.push(`${o.entity_id}_${o.order}${q}${i}`),e},[]);return e.concat(o)},[]));var o,i;c.setPCChoose.apply(null,t)},0);break;`。3) 族级资源加工：index-5543d811.js 的 exam_type_collect 只对 collector.repeat 有分支，choose 无族级加工（`if(\"collector.repeat\"===e.exam_type_collect){...}`）。",
+      "source_files": [
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/index-5543d811.js",
+        "content_<real_id>/content.json -> info.xtlist[]",
+        "template_<id>/res.json -> exam_type_list[].{exam_type_collect,exam_type_score}"
+      ],
+      "question_extraction": "一题 = content.json 的 info.xtlist[] 一个元素（题号 xtlist[].xt_xh），选项 = 该元素的 xxlist[]（选项号 xxlist[].xx_xh，从 \"1\" 开始）。iface 交回的 y.getChoice() 是逗号分隔串，每段 \"<entity_id>_<order>_<选项号>\"（选项号 \"0\" = 未作答）；G() 里`try{s=o.split(\",\")}catch(i){}`后`const[t,o,n]=e.split(\"_\")`。判定链：`const e=r.find(e=>e.xt_xh===o);if(!e)return null;const s=e.xxlist.find(e=>e.xx_xh==n);`。题面字段：xt_nr/xt_wj/xt_wj2/xt_value/xt_analy/xt_pic；选项字段：xx_xh/xx_mc/xx_nr/xx_wj；音频 info.audio、图片 info.st_pic；htmlData = index-5543d811.js::processPaperContentJson 产出的 contents[]（每项即一份 content.json 全文，含 structure_type 与 info）+ paths + audios(`${packageId}_${info.stid}${mp3名}`)。",
+      "answer_source": "客户端本地判分，非服务端下发。正确答案 = content.json -> info.xtlist[].answer；判分比较对象 = 所选选项的 xxlist[].xx_mc。原文：`return s?(e.answer===s.xx_mc&&(l=m(a.question_score/a.question_count)),{entity_id:t,order:o,score_detail:{total_score:l,choose:s.xx_mc,choose_id:n,category:a.evaluation_type}}):null`。学生作答写入 score_detail.choose = xx_mc（字母），score_detail.choose_id = xx_xh（下标）。辅助归一化 `function b(e){if(!e)return\"0\";for(var t=e.toUpperCase(),o=\"\",i=0;i<t.length;i++){var r=t.charCodeAt(i);if(r>=65&&r<=90)o+=(r-64).toString();else o+=t[i]}return o}` 仅用于结果页喂给 iframe 的 setPCChoose（A->1），不是 HTTP 载荷。",
+      "answer_value_form": "字母",
+      "answer_value_form_detail": {
+        "standard_answer_field": "content.json -> info.xtlist[].answer",
+        "standard_answer_form": "字母（真样本 answer=\"B\"/\"C\"）",
+        "selected_option_identity": "xxlist[].xx_mc（字母）",
+        "selected_option_index": "xxlist[].xx_xh（数字串 \"1\"/\"2\"/\"3\"）",
+        "submitted_answer_field": "score_detail.choose = 字母（xx_mc）",
+        "submitted_index_field": "score_detail.choose_id = 数字串（xx_xh）",
+        "unanswered": "iframe 第 3 段 = \"0\" -> total_score:\"0\", choose:\"\", 无 choose_id",
+        "not_the_payload": "b() 的 A->1 / B->2 / AC->13 只是 iframe 显示编码",
+        "option_text_field_not_used": "xx_nr（PC 前端 grep 命中 0）"
+      },
+      "score_rule": "每题得分 = scoreFormater(question.question_score / question.question_count)，其中 question = _e.exam.question_list[0]（即该套题第 0 个小题的参数，整族复用）。`function scoreFormater(e,t=2){let n=Number(e)*Math.pow(10,t);return Math.round(Number(n))/Math.pow(10,t)}`。族/套题/试卷满分：exam_type_score / exam_score / res.json.set_score（`this.totalScore+=Number(r.set_score)`）。结果页显示 [得分,分母] = scoreFilter(exam_type_score, totalScore, isHomework) -> [isHomework?scoreFormater(total):ConvertToPercentScore(total,exam_type_score,0), isHomework?exam_type_score:100]。",
+      "submit_id_fields": [
+        "entity_id (= content.json info.stid)",
+        "order (= info.xtlist[].xt_xh)",
+        "set_id (= super_set_id || set_id)",
+        "choose_id (= 所选 xxlist[].xx_xh)",
+        "score_detail (JSON 串: {total_score, choose, choose_id, category})",
+        "first_column_id (= ctrl.json 步骤，读写=10)",
+        "question_type_score (= exam.exam_score)",
+        "resource_id",
+        "serial_id",
+        "mistake_id",
+        "homework_id (= handleRequestParams 追加)",
+        "real_score / score",
+        "version=\"2\"",
+        "client_time",
+        "mark_service=1",
+        "rate_scale / graduation"
+      ],
+      "submit_endpoint": "/m/audio/sync-v2（作业: m/homework/submit；自由练习: /m/exam/submit；读写同步: /m/exam/sync）",
+      "notes": "关键字段原文（Examine/ratingPage/MockExamDetails 同构）：`chooseHandler(async e=>{const a=K.getInstance().handleRequestParams({resource_id:Oe,real_score:e.score_detail.real_score??e.score_detail.total_score,score:e.score_detail.total_score,set_id:je,entity_id:e.entity_id,order:e.order,serial_id:R.serial_id,upload_file_id:\"\",upload_file_url:\"\",detail_file_id:\"\",detail_file_url:\"\",choose_id:e.score_detail.choose_id,score_detail:e.score_detail});...`。上报封装：`const requestAnswerLogs=async e=>{...return await hyRequest.postIt(\"/m/audio/sync-v2\",Object.assign(p))}`，默认字段全集见 chunks/useAudioSync-0603b875.js：`const i={resource_id:\"\",real_score:0,score:0,set_id:\"\",entity_id:\"\",order:\"\",serial_id:\"\",mistake_id:0,upload_file_id:\"\",upload_file_url:\"\",spx_file_url:\"\",mark_trace_id:\"\",detail_file_id:\"\",detail_file_url:\"\",score_detail:\"\"};`。结果页另用 y.setPCChoose2 以 `entity_id_order_choose_id` 回填学生选择（`const e=o.map(e=>`${e.entity_id}_${e.order}_${e.choose_id}`);y.setPCChoose2.apply(null,e),r()`，条件 displayAnswerContent==1）。官方真样本（北京初中 3 份）：`{\"xt_xh\":\"1\",...,\"answer\":\"B\",\"xxlist\":[{\"xx_xh\":\"1\",\"xx_mc\":\"A\",\"xx_nr\":\" This Friday.\",\"xx_wj\":\"\"},{\"xx_xh\":\"2\",\"xx_mc\":\"B\",...},{\"xx_xh\":\"3\",\"xx_mc\":\"C\",...}]}`。Android bean 佐证（InfoObjBean.CodeXxBean）：@SerializedName(\"xx_mc\") xxMc（选项名称）、(\"xx_nr\") xxNr（选项内容）、(\"xx_xh\") xxXh（选项序号）。不确定：多选/联答串的顺序由 iframe getChoice() 决定，前端不排序。"
+    },
+    {
+      "name": "collector.fill",
+      "dispatch_evidence": "chunks/useExamStepper-8ad3fbd7.js 同一 practise 处理器的第二个 if：`\"collector.fill\"===w.value.exam_type_collect&&(y.returnPcBlank=async t=>{const a=await async function(t,a,o,n){const{getFileJson:l}=f(),{UNZIP_LOCAL_PATH:s}=d(),r=(await l(p(`${s}\\\\${t}\\\\content_${a}\\\\content.json`))).info.std,i=JSON.parse(n);try{return i.map(e=>{const[t,a]=e.id.split(\"_\"),n=e.answer;let l=\"0\";if(\"\"===n)return{entity_id:t,order:a,score_detail:{total_score:l,choose:\"\",category:o.evaluation_type}};{const e=r.find(e=>e.xth===a);return s=X(n),X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)&&(l=m(o.question_score/o.question_count)),{entity_id:t,order:a,score_detail:{total_score:l,choose:n,category:o.evaluation_type}}}var s})}catch(e){return[]}}(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)}),N.logCustom({answers:t,result:a,log_name:\"user_fill\"},{tag:\"FLOW_PRAC\"});try{window.triggerBuriedPoint(\"m_listening_specialization\",{i_score:a.reduce((e,t)=>e+m(t.score_detail.total_score),0),i_type:U.getInstance().getIsHomework()?1:0,i_totalScore:m(_e.exam.question_list[0].question_score)})}catch(e){}},y.getPcBlank())}`。结果页：chunks/useExamResult-d9fb4671.js `case\"collector.fill\":setTimeout(()=>{const t=(o=n.htmlData,i=e,o.reduce((e,t)=>{const o=i.filter(e=>e.entity_id===t.info.stid).reduce((e,t)=>(t.detail.choose?e.push({id:`${t.entity_id}_${t.order}`,answer:t.detail.choose,status:((t.real_score||t.score_rate)??0)>0?1:0}):e.push({id:`${t.entity_id}_${t.order}`,answer:\"\",status:0}),e),[]);return e=e.concat(o),JSON.stringify(e)},[]));var o,i;c.setPcBlank(t)},0)`。",
+      "source_files": [
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "content_<real_id>/content.json -> info.std[]",
+        "template_<id>/config/.../info.json -> model_pc.jsparam[].{source,classname,code_id,code_type} -> extractedJsParam.content_fill_answer_enable / show_topic_blank"
+      ],
+      "question_extraction": "一题/一空 = 一个 \"<entity_id>_<order>\" 对。iframe 的 y.getPcBlank() 返回 JSON 串，形如 [{\"id\":\"<entity_id>_<order>\",\"answer\":\"<学生文本>\"}, ...]；宿主 `const i=JSON.parse(n)` 后 `const[t,a]=e.id.split(\"_\")` 得 entity_id 与 order；order 与 content.json 的 info.std[].xth 配对：`const e=r.find(e=>e.xth===a)`（注意是严格 ===，与 choose 的 == 不同）。题面与选项不走 xtlist。回显通道：O.on 里把 info.json 的 code_id `content_fill_answer_enable`（JSON 数组，单项结构 {stid,xth,answer}）按 `String(t.entity_id)===e.stid&&String(t.order)===e.xth` 注入日志里的 detail.choose，并置 `s.show_topic_blank=\"1\"`。",
+      "answer_source": "客户端本地判分，非服务端下发。正确答案 = content.json -> info.std[].value（`r=(await l(p(`${s}\\\\${t}\\\\content_${a}\\\\content.json`))).info.std`）。比较规则：`s=X(n),X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)` —— 即『/』分隔多个可接受答案，逐个 trim + 转小写后与归一化的学生答案比对。归一化函数 X：`function X(e){const t={\"‘\":\"'\",\"’\":\"'\",\"：\":\":\",\"，\":\",\",\"。\":\".\",\"——\":\"-\",\"—\":\"-\",_:\"-\"};return(e=e.replace(/[‘’：，。———_]/g,e=>t[e])).toLowerCase()}`。",
+      "answer_value_form": "文本",
+      "answer_value_form_detail": {
+        "standard_answer_field": "content.json -> info.std[].value",
+        "standard_answer_form": "纯文本；/ 分隔多解",
+        "blank_number_field": "info.std[].xth",
+        "submitted_answer_field": "score_detail.choose = 学生原文",
+        "normalization": "全角标点/长破折号/下划线 -> 半角, 转小写, trim",
+        "choose_id": "不存在（fill 无 choose_id，与 choose 的硬差异）",
+        "no_letter_or_index": "fill 完全不涉及 xtlist/xxlist/b()"
+      },
+      "score_rule": "命中任一可接受答案 -> total_score = scoreFormater(question.question_score / question.question_count)，question = _e.exam.question_list[0]；未作答（answer===\"\"）-> total_score:\"0\"。结果页 status = (real_score||score_rate)>0 ? 1 : 0（仅对错标记）。族/套题/试卷满分同 collector.choose。",
+      "submit_id_fields": [
+        "entity_id (= content.json info.stid)",
+        "order (= info.std[].xth / iframe id 第二段)",
+        "set_id (= super_set_id || set_id)",
+        "score_detail (JSON 串: {total_score, choose, category} —— 无 choose_id)",
+        "first_column_id",
+        "question_type_score (= exam.exam_score)",
+        "resource_id",
+        "serial_id",
+        "mistake_id",
+        "homework_id",
+        "real_score / score",
+        "version=\"2\"",
+        "client_time",
+        "mark_service=1"
+      ],
+      "submit_endpoint": "/m/audio/sync-v2（作业: m/homework/submit）",
+      "notes": "回填给 iframe 的形状（setPcBlank 实参）：`[{\"id\":\"<entity_id>_<order>\",\"answer\":\"<学生答案或\\\"\\\">\",\"status\":0|1}, ...]`。旁证（另一代读写 iframe 模板应用）：/home/shuaiqiu/Projects/Fe-pro/ets读取/广东初中resoure/common/js/rw-index-2.js 第 309 行 `slashToArr: function(str) { return str.replace(/<br \\/>/g, '').split('/') },` 与 rw-index-2.html 第 85/147 行 `v-for='(standItem,standIdx) in slashToArr(subItem.answer)'`，同产品另一代实现同样用 answer + <br /> 清洗 + / 分隔多解。缺口：本地未找到真实 collector.fill 官方 content.json 样本（已查 Fe-pro/ets读取/{北京初中,广东初中}resoure 共 24 份 content.json、ets_resolver/tests/corpus/**，structure_type 只出现 role/picture/choose/read/repeat/3q5a），故字段结论完全来自前端代码。不确定：std[].xth 与 order 是严格 ===，前端无数字/字符串兼容兜底。"
+    },
+    {
+      "name": "collector.picture",
+      "dispatch_evidence": "没有独立分支。PC 前端全量只出现 2 次，均与 collector.read 合并：chunks/useExamResult-d9fb4671.js::getRecordAudios `switch(r.structure_type){case\"collector.read\":case\"collector.picture\":e=`${D}_${r.info.stid}_1`,a=t.find(e=>e.entity_id===r.info.stid&&\"1\"===String(e.order)),s=a&&await w({set_id:D,entity_id:r.info.stid,order:1,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\";break;...}`；同文件 getAudioIds `switch(t.original=`${D}_${o.info.stid}${o.info.audio}`,o.structure_type){case\"collector.read\":case\"collector.picture\":t.playback=`${D}_${o.info.stid}_1`;break;...}`。useExamResult 的 `switch(n.examType.exam_type_collect)` 中没有 case\"collector.picture\"。",
+      "source_files": [
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useRecordResult-fbe9e75b.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "content_<real_id>/content.json -> info.{stid,audio}（仅此两项被前端读取）"
+      ],
+      "question_extraction": "一题 = 一个 content.json（一个 exam_list 条目），没有子题数组。题号固定为字符串 \"1\"：`e=`${D}_${r.info.stid}_1``、`order:1`、`String(e.order)===\"1\"`。客户端读取的字段只有 info.stid 与 info.audio；音频键：原声 `${D}_${info.stid}${info.audio}`（stid 与文件名之间无下划线）、学生录音 `${D}_${info.stid}_1`。answer 页/录音步骤：ctrl.json 的 `action.record` 步骤绑到 `exam.question_list.find(e=>e.question_order===subid.split(\"_\")[1])`。",
+      "answer_source": "客户端不取答案、不本地判分。真实 content.json 里存在 info.std / info.ref / info.keypoint / info.topic，但 PC 前端 bundle 与全部 82 个 chunk 中没有任何读取点（info.std 的读取点只存在于 collector.fill 分支）。判分链完全走语音评测引擎：chunks/useRecordResult-fbe9e75b.js `let{total_score:w,...}=R;...x=t.sdk==s.AI?\"m_platform_engine\":\"m_aicloud_engine\"`，得分来自引擎 XML（parseIseResult/parseEtsOpenIseResult），日志再经 requestAnswerLogs -> /m/audio/sync-v2 上报。",
+      "answer_value_form": "未找到",
+      "answer_value_form_detail": {
+        "client_reads": "info.stid, info.audio（无答案字段）",
+        "exists_but_unread_by_client": "info.std（参考转述文本）, info.ref, info.keypoint, info.topic, info.value, info.image, info.analyze",
+        "grading": "服务端/语音评测引擎，客户端仅上传音频与拿分数"
+      },
+      "score_rule": "无任何客户端侧分数计算（结果页 switch 无 picture 分支）。试卷/族/套题满分同 collector.choose（set_score / exam_type_score / exam_score）；单题满分 question_list[0].question_score 作为 question_type_score 送评测：{entity_id:exam.exam_id, order:question.question_order, first_column_id:g, question_type_score:question.question_score}。总分由 calculateAndFormatScoresWithExamType(E()) 按引擎回传的 standard_score/real_score 累加；5 分制换算 calculateRealScore(e,t)=scoreFormater(Number(e)/5*Number(t))，calculateRealScoreWithCategory 仅对 EvaluationTypes=[read_word,read_chapter,read_sentence,read_choice,simple_expression_ufi,k,j,topic,simple_expression,free_expression] 生效。",
+      "submit_id_fields": [
+        "entity_id (= exam.exam_id，即 content.json info.stid 经 real_id 替换后的值)",
+        "order (= \"1\"，固定)",
+        "set_id",
+        "category (= question.evaluation_type)",
+        "res_id (= question.res_id)",
+        "region (= question.engine_area)",
+        "engine_type (= question.pprInfo.engine_type)",
+        "question_type_score (= question.question_score)",
+        "first_column_id",
+        "audio 键 `${D}_${stid}_1`",
+        "引擎附加：wav_url / spx_url / xml_url / mark_trace_id / sid / channel_type"
+      ],
+      "submit_endpoint": "/m/audio/sync-v2",
+      "notes": "录音步骤原文（chunks/useExamStepper-8ad3fbd7.js）：`\"action.record\":async t=>{...const l={record_time:a,category:o.question.evaluation_type,res_id:o.question.res_id,region:o.question?.engine_area,recordStep:o,set_id:e,engine_type:n,pprInfo:t,first_column_id:g};...const r=()=>{const e={entity_id:o.exam.exam_id,order:o.question.question_order,first_column_id:g,question_type_score:o.question.question_score};...}`。官方真样本（ets_resolver/tests/corpus/guangdong_mock1/05_信息转述/content.json，meta.type=collector.picture、group_name=信息转述、来源=官方云端作业真实下载包）：`structure_type: collector.picture; info keys: ['stid','value','image','audio','analyze','std','ref','keypoint','topic']; stid=49065; image=content.jpg; audio=content.mp3; topic=\"The School Trip\"; std=[{\"value\":\"</p><p>Here's the notice about our school trip. ...\"}]; keypoint=\"1. Here's the notice ... </br>2. ...\"`。同构真样本：tests/corpus/guangdong_hs_mock1/02_故事复述、Fe-pro/ets读取/北京初中resoure/01087533a728f9cd941b5b2efe99eab3、Fe-pro/ets读取/广东初中resoure/2ec447e23123d218d23e48a4b5e6538d。"
+    },
+    {
+      "name": "collector.3q5a",
+      "dispatch_evidence": "chunks/useExamResult-d9fb4671.js 的 switch 第一组：`case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":case\"collector.word\":case\"collector.repeat\":I()||setTimeout(()=>{const t=j(n.examType,n.htmlData,e,i);c.set3q5aScore.apply(null,t)},0);break;`。音频/子题定位：同文件 getRecordAudios `case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":for(const n of r.info.question)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(e=>e.entity_id===r.info.stid&&String(e.order)===n.xh),s=a&&await w({set_id:D,entity_id:r.info.stid,order:n.xh,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\";break;`。作答环节走通用的 ctrl.json `action.record` 步骤（chunks/useExamStepper-8ad3fbd7.js），族名不参与录音判定。",
+      "source_files": [
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/exam-6ff42190.js",
+        "content_<real_id>/content.json -> info.question[]"
+      ],
+      "question_extraction": "一题（一条 log）= content.json 的 info.question[] 一个元素（子题）。题号 = info.question[].xh（真样本 \"1\"..\"8\"），entity_id = info.stid（整个 content.json 一个 stid，8 个子题共用）。前端按 `for(const n of r.info.question)` 逐子题生成音频键 `${D}_${stid}_${xh}`，并按 `String(e.order)===n.xh` 与日志配对。子题字段（真样本）：std（6~16 个可接受答法变体，每项 {value,ai,audio}）、ref、ask（前 3 项为中文提示，后 5 项为英文问题）、answer（参考答句）、askaudio、aswaudio、xh、analyze、sucai、keywords（| 分隔关键词串）、role（\"a\"/\"b\"）。",
+      "answer_source": "客户端不取答案、不本地判分。前端只在两处引用该族：结果页 switch（-> set3q5aScore，参数里只有分数，无任何答案字段）与 getRecordAudios（只定位音频）。info.question[].std[] / answer / keywords / ref 在整个 PC bundle + 82 chunks 中 grep 命中 0。每子题均为录音步骤 -> chunks/useRecordResult-fbe9e75b.js 语音评测引擎 -> requestAnswerLogs -> /m/audio/sync-v2。",
+      "answer_value_form": "未找到",
+      "answer_value_form_detail": {
+        "client_reads": "info.stid, info.audio, info.question[].xh（无答案字段）",
+        "exists_but_unread_by_client": "info.question[].std[]（多解参考）、answer、keywords、ref、ask、analyze、sucai",
+        "grading": "服务端/语音评测引擎"
+      },
+      "score_rule": "结果页 `function j(e,t,o,i){return t.reduce((t,r)=>{let s=o.filter(e=>e.entity_id===r.info.stid),n=0;const c=s.length,l=s.reduce((t,o)=>{n++;const r=(function(e,t){const o=e.exam_list.find(e=>e.exam_id===t.entity_id);return o?o.question_list.find(e=>e.question_order===String(t.order)):{}}(e,o)),{scoreFilter:s}=a(),[l,d]=s(r.question_score,o.real_score,i);let _=l,u=d;if(100==u&&c>1){let t=Number(r.question_score)/Number(e.exam_type_score);if(_=O(l,t,i,c),u=O(d,t,i,c),n==c){const t=u;u=(i?e.exam_type_score:100)-u*(c-1),_=_*u/t,_=h(_,i)}}const m=`${D}_${o.entity_id}_${o.order}${q}${_??0}${q}${u}${q}0`;return t.push(m),t},[]);return t=t.concat(l)},[])}`。要点：子题满分取自 res.json 的 exam_list.find(exam_id===entity_id).question_list.find(question_order===String(order)).question_score；子题分经 scoreFilter(question_score, real_score, isPercentage) 换算；当分母为 100 且子题数>1 时按 question_score/exam_type_score 比例再分配并把余数给末题（O()）；拼串 `${setId}_${entity_id}_${order}\\x01${显示分}\\x01${分母}\\x01 0` 用 apply 展开传给 iframe 的 set3q5aScore。",
+      "submit_id_fields": [
+        "entity_id (= content.json info.stid)",
+        "order (= info.question[].xh)",
+        "set_id (= super_set_id || set_id)",
+        "question_type_score (= exam.exam_score)",
+        "first_column_id (= ctrl.json 步骤)",
+        "category (= question.evaluation_type)",
+        "res_id",
+        "region (= question.engine_area)",
+        "engine_type (= question.pprInfo.engine_type)",
+        "每子题一条 log；录音日志附 wav_url / spx_url / xml_url"
+      ],
+      "submit_endpoint": "/m/audio/sync-v2（分数展示走 iframe set3q5aScore）",
+      "notes": "命名结论（三层证据，前端源码本身无明文）：(1) 字面 = 3 questions + 5 answers；(2) 官方真实资源包 ets_resolver/tests/corpus/guangdong_hs_mock1/01_角色扮演 的 meta.json 记 `\"region\":\"广东高中（高考听说 60 分卷）\",\"type\":\"collector.3q5a\",\"group_name\":\"角色扮演\",\"source\":\"ETS100 官方云端作业真实下载包（广东高中账号）；ZIP 经官方 MSTCHINA 尾部+64位密码解密\"`，其 content.json 为 `structure_type:\"collector.3q5a\"`，`info.question[]` 长度 8，`xh=[\"1\"..\"8\"]`，`role=[\"a\",\"a\",\"a\",\"b\",\"b\",\"b\",\"b\",\"b\"]` —— 恰好 3 问 + 5 答；(3) 前端把 3q5a 与 role/dialogue 并列为同一条路径，说明二者结构同构（role 见广东初中『听选信息/回答问题/询问信息』，3q5a 见广东高中『角色扮演』），差别只在题目来源/地区。旁证：chunks/exam-6ff42190.js 存在地区枚举 `var e=(e=>(e[e.Guangdong=1]=\"Guangdong\",e[e.UTInterface=2]=\"UTInterface\",e[e.HYTInterface=3]=\"HYTInterface\",e[e.Shenzhen=4]=\"Shenzhen\",e[e.Yunnan=5]=\"Yunnan\",e))(e||{})`。已排除：APK 字节扫描 b'3q5a' 命中 1 次（offset 93778538，周围为不可读 base64 噪声），b'collector.3q5a' / b'三问五答' 命中 0 次，jadx_*/sources 命中 0。不确定：前端只按 info.question[].length 循环，不校验 3/5，故子题数未必恒为 8。"
+    }
+  ],
+  "answer_value_form_summary_table": [
+    {"concept": "选择题正确答案", "field": "content.json info.xtlist[].answer", "form": "字母", "evidence": "e.answer===s.xx_mc (useExamStepper G())；真样本 answer=\"B\"/\"C\""},
+    {"concept": "选择题选项字母", "field": "info.xtlist[].xxlist[].xx_mc", "form": "字母", "evidence": "e.answer===s.xx_mc; choose:s.xx_mc"},
+    {"concept": "选择题选项下标", "field": "info.xtlist[].xxlist[].xx_xh", "form": "数字串（从 1 开始）", "evidence": "s=e.xxlist.find(e=>e.xx_xh==n); choose_id:n；真样本 xx_xh=\"1\"/\"2\"/\"3\""},
+    {"concept": "选择题选项文本", "field": "info.xtlist[].xxlist[].xx_nr", "form": "文本（客户端不使用）", "evidence": "PC 前端 grep xx_nr 命中 0；真样本 xx_nr=\" Next week.\""},
+    {"concept": "选择题学生作答（载荷）", "field": "score_detail.choose", "form": "字母（= xx_mc）", "evidence": "choose:s.xx_mc"},
+    {"concept": "选择题学生作答（下标）", "field": "score_detail.choose_id", "form": "数字串（= xx_xh）", "evidence": "choose_id:n，n 来自 iframe getChoice() 第三段"},
+    {"concept": "选择题未作答", "field": "score_detail.choose=\"\"，无 choose_id；iframe 第三段=\"0\"", "form": "-", "evidence": "if(\"0\"===n)return{...choose:\"\",...}"},
+    {"concept": "字母->下标转换 b()", "field": "仅 iframe 显示/回填（setPCChoose / setPCChoose2）", "form": "A->\"1\" .. Z->\"26\"；AC->\"13\"", "evidence": "function b(e){...o+=(r-64).toString()...}；不是 HTTP 载荷"},
+    {"concept": "填空题正确答案", "field": "content.json info.std[].value", "form": "文本；/ 分隔多解", "evidence": "X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)"},
+    {"concept": "填空题空号", "field": "info.std[].xth", "form": "数字串", "evidence": "r.find(e=>e.xth===a)（严格 ===）"},
+    {"concept": "填空题学生作答", "field": "score_detail.choose（无 choose_id）", "form": "文本原文", "evidence": "choose:n，n = iframe getPcBlank() 的 answer"},
+    {"concept": "填空题回填形状", "field": "setPcBlank 实参", "form": "[{\"id\":\"<entity_id>_<order>\",\"answer\":...,\"status\":0|1}] 的 JSON 串", "evidence": "c.setPcBlank(JSON.stringify(e))"},
+    {"concept": "picture / 3q5a", "field": "不适用", "form": "未找到（客户端不取答案、不提交答案文本）", "evidence": "结果页 switch 无 picture 分支；3q5a 只调 set3q5aScore（纯分数）"}
+  ],
+  "not_found_or_uncertain": [
+    {"item": "iframe 页面里 getChoice / ReturnChoose / getPcBlank / returnPcBlank / setPCChoose / setPCChoose2 / setPcBlank / set3q5aScore 的定义体", "searched_keywords": ["setPCChoose","setPCChoose2","setPcBlank","set3q5aScore","getChoice","ReturnChoose","returnPcBlank","getPcBlank","getChooseChange"], "searched_files": ["index-5543d811.js","chunks/*.js (82)","httphelper.js","etshelper.js","clientDB.js","appcontroller.js","shellhelper.js"], "result": "全部命中 0；位于 IFRAME_LOCAL_PATH=\"./common\" 下的本地静态页面（pc-listen.html / read-write.html 等），未随本次下载"},
+    {"item": "114 个缺失 chunk（含 useReadingWritingStructConverter-0e20e02c.js / ReadingWritingDetails-1b8d0987.js / ReadingWritingResult-93fd0909.js / ReadingWritingList-35f22288.js / ReadingWritingStart-6a005565.js / SpecialReadingWritingStart-d2af4bf6.js / QuestionListItem-229d65bc.js / MockExamResult-789f2f57.js / readAloud-*.js / readSentence-*.js）", "searched_keywords": ["./Xxx-hash.js 引用集 vs chunks/ 目录求差"], "result": "194 refs / 82 have / 114 missing；PC 端读写专用页面的渲染分支无法提取"},
+    {"item": "3q5a 命名的明文解释", "searched_keywords": ["3q5a","3Q5A","三问","五答","问答","threeQ","fiveAnswer","q5a"], "searched_files": ["PC bundle","82 chunks","jadx_*/sources","E听说中学_7.0.65.2439.apk (byte scan)"], "result": "前端源码 0 命中；APK 1 次命中经字节取证为二进制噪声；命名结论来自官方语料（group_name=角色扮演 + role 3×a/5×b）"},
+    {"item": "真实 collector.fill 官方 content.json 样本", "searched_keywords": ["\"structure_type\": \"collector.fill\"","xtlist","info.std","std[].xth","\"xth\""], "searched_files": ["Fe-pro/ets读取/北京初中resoure/**/content.json","Fe-pro/ets读取/广东初中resoure/**/content.json","ets_resolver/tests/corpus/**"], "result": "本地未找到；collector.fill 字段结论完全来自前端代码"},
+    {"item": "xx_mc 取值域（官方样本量小）", "searched_keywords": ["xx_mc","xx_nr","xx_xh","answer"], "searched_files": ["Fe-pro/ets读取/北京初中resoure/{4cd4f71f…,a1a21110…,e0e718fa…}/content.json","jadx_template_info/.../InfoObjBean.java"], "result": "3/3 样本中 xx_mc 均为 A/B/C、answer 均为字母；高置信但样本量小"},
+    {"item": "collector.picture 是否在结果页有其它族专属回填", "searched_keywords": ["set3q5aScore","showScore","setPCChoose","setPcBlank"], "searched_files": ["chunks/useExamResult-d9fb4671.js"], "result": "picture 无 case；3q5a 只有 set3q5aScore（纯分数，无答案）"},
+    {"item": "xx_wj2 / xt_analy / st_sm / st_pic 语义", "searched_keywords": ["xx_wj2","xt_analy","st_sm","st_pic"], "searched_files": ["3 份北京 choose 真样本","PC 前端全量"], "result": "PC 前端无读取点（命中 0）；xt_analy / xt_wj2 连 Android bean 都没有 -> 未找到"},
+    {"item": "choose 多选/联答串的顺序保证", "searched_keywords": ["getChoice","split(\",\")","sort"], "searched_files": ["chunks/useExamStepper-8ad3fbd7.js"], "result": "G() 只按逗号切分逐段判分，前端不排序、不去重；顺序由未下载的 iframe getChoice() 决定 -> 未找到"},
+    {"item": "question_list[0] 假设", "searched_keywords": ["_e.exam.question_list[0]","question_score/question_count"], "searched_files": ["chunks/useExamStepper-8ad3fbd7.js"], "result": "官方实现确实用第 0 个小题的 question_score/question_count/evaluation_type 作为整族参数；同套题内各子题满分不同时前端会用第 0 题参数算全部（官方行为，非推测）"},
+    {"item": "fill 的 order 严格 === 匹配", "searched_keywords": ["e.xth===a","e.xx_xh==n"], "searched_files": ["chunks/useExamStepper-8ad3fbd7.js"], "result": "fill 用 ===，choose 用 ==；前端无数字/字符串兼容兜底"},
+    {"item": "score_detail.choose_id 是否服务端必需", "searched_keywords": ["choose_id"], "searched_files": ["chunks/Examine-d229829d.js","chunks/MockExamDetails-2a7d03a6.js","chunks/ratingPage-27750263.js","index-5543d811.js"], "result": "前端一律携带 score_detail.choose_id 与顶层 choose_id；看不到服务端校验 -> 是否必需未找到"}
+  ]
+}

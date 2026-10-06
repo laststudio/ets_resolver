@@ -17,6 +17,24 @@
         "C. Leave food for the cat."
       ],
       "important": [],
+      "choose_id": "3",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "Take the bag."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "Lock the door."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "Leave food for the cat."
+        }
+      ],
       "_no_source": "local"
     }
   ]

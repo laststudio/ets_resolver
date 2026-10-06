@@ -1,6 +1,6 @@
 {
   "captured_from": "python_reference",
-  "note": "真实广东高中'听说能力监测 20 分卷'资源包；golden 来自后端 Python 兜底实现，已与 Rust 比对零差异。",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
   "structure_type": "collector.read",
   "questions": [
     {

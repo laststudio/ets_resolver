@@ -1,6 +1,6 @@
 {
   "captured_from": "resolver_self_recorded",
-  "note": "真实广东高中'听说能力监测 20 分卷'的 collector.repeat 包（课文听读）。注意：**后端 Python 兜底实现对该结构同样解析出 0 题**，因此没有独立参照物，golden 只能来自修复后的解析器（故标记 self_recorded，不计入 official_ratio）。小题数与分值经官方 res.json 校验：该卷 5 个大题各 1 小题 × 4 分 = 20 分。",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
   "structure_type": "collector.repeat",
   "questions": [
     {
@@ -15,6 +15,5 @@
       "important": [],
       "_no_source": "local"
     }
-  ],
-  "official_cross_check": "res.json: 5 大题 × 1 小题 × 4 分 = set_score 20"
+  ]
 }

@@ -1,0 +1,29 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.picture",
+  "questions": [
+    {
+      "no": null,
+      "type": "collector.picture",
+      "stid": 729069,
+      "question": "A New Student, Tony",
+      "answers": [
+        "I've got some information about a new student, Tony. He is fourteen years old. He comes from Australia. His favorite subjects are Chinese and art. He can write beautiful Chinese characters and draw traditional Chinese paintings. Tony is arriving at 7:00 on Tuesday.",
+        "I've got some information about a new student, Tony. He is fourteen years old. He comes from Australia, a beautiful country on the other side of the earth. Tony will study all the subjects with us together. His favorite subjects are Chinese and art. He can write beautiful Chinese characters and draw traditional Chinese paintings. Tony is arriving at Daxing Airport at 7:00 on Tuesday. Some of us will go to the airport to welcome him. Hope we can all make Tony feel at home.",
+        "I've got some information about a new student, Tony. He is fourteen years old. He comes from Australia, a beautiful country on the other side of the earth. Tony will study all the subjects with you together. His favorite subjects are Chinese and art. He can write beautiful Chinese characters and draw traditional Chinese paintings. Tony is arriving at Daxing Airport at 7:00 on Tuesday. Some of you will go to the airport to welcome him. Hope you can all make Tony feel at home.",
+        "I've got some information about a new student, Tony. He is fourteen. He is from Australia. His favorite subjects are Chinese and art. He can write beautiful Chinese characters and draw traditional Chinese paintings. Tony is arriving at Daxing Airport at 7:00 on Tuesday.",
+        "I've got some information about a new student, Tony. He is fourteen years old. He comes from Australia. He likes Chinese and he can write beautiful Chinese characters. He also likes art and he can draw traditional Chinese paintings. He is arriving at 7:00 on Tuesday."
+      ],
+      "options": [],
+      "important": [
+        "1. I've got some information about a new student, Tony. He is fourteen years old.",
+        "2. He comes from Australia.",
+        "3. His favorite subjects are Chinese and art.",
+        "4. He can write beautiful Chinese characters and draw traditional Chinese paintings.",
+        "5. Tony is arriving at Daxing Airport at 7:00 on Tuesday.",
+        "I've got some information about ..."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,526 @@
+{
+  "meta": {
+    "source_root": "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web",
+    "main_bundle": "index-5543d811.js",
+    "main_bundle_md5": "28bdb58380a09ff79f501728c055c998",
+    "chunks_referenced": 193,
+    "chunks_present": 195,
+    "chunks_missing": 5,
+    "word_exam_missing_chunks": [],
+    "not_found_keywords": [
+      "听音选义",
+      "默写词汇",
+      "朗读词汇",
+      "听写词汇",
+      "英译中",
+      "中译英",
+      "听音",
+      "默写",
+      "听写",
+      "选义",
+      "拼写",
+      "释义"
+    ],
+    "method": "static read-only; no client run, no packet capture, no network"
+  },
+  "word_family": {
+    "collect_values": [
+      "collector.read",
+      "collector.picture",
+      "collector.word",
+      "collector.choose",
+      "collector.fill",
+      "collector.3q5a",
+      "collector.role",
+      "collector.dialogue",
+      "collector.repeat"
+    ],
+    "dispatch_points": [
+      {
+        "file": "chunks/useExamResult-d9fb4671.js",
+        "symbol": "switch(examType.exam_type_collect)",
+        "note": "collector.word 与 3q5a/role/dialogue/repeat 共用 set3q5aScore；collector.choose -> setPCChoose；collector.fill -> setPcBlank",
+        "code": "switch(\"collector.read\"!==n.examType.exam_type_collect&&(I()||c.showScore(_,d,0)),n.examType.exam_type_collect){case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":case\"collector.word\":case\"collector.repeat\":I()||setTimeout(()=>{const t=j(n.examType,n.htmlData,e,i);c.set3q5aScore.apply(null,t)},0);break;case\"collector.read\":n.examType.exam_list.length>1?I()||setTimeout(()=>{c.showScore(_,d,0);const t=j(n.examType,n.htmlData,e,i);c.set3q5aScore.apply(null,t)},0):function(e,t,o,i,r){setTimeout(async()=>{const{htmlData:s,hasLogScore:n,set_module_id:c}=t,l=t.exam_type_score??5,d=s[0];if(d){const s=o.find(e=>e.entity_id===d.info.stid)||{},n=await x({set_id:D,entity_id:s.entity_id,order:s.order,mistake_id:t.mistake_id,homework_id:t.homework_id,remote_url:s.detail_file});let c=\"\";c=n&&!n.includes(\"http\")?await C(n):await p(s.detail_file);const{real_score:_,detail:u,standard_score:m,manual_modified:f}=s,h=y(u),g=t.examType.exam_list.find(e=>e.exam_id===d.info.stid);let w=d.info.value;-1===w.indexOf(\"<\\br>\")&&(w=\"</br>\"+w.replace(/<\\/p>/g,\"</p></br>\"));const{scoreDetail:k,essayData:S}=await $(w,c,{first_column_id:i,stu_total:m,stu_real_score:m,multidimensional_results:h,exam_type_score:l,manual_modified:!0===f}),b=\"number\"==typeof _?_:k.stu_real_score,{scoreFilter:q}=a(),[T,v]=q(l,b,r);if(I()||e.showScore(v,T,0),g&&g.question_list){const t=g.question_list[0];if(!I()&&(\"read_chapter\"===t.evaluation_type?e.showEssay_2.apply(null,S):\"read_sentence\"===t.evaluation_type&&e.showPhrase_2.apply(null,S),\"read_word\"!==t.evaluation_type)){const t=k?.dimension_result||[];e.showScoreDetail.apply(null,t.slice(0,3))}}}},0)}(c,n,e,o,i);break;"
+      },
+      {
+        "file": "chunks/useExamResult-d9fb4671.js",
+        "symbol": "getRecordAudios / getAudioIds",
+        "note": "collector.word 记录主键 = set_id + info.stid + info.xh",
+        "code": "getRecordAudios:async function(e,t,o){const i={};try{for(const r of e){let e,s,a;switch(r.structure_type){case\"collector.read\":case\"collector.picture\":e=`${D}_${r.info.stid}_1`,a=t.find(e=>e.entity_id===r.info.stid&&\"1\"===String(e.order)),s=a&&await w({set_id:D,entity_id:r.info.stid,order:1,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\";break;case\"collector.word\":e=`${D}_${r.info.stid}_${r.info.xh}`,a=t.find(e=>e.entity_id===r.info.stid&&String(e.order)===r.info.xh),s=a&&await w({set_id:D,entity_id:r.info.stid,order:r.info.xh,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\";break;case\"collector.3q5a\":case\"collector.role\":case\"collector.dialogue\":for(const n of r.info.question)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(e=>e.entity_id===r.info.stid&&String(e.order)===n.xh),s=a&&await w({set_id:D,entity_id:r.info.stid,order:n.xh,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\";break;case\"collector.repeat\":for(const n of r.info.fj)e=`${D}_${r.info.stid}_${n.xh}`,a=t.find(e=>e.entity_id===r.info.stid&&String(e.order)===n.xh),s=a&&await w({set_id:D,entity_id:r.info.stid,order:n.xh,mistake_id:o.mistake_id,homework_id:o.homework_id,remote_url:a?.audio}),i[e]=s??a?.audio??\"\"}}}catch(r){}return i},"
+      },
+      {
+        "file": "index-5543d811.js",
+        "symbol": "HomeworkPractice.startHomework",
+        "note": "first_column_id==127(VocabularyModule) -> v(e,t,n,r)",
+        "code": "v=(e,t=\"0\",n,r)=>{if(e.pk)if(n){const t=e.mine.scores[0].word;t.map(e=>{e.point=e.score_rate}),h({name:\"pkResult\",state:{data:JSON.stringify({...e,my:t,useTime:e.mine.scores[0].use_time,from:e.from,opponent:e.opponent,resource_id:e.resource_id,datas:e.wordInfo.word.map(e=>({material_id:e.material_id,struct:e})),question:e.wordInfo.word_question})}},r)}else router.push({name:\"pkMatch\",query:{title:e.name||\"\"},state:{data:JSON.stringify(e)}});else n?((e,t)=>{h({name:\"homeworkWordQuestionResult\",state:{data:JSON.stringify({...e})}},t)})(e,r):h({name:\"homeworkWordQuestion\",query:{selectIndex:0},state:{data:JSON.stringify(e)}},r)},"
+      },
+      {
+        "file": "index-5543d811.js",
+        "symbol": "FirstColumnType",
+        "code": "var FirstColumnType=(e=>(e[e.SimulationExam=1]=\"SimulationExam\",e[e.ListeningSpeakingSpecial=2]=\"ListeningSpeakingSpecial\",e[e.SpecialTraining=3]=\"SpecialTraining\",e[e.SynchronousPractice=4]=\"SynchronousPractice\",e[e.ListeningSpeakingSynchronous=5]=\"ListeningSpeakingSynchronous\",e[e.Phonetics=6]=\"Phonetics\",e[e.Composition=8]=\"Composition\",e[e.Shadowing=9]=\"Shadowing\",e[e.ReadingWriting=10]=\"ReadingWriting\",e[e.UnscoredComposition=11]=\"UnscoredComposition\",e[e.ReadingWritingSimulation=12]=\"ReadingWritingSimulation\",e[e.ListeningSimulation=88]=\"ListeningSimulation\",e[e.SynchronousListeningSpeakingUnit=92]=\"SynchronousListeningSpeakingUnit\",e[e.Mistake=103]=\"Mistake\",e[e.SynchronousListening=104]=\"SynchronousListening\",e[e.SynchronousListeningSpeakingClass=108]=\"SynchronousListeningSpeakingClass\",e[e.SynchronousDubbing=109]=\"SynchronousDubbing\",e[e.FunDubbing=110]=\"FunDubbing\",e[e.HolidayHomework=112]=\"HolidayHomework\",e[e.VocabularyModule=127]=\"VocabularyModule\",e[e.GradedReading=119]=\"GradedReading\",e[e.SynchronousTextbook=159]=\"SynchronousTextbook\",e[e.SynchronousTextbookRecite=215]=\"SynchronousTextbookRecite\",e[e.StudyPlan=168]=\"StudyPlan\",e[e.PhoneticNew=331]=\"PhoneticNew\",e))(FirstColumnType||{})"
+      }
+    ],
+    "data_sources": [
+      {
+        "name": "homework_struct",
+        "endpoint": "g/homework/struct",
+        "fn": "requestHomeworkWordStruct",
+        "request": "{...e}",
+        "response": "body{source,unit_code,word[],word_question[]}"
+      },
+      {
+        "name": "word_struct",
+        "endpoint": "g/word/struct",
+        "fn": "requestWordStruct",
+        "request": "{word_ids:[...]}",
+        "response": "body.data[{id,material_id,struct{},grasp,question[]}]"
+      },
+      {
+        "name": "word_list",
+        "endpoint": "g/set/word-list",
+        "fn": "requestWordDetailList",
+        "request": "{unit_id,parent_account_id,resource_id} | +{source:1,unit_code}",
+        "response": "body.data[{name,words[{id,struct{content,material_id,translate,audio_url},in_class,collect,grasp}]}]"
+      },
+      {
+        "name": "resource_platform",
+        "endpoints": [
+          "/rop/open/v1/wordItem/listByWordIds",
+          "/rop/open/v2/word/findByIds"
+        ],
+        "batch": 100,
+        "response": "item{questions[]{resourceQuestionId,questionTypeId,details[0]{option,answer,translate}}}"
+      }
+    ],
+    "question_type_map": {
+      "pc_discriminator": "question_type",
+      "confirmed_alternative_names_not_used": [
+        "type",
+        "word_type",
+        "sub_type"
+      ],
+      "all_word_question_types": [
+        6,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "choice_question_types": [
+        6,
+        19,
+        20
+      ],
+      "default_question_type": 19,
+      "per_word_question_count_gate": 6,
+      "values": {
+        "6": {
+          "mobile_name": "听音选义",
+          "pc_role": "choice",
+          "pc_evidence": "in choice set [6,19,20]; no dedicated PC branch"
+        },
+        "16": {
+          "mobile_name": "默写词汇",
+          "pc_role": "non-choice spelling",
+          "pc_evidence": "in [6,16,17,18,19,20] only; NO dedicated PC branch in available code"
+        },
+        "17": {
+          "mobile_name": "朗读词汇",
+          "pc_role": "read-aloud/recording",
+          "pc_evidence": "in [6,16,17,18,19,20] only; NO dedicated PC branch in available code"
+        },
+        "18": {
+          "mobile_name": "听写词汇",
+          "pc_role": "non-choice dictation",
+          "pc_evidence": "in [6,16,17,18,19,20] only; NO dedicated PC branch in available code"
+        },
+        "19": {
+          "mobile_name": "英译中",
+          "pc_role": "default choice; prompt=content, shows phonics+word audio",
+          "pc_evidence": "S(...,t=19) default; filter(e=>19==e.question_type); 19==question_type?content:translate"
+        },
+        "20": {
+          "mobile_name": "中译英",
+          "pc_role": "choice",
+          "pc_evidence": "in choice set [6,19,20]"
+        }
+      },
+      "evidence": [
+        {
+          "file": "chunks/wordCourseSourceHelpers-f63ae392.js",
+          "symbol": "const e=[6,16,17,18,19,20], t=[6,19,20], o=100, r=19",
+          "code": "import{L as n}from\"./index-5543d811.js\";const e=[6,16,17,18,19,20],t=[6,19,20],o=100,r=19;function s(n,e=100){if(!Array.isArray(n)||0===n.length)return[];const t=[];for(let o=0;o<n.length;o+=e)t.push("
+        },
+        {
+          "file": "chunks/PK-7ae1b52b.js",
+          "symbol": "me.value=j[i].question.filter(e=>19==e.question_type)[0]",
+          "code": "ve=a(()=>{if(1==S.getInstance().practiceType){let e=j[ee.value];return me.value=e,e}{me.value=j[ee.value].question.filter(e=>19==e.question_type)[0];let e={};return e=j[ee.value],e.word_id=e.id,e.id=me.value.id,e}}),me=k(null),Ae=1===Number(O.query.word_source),De=U(m.wordInfo),Ee=(e,a)=>{const t={question_id:ve.value.id,word_id:ve.value.word_id,point:e,answer:a};if(De){const e=E(ve.value);e.item_id&&e.question_item_id&&(t.item_id=e.item_id,t.question_item_id=e.question_item_id)}else Ae&&(t.question_id=\"\",t.item_id=z(ie[ee.value]),t.question_item_id=ve.value.id);return t},"
+        },
+        {
+          "file": "chunks/PKMatch-d8a7c872.js",
+          "symbol": "s.body.data.filter(e=>e.question.length>=6)",
+          "code": "const Z=async()=>{if(M.value=1,null!=J.wordInfo)return void(L=setTimeout(()=>{X.value={serial_id:\"\",opponent:J.opponent},M.value=2,L=setTimeout(()=>{o.logCustom(\"leave PK-match.vue\",{tag:\"UI_PAGE\"}),k.replace({name:\"pk\",query:{title:Q},state:{data:JSON.stringify({...J,question:z(J.wordInfo.word_question),opponent:X.value,resource_id:J.resource_id,datas:null!=J.wordInfo?Y.value:H(t)})}})},2e3)},0));let e=[],a=[],t=[];if(J.word)e=J.word.map(e=>e.id),t={...J.word,question:[J.word_question]},a=J.word_question;else{e=Y.value.map(e=>e.struct.id);try{let s=await I({word_ids:e});if(0==s.code&&(t=s.bod"
+        }
+      ]
+    },
+    "answer_form": {
+      "option_type": {
+        "option_field": "JSON string of [{option_name, option_value}]",
+        "correct_answer": "answer == options[i].option_name (option KEY)",
+        "display_text": "option_value",
+        "index_used_for_scoring": false,
+        "submitted_answer": "option_name",
+        "point_scale_in_pk": {
+          "correct": 10000,
+          "wrong": 0
+        },
+        "score_detail_on_submit": "JSON.stringify({choose: answer, score: point>0?100:0})",
+        "evidence": [
+          "Me=a(()=>{let e=JSON.parse(me.value?.option??\"[]\");return 1!==S.getInstance().practiceType&&(e=P.shuffle(e)),e}),Ze=()=>{ie[ee.value].material_id&&(ie[ee.value].collect=1)},We=a(()=>{const e=ve.value.",
+          "l(\"div\",Ke,[(t(!0),n(N,null,_(Me.value,(e,a)=>(t(),s(X,{onClick:t=>((e,a)=>{-1!=te.value||0==ea.value||$.value||ze.value||(clearInterval(aa),me.value?.answer==e.option_name?ne.value++:ne.value=0,te.value=a,Qe.value=Qe.value+(me.value?.answer==e.option_name?10:0),me.value?.answer!=e.option_name&&Ze(),ae.push(Ee(me.value?.answer==e.option_name?1e4:0,e.option_name)),q.logCustom(`PK.vue select-option-user  question_id=${ve.value.id}-word_id=${ve.value.word_id}-answer:${e.option_name}`,{tag:\"FLOW_PRAC\"}),Ge())})(e,a),class:\"question-items-item\",title:e.option_value,\"show-status\":(V(te)==a||je.value==e.option_name||me.value?.answer==e.option_name)&&!x.value,name:V(Q).opponent.name,answered:V(te)>-",
+          "Ee=(e,a)=>{const t={question_id:ve.value.id,word_id:ve.value.word_id,point:e,answer:a};if(De){const e=E(ve.value);e.item_id&&e.question_item_id&&(t.item_id=e.item_id,t.question_item_id=e.question_item_id)}else Ae&&(t.question_id=\"\",t.item_id=z(ie[ee.value]),t.question_item_id=ve.value.id);return t},Me=a(()=>{let e=JSON.parse(me.",
+          "je=a(()=>1==S.getInstance().practiceType?0==Q.opponent.scores.length?\"\":JSON.parse(Q.opponent.scores[0].word.filter(e=>ve.value.word_id==e.word_id)[0].score_detail).choose:We.value.answer),Xe=k(!0),Qe=k(0),$e=k(0),ea=k(6);let aa=null;const ta=k(!1);B(Xe,e=>{Xe.value?p.resume():p.pause()});const na=()=>{clearInterval(aa),ea.value=6,aa=setInterval(()=>{ea.value--,0==ea.value&&(clearInterval(aa),ae.push(Ee(0,\"\")),q.logC"
+        ]
+      },
+      "legacy_choice_family_collector_choose": {
+        "note": "NOT the word family; different convention",
+        "correct_answer": "answer === xxlist[].xx_mc (option TEXT)",
+        "option_id": "xx_xh",
+        "score_detail": "{total_score, choose:xx_mc, choose_id:xx_xh, category}",
+        "iframe_protocol": "{entity_id}_{order}_{lettersToDigits(choose)}\\x01{lettersToDigits(answer)}",
+        "evidence": [
+          "async function G(e,t,a,o){const{getFileJson:n}=f(),{UNZIP_LOCAL_PATH:l}=d();let s=[],r=(await n(p(`${l}\\\\${e}\\\\content_${t}\\\\content.json`))).info.xtlist;try{s=o.split(\",\")}catch(i){}return s.map(e=>{const[t,o,n]=e.split(\"_\");let l=\"0\";if(\"0\"===n)return{entity_id:t,order:o,score_detail:{total_score:l,choose:\"\",category:a.evaluation_type}};{const e=r.find(e=>e.xt_xh===o);if(!e)return null;const s=e.xxlist.find(e=>e.xx_xh==n);return s?(e.answer===s.xx_mc&&(l=m(a.question_score/a.question_count)),{entity_id:t,order:o,score_detail:{total_score:l,choose:s.xx_mc,choose_id:n,category:a.evaluation_type}}):null}}).filter(Boolean)}"
+        ]
+      },
+      "spelling_type_16_18": {
+        "status": "NOT FOUND",
+        "keywords_tried": [
+          "question_type==16",
+          "question_type==18",
+          "默写",
+          "听写",
+          "拼写",
+          "spell",
+          "dictation",
+          "stem",
+          "word_blank"
+        ]
+      },
+      "read_aloud_type_17": {
+        "status": "NOT FOUND (no dedicated branch)",
+        "known": "not in choice set -> no option; recording path produces score_detail without `choose`",
+        "evidence": [
+          "const EvaluationTypes=[\"read_word\",\"read_chapter\",\"read_sentence\",\"read_choice\",\"simple_expression_ufi\",\"simple_expression_ufk\",\"simple_expression_ufj\",\"topic\",\"simple_expression\",\"free_expression\"];var SchoolLevel=(e=>(e[e.Primary=2]=\"Primary\",e[e.Middle=1]=\"Middle\",e[e.High=3]=\"High\",e))(SchoolLevel||{}),EvalResultSummaryTotal=(e=>(e.De"
+        ]
+      },
+      "word_entity_ids": [
+        "word_id",
+        "question_id",
+        "item_id",
+        "question_item_id",
+        "material_id",
+        "stid",
+        "entity_id",
+        "order",
+        "serial_id",
+        "seq_id"
+      ]
+    },
+    "score_and_ids": {
+      "per_word_submit_fields": {
+        "word_id": "from struct.id / word_question.id",
+        "question_id": "from question[].id; empty string when bc word source",
+        "item_id": "pickBcIds(question).item_id",
+        "question_item_id": "pickBcIds(question).question_item_id",
+        "score_rate": "e.point>0?1:0",
+        "score_detail": "JSON.stringify({choose,score})",
+        "client_time": "currentTimestampToDate()"
+      },
+      "envelope": {
+        "detail": "array",
+        "homework_id": "parseInt(store.homework_id)",
+        "resource_id": "passthrough",
+        "type": "passthrough (PK=6)",
+        "use_time": "getSeconds()",
+        "mark_service": 1,
+        "seq_id": "md5(raw_phone+homework_id+ISO,16)",
+        "source/unit_code": "when isBcHomeworkStruct(wordInfo)"
+      },
+      "evidence": [
+        "requestHomeworkWordCommit:e=>{const t=useUserInfoStore$1().userInfo,n=a.value??\"\";try{let t=JSON.stringify(e);LoggerUtils.logCustom(`submit-score currentTime=${(new Date).getTime()}-params=${t}`)}catch(s){}const r=e.id||e.homework_id;if(r&&String(r)!==String(n))return LoggerUtils.logCustom(`submit-score blocked: params.id=${r} != store.homework_id=${n}，数据不属于当前作业，阻止提交`),Promise.resolve({code:-1,msg:\"homework_id mismatch, submission blocked\"});const o=isBcHomeworkStruct(e.wordInfo)?`${e.wordInfo?.unit_code??\"\"}`:\"\",i={detail:0==e.pk?e.detail.map(e=>({...e,client_time:currentTimestampToDate()})):e.score_detail.map(e=>({word_id:e.word_id,question_id:e.question_id,...e.item_id&&e.question_item_id?{item_id:e.item_id,question_item_id:e.question_item_id}:{},score_rate:e.point>0?1:0,score_detail:JSON.stringify({choose:e.answer,score:e.point>0?100:0}),client_time:currentTimestampToDate()})),homework_id:parseInt(n),resource_id:e.resource_id,type:e.type,use_time:e.use_time,mark_service:1,seq_id:e.seq_id?e.seq_id:md5((t?.raw_phone??\"\")+n+new Date(Date.now()).toISOString(),16)};return requestHomeworkScoreSync(buildWordHomeworkScoreSyncBCParams(i,o))",
+        "buildWordHomeworkScoreSyncBCParams=(e,t)=>t?{...e,source:1,[BC_UNIT_CODE_FIELD]:t}:e,requestHomeworkList=async e=>await hyRequest.postIt(\"g/homework/list\",{version:10,...e,use_https:1,use_homework_pri",
+        "requestHomeworkScoreSync=async e=>await hyRequest.postIt(\"g/homework/score-sync\",e),requestHomeworkScoreDetail=async e=>await hyRequest.postIt(\"g/homework/score-detail\",e),requestWordScoreDrop=async e=>await hyRequest.postIt(\"g/homework/score-drop\",e),",
+        "requestWordScoreDrop=async e=>await hyRequest.postIt(\"g/homework/score-drop\",e),requestWordIsInNotebook=async e=>await hyRequest.p"
+      ]
+    },
+    "endpoints": [
+      "g/homework/struct",
+      "g/word/struct",
+      "g/set/word-list",
+      "g/word/add-new",
+      "g/word/is-in-notebook",
+      "g/word/master",
+      "g/word/new-notebook",
+      "g/word/score-report",
+      "g/homework/pk-info",
+      "g/pk/start-word-pk",
+      "g/pk/submit-word",
+      "g/pk/count",
+      "g/pk/ranklist",
+      "g/homework/score-sync",
+      "g/homework/score-drop",
+      "/rop/open/v1/wordItem/listByWordIds",
+      "/rop/open/v2/word/findByIds"
+    ]
+  },
+  "exam_flow": {
+    "steps": [
+      {
+        "n": 1,
+        "name": "初始化（Examine/MockExamDetails onMounted）",
+        "what": "拉 score detail（continue 场景）-> ProcessPaper.processPaperResources -> mistakeAdder.check -> processPaperSteps -> useExamSteps(...)",
+        "code": "function Ga(){const e=Fe.query.homework_id;be({homework_id:e,set_id:je,mock:1}),K.getInstance().startCountAdd(),Ra()}"
+      },
+      {
+        "n": 2,
+        "name": "构建 steps",
+        "what": "ctrl.json 按 subid 匹配 exam.code_id；order=`${order_num}_custom_order_${subid}_${order_num}`；action.record 步骤绑定 step.question",
+        "code": "async processPaperSteps(e){let t={};for(const r of e){t[r.set_id]||(t[r.set_id]={steps:[],examType:r});const e=replacePathSeparator(`${this.UNZIP_LOCAL_PATH}\\\\${this.getTemplateFilePath(r.template.id)}`),n=replacePathSeparator(`${e}\\\\ctrl_check.json`),o=await existFileOrFloder(n)?\"ctrl_check.json\":\"ctrl.json\",i=await this.getJson(replacePathSeparator(`${this.getTemplateFilePath(r.template.id)}\\\\${o}`)),a=lodashExports.cloneDeep(i);for(const s of r.exam_list){const e=a.filter(e=>{const t=e.subid.match(matchRegex);return t&&t[1]===s.code_id}).map(e=>(e.subid=e.subid.replace(matchRegex,s.real_id),e.order_num=e.order,e.order=`${e.order_num}_custom_order_${e.subid}_${e.order_num}`,{...e,exam:s}));if(\"collector.repeat\"===r.exam_type_collect){const n=await this.getJson(replacePathSeparator(`${this.getContentFilePath(s.real_id)}\\\\info_extra.json`)),o=e.filter(e=>e.subid.includes(\"_0\")),i=e.filter(e=>!e.subid.includes(\"_0\"));let a=0;for(const e of n){let t=JSON.stringify(i);for(const o of e)t=t.replace(new RegExp(o.id,\"g\"),o.value);let n=JSON.parse(t);const r=o[o.length-1];let s=Number(r.order)||Number(r.order_num);const l=Number(s)+1,c=(e,t)=>e.replace(/_(\\d+)$/,(e,n)=>`_${Number(n)+t}`);n=n.map(e=>{let t=e.subid;return s++,{...e,subid:c(t,a),order:`${l}_custom_order_${e.subid}_${s}`,order_num:String(s)}}),a++,o.push(...n)}t[r.set_id].steps=t[r.set_id].steps.concat(o)}else t[r.set_id].steps=t[r.set_id].steps.concat(e)}}let n={};for(const[r,o]of Object.entries(t)){const{steps:e,examType:t}=o;n[r]=[];for(const o of e){const e={...o};if(\"view.html\"===e.filetype&&e.model_pc){const n=await this.processJsParam(e.model_pc.jsparam,e.exam,t);e.model_pc.extractedJsParam=n}\"file.audio\"!==e.filetype&&\"file.video\"!==e.filetype||(e.filename=replacePathSeparator(`${this.generateFilePath(e.dirtype,e.exam.real_id,t.template.id)}\\\\material\\\\${e.filename}`)),\"script\"===e.filetype&&(e.filename=replaceRealId(e.filename,e.exam.real_id));const i=e.subid.split(\"_\")[1];if(\"action.record\"===e.filetype){const t=e.exam.question_list.find(e=>e.question_order===i);e.question=t}n[r].push(e)}}return n}"
+      },
+      {
+        "n": 3,
+        "name": "进入步骤",
+        "what": "He() 按 filetype 查 Oe 表：view.html 渲染 iframe；file.audio/file.video 播放；wait/choose-check 倒计时；practise 组题；action.record 录音；script 执行",
+        "code": "Oe={\"view.html\":e=>{de(),_e=e,ge.trigger({type:e.filetype,key:Date.now(),displayAnswerContent:he.value,htmlData:B.cloneDeep(e.model_pc.extractedJsParam),htmlUrl:`${Y}/${V.PcListen}`}),b.once(()=>{N.logCustom(\"渲染视图完成触发nextStep\",{tag:\"FLOW_PRAC\"}),pe(),setTimeout(()=>{Ce()},100)})},wait:Fe,\"file.audio\":e=>{const t=p(`${z}\\\\${e.filename}`);\"pause\"===W.playStatus.value?W.resume():W.play(t)},\"file.video\":e=>{const{fileparams:t}=e;if(\"1\"==t){const t=p(`${z}\\\\${e.filename}`);\"pause\"===W.playStatus.value?W.resume():W.play(t)}else h&&h.$el.currentTime?h.play():ge.trigger({type:e.filetype,data:e,key:Date.now(),src:p(`${z}\\\\${e.filename}`)})},pause:()=>{N.logCustom(\"pause触发nextStep\",{tag:\"FLOW_PRAC\"}),ee.value&&Ce()},practise:async()=>{clearTimeout(me.value),me.value=setTimeout(async()=>{if(y){if(\"collector.choose\"===w.value.exam_type_collect){y.ReturnChoose=e=>{N.logCustom(`操作选择的answers:${JSON.stringify(e)}`,{tag:\"FLOW_PRAC\"})},await _();const t=y.getChoice(),a=await G(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)}),N.logCustom({answers:t,result:a,log_name:\"user_choose\"},{tag:\"FLOW_PRAC\"});try{window.triggerBuriedPoint(\"m_listening_specialization\",{i_score:a.reduce((e,t)=>e+m(t.score_detail.total_score),0),i_type:0,i_totalScore:m(_e.exam.question_list[0].question_score)})}catch(e){}}\"collector.fill\"===w.value.exam_type_collect&&(y.returnPcBlank=async t=>{const a=await async function(t,a,o,n){const{getFileJson:l}=f(),{UNZIP_LOCAL_PATH:s}=d(),r=(await l(p(`${s}\\\\${t}\\\\content_${a}\\\\content.json`))).info.std,i=JSON.parse(n);try{return i.map(e=>{const[t,a]=e.id.split(\"_\"),n=e.answer;let l=\"0\";if(\"\"===n)return{entity_id:t,order:a,score_detail:{total_score:l,choose:\"\",category:o.evaluation_type}};{const e=r.find(e=>e.xth===a);return s=X(n),X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)&&(l=m(o.question_score/o.question_count)),{entity_id:t,order:a,score_detail:{total_score:l,choose:n,category:o.evaluation_type}}}var s})}catch(e){return[]}}(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)}),N.logCustom({answers:t,result:a,log_name:\"user_fill\"},{tag:\"FLOW_PRAC\"});try{window.triggerBuriedPoint(\"m_listening_specialization\",{i_score:a.reduce((e,t)=>e+m(t.score_detail.total_score),0),i_type:U.getInstance().getIsHomework()?1:0,i_totalScore:m(_e.exam.question_list[0].question_score)})}catch(e){}},y.getPcBlank())}N.logCustom(\"practiseHandler触发nextStep\",{tag:\"FLOW_PRAC\"}),Ce()},50)},\"choose-check\":Fe,changetext:e=>{if(y){const t=y[e.filename];if(\"function\"==typeof t){const a=e.fileparams.slice(1,-1);t.call(null,a)}}N.logCustom(\"changetextHandler触发nextStep\",{tag:\"FLOW_PRAC\"}),Ce()},\"action.record\":async t=>{ue.value=!0;let a=Number(t.playtime??0);\"1\"==Se.value?.synchro&&\"file.video\"===Se.value?.filetype&&(a=1e4,h?.pause());const o=B.cloneDeep(t);if(o&&o.question){const{pprInfo:t}=o.question||{},{engine_type:n}=t||{},l={record_time:a,category:o.question.evaluation_type,res_id:o.question.res_id,region:o.question?.engine_area,recordStep:o,set_id:e,engine_type:n,pprInfo:t,first_column_id:g};if(ne.value)return;ne.value=!0;const s=Z.record(l,{onReady:()=>{oe.value=!0,le.value=!1,ne.value=!1,\"1\"==Se.value?.synchro&&\"file.video\"===Se.value?.filetype&&h?.play()},onReadyLoading:()=>{le.value=!0}}),r=()=>{const e={entity_id:o.exam.exam_id,order:o.question.question_order,first_column_id:g,question_type_score:o.question.question_score};return new Promise((t,a)=>{s.then(async a=>{L.trigger(async()=>{const t=await re(l.category,a,g,o.question.question_score,e=>e&&se.addTask(e));return x.trigger({...t,...e}),t}),t(a)}).catch(t=>{a({...t,logParams:e,recordStep:o})})})};F.trigger(r)}},script:e=>{if(y)try{const a=e.filename;if(a.includes(\"viewpng\")){var t=a.match(/viewpng\\('([^']+)'\\)/);y.setBackgroundColor(t[1])}else a.includes(\"hidepng\")}catch(a){}N.logCustom(\"scriptHandler触发nextStep\",{tag:\"FLOW_PRAC\"}),Ce()}},"
+      },
+      {
+        "n": 4,
+        "name": "播放",
+        "what": "file.audio -> useSound.play(localPath)；file.video synchro==1 时先播视频；W.onPlayEnd -> xe()+He()",
+        "code": "He=async()=>{if(ie.value)return;const{filetype:e,synchro:t}=Q.current.value??{},a=Oe[e];\"function\"==typeof a&&a(Q.current.value),\"file.video\"==e&&\"1\"==t&&(await xe(),He())},Ie=()=>{N.logCustom(\"套题流程触发pause暂停\",{tag:\"FLOW_PRAC\"}),ee.value=!1,(()=>{const e=Q.current.value?.filetype,t=Ee[e];if(\"function\"==typeof t&&t(Q?.current.value),\"1\"==Se.value?.synchro){const e=Ee[Se.value.filetype];e&&e(Se.value)}})()},Ne=()=>{N.logCustom(`套题流程触发stopRecord停止录音, 当前步骤order: ${Q?.current?.value?.order}`,{tag:\"FLOW_PRAC\"}),ke()};const Be=o(()=>ue.value||\"action.record\"==fe.value?.filetype),Je=o(()=>ue.value||\"action.record\"==fe.value?.filetype);return n(Q.current,t=>{t&&(N.logCustom({title:\"套题流程: \",set_id:e,entity_id:t.exam?.exam_id,order:t.order,filename:t.filename,playtime:t.playtime,filetype:t.filetype,log_name:\"exam_step\"},{tag:\"FLOW_PRAC\"}),R.trigger(t),h&&(h.$el.currentTime=0))},{immediate:!0}),{initView:async(e=!0)=>{await ce(),ee.value=e,ae.value=e,He()},updateView:ge.on,answerHandler:x.on,chooseCheckHandler:P.on,chooseHandler:S.on,completeHandler:q.on,htmlLoad:O.trigger,prev:async(e=!1)=>{if(await new Promise(e=>setTimeout(e,200)),N.logCustom(`prev触发prevStep, prevDisabled: ${Je.value}`,{tag:\"FLOW_PRAC\"}),!Je.value)if(ee.value=!0,e)we();else{const e=t.findIndex(e=>e.order===fe.value?.order),a=function(e,t){for(let a=t-1;a>=0;a--)if(e[a].subid!==e[t].subid&&\"view.html\"===e[a].filetype)return a;return 0}(t,e),o=t[a].order;we(o)}},next:async()=>{await new Promise(e=>setTimeout(e,200)),N.lo"
+      },
+      {
+        "n": 5,
+        "name": "录音+评测+逐题上报",
+        "what": "action.record: Z.record({record_time,category,res_id,region,recordStep,set_id,engine_type,pprInfo,first_column_id}) -> useRecordResult.getResult -> answerHandler.trigger -> uploadFileTaskHandler / realUploadFileTasks",
+        "code": "\"action.record\":async t=>{ue.value=!0;let a=Number(t.playtime??0);\"1\"==Se.value?.synchro&&\"file.video\"===Se.value?.filetype&&(a=1e4,h?.pause());const o=B.cloneDeep(t);if(o&&o.question){const{pprInfo:t}=o.question||{},{engine_type:n}=t||{},l={record_time:a,category:o.question.evaluation_type,res_id:o.question.res_id,region:o.question?.engine_area,recordStep:o,set_id:e,engine_type:n,pprInfo:t,first_column_id:g};if(ne.value)return;ne.value=!0;const s=Z.record(l,{onReady:()=>{oe.value=!0,le.value=!1,ne.value=!1,\"1\"==Se.value?.synchro&&\"file.video\"===Se.value?.filetype&&h?.play()},onReadyLoading:()=>{le.value=!0}}),r=()=>{const e={entity_id:o.exam.exam_id,order:o.question.question_order,first_column_id:g,question_type_score:o.question.question_score};return new Promise((t,a)=>{s.then(async a=>{L.trigger(async()=>{const t=await re(l.category,a,g,o.question.question_score,e=>e&&se.addTask(e));return x.trigger({...t,...e}),t}),t(a)}).catch(t=>{a({...t,logParams:e,recordStep:o})})})};F.trigger(r)}},"
+      },
+      {
+        "n": 6,
+        "name": "选择题提交",
+        "what": "practise/collector.* -> G() 建 score_detail -> answerHandler.trigger 逐题；chooseHandler -> handleRequestParams+postAudioSyncLogs",
+        "code": "practise:async()=>{clearTimeout(me.value),me.value=setTimeout(async()=>{if(y){if(\"collector.choose\"===w.value.exam_type_collect){y.ReturnChoose=e=>{N.logCustom(`操作选择的answers:${JSON.stringify(e)}`,{tag:\"FLOW_PRAC\"})},await _();const t=y.getChoice(),a=await G(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)}),N.logCustom({answers:t,result:a,log_name:\"user_choose\"},{tag:\"FLOW_PRAC\"});try{window.triggerBuriedPoint(\"m_listening_specialization\",{i_score:a.reduce((e,t)=>e+m(t.score_detail.total_score),0),i_type:0,i_totalScore:m(_e.exam.question_list[0].question_score)})}catch(e){}}\"collector.fill\"===w.value.exam_type_collect&&(y.returnPcBlank=async t=>{const a=await async function(t,a,o,n){const{getFileJson:l}=f(),{UNZIP_LOCAL_PATH:s}=d(),r=(await l(p(`${s}\\\\${t}\\\\content_${a}\\\\content.json`))).info.std,i=JSON.parse(n);try{return i.map(e=>{const[t,a]=e.id.split(\"_\"),n=e.answer;let l=\"0\";if(\"\"===n)return{entity_id:t,order:a,score_detail:{total_score:l,choose:\"\",category:o.evaluation_type}};{const e=r.find(e=>e.xth===a);return s=X(n),X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(s)&&(l=m(o.question_score/o.question_count)),{entity_id:t,order:a,score_detail:{total_score:l,choose:n,category:o.evaluation_type}}}var s})}catch(e){return[]}}(w.value.super_set_id||w.value.set_id,_e.exam.exam_id,_e.exam.question_list[0],t);a.forEach(e=>{e.first_column_id=g,e.question_type_score=_e.exam.exam_score,x.trigger(e)}),N.logCustom({answers:t,result:a,log_name:\"user_fill\"},{tag:\"FLOW_PRAC\"});try{window.triggerBuriedPoint(\"m_listening_specialization\",{i_score:a.reduce((e,t)=>e+m(t.score_detail.total_score),0),i_type:U.getInstance().getIsHomework()?1:0,i_totalScore:m(_e.exam.question_list[0].question_score)})}catch(e){}},y.getPcBlank())}N.logCustom(\"practiseHandler触发nextStep\",{tag:\"FLOW_PRAC\"}),Ce()},50)},"
+      },
+      {
+        "n": 7,
+        "name": "下一题",
+        "what": "Ce() 收尾当前步 -> xe() -> useStepper.goToNext()；最后一步 -> completeHandler",
+        "code": "He=async()=>{if(ie.value)return;const{filetype:e,synchro:t}=Q.current.value??{},a=Oe[e];\"function\"==typeof a&&a(Q.current.value),\"file.video\"==e&&\"1\"==t&&(await xe(),He())},Ie=()=>{N.logCustom(\"套题流程触发pause暂停\",{tag:\"FLOW_PRAC\"}),ee.value=!1,(()=>{const e=Q.current.value?.filetype,t=Ee[e];if(\"function\"==typeof t&&t(Q?.current.value),\"1\"==Se.value?.synchro){const e=Ee[Se.value.filetype];e&&e(Se.value)}})()},Ne=()=>{N.logCustom(`套题流程触发stopRecord停止录音, 当前步骤order: ${Q?.current?.value?.order}`,{tag:\"FLOW_PRAC\"}),ke()};const Be=o(()=>ue.value||\"action.record\"==fe.value?.filetype),Je=o(()=>ue.value||\"action.record\"==fe.value?.filetype);return n(Q.current,t=>{t&&(N.logCustom({title:\"套题流程: \",set_id:e,entity_id:t.exam?.exam_id,order:t.order,filename:t.filename,playtime:t.playtime,filetype:t.filetype,log_name:\"exam_step\"},{tag:\"FLOW_PRAC\"}),R.trigger(t),h&&(h.$el.currentTime=0))},{immediate:!0}),{initView:async(e=!0)=>{await ce(),ee.value=e,ae.value=e,He()},updateView:ge.on,answerHandler:x.on,chooseCheckHandler:P.on,chooseHandler:S.on,completeHandler:q.on,htmlLoad:O.trigger,prev:async(e=!1)=>{if(await new Promise(e=>setTimeout(e,200)),N.logCustom(`prev触发prevStep, prevDisabled: ${Je.value}`,{tag:\"FLOW_PRAC\"}),!Je.value)if(ee.value=!0,e)we();else{const e=t.findIndex(e=>e.order===fe.value?.order),a=function(e,t){for(let a=t-1;a>=0;a--)if(e[a].subid!==e[t].subid&&\"view.html\"===e[a].filetype)return a;return 0}(t,e),o=t[a].order;we(o)}},next:async()=>{await new Promise(e=>setTimeout(e,200)),N.lo"
+      },
+      {
+        "n": 8,
+        "name": "结束收尾",
+        "what": "recorderTasks 完成后 taskQueueHandler：uploadFileTasks -> postAnswerTasks(逐题 sync) -> 跳结果页 / 返回",
+        "code": "async function La(e){const{goBack:a=!1,callback:l}=e||{};V.logCustom(`触发了taskQueueHandler, uploadFileTasks: total: ${Ge.getTotalList().length}, success: ${Ge.getSuccessList().length}, failed: ${Ge.getFailedTasks().length}`,{tag:\"FLOW_PRAC\"}),await se(),Ge.onHandlerTask(()=>{V.logCustom(`评测完毕uploadFileTasks任务详情: total: ${Ge.getTotalList().length}, success: ${Ge.getSuccessList().length}, failed: ${Ge.getFailedTasks().length}`,{tag:\"FLOW_PRAC\"})}),Ge.onComplete(async e=>{if(V.logCustom(`预上传任务处理完成，失败任务uploadFailTasks: ${e.length}`,{tag:\"FLOW_PRAC\"}),e&&e.length){Z.close(Ne);const a=`<div>\\n                    <div>评分失败, 请检查配置及网络</div>\\n                    <div>存在<span class=\"color-danger\">${e.length}</span>道小题上传成绩失败</div>\\n                  </div>\\n                `;return void(await Ge.askUserToRetry(a,{cancelButtonText:\"取消\"})?(Sa(\"上传中，请稍等\"),Ge.retryFailedTasks(e)):za().catch(()=>{Sa(\"上传中，请稍等\"),Ge.retryFailedTasks(e)}))}await Qe.waitForComplete(),Qe.addTask(()=>r.update({type:String(re.listeningSpeaking),set_id:je,homework_id:K.getInstance().getId(),resource_id:Oe,mistake_id:d})),Qe.onComplete(async e=>{if(V.logCustom(`成绩上报任务处理完成，失败任务failedTasks: ${e.length}`,{tag:\"FLOW_PRAC\"}),e.length>0){Z.close(Ne);const a=`<div>\\n                      <div>评分失败, 请检查配置及网络</div>\\n                      <div>存在<span class=\"color-danger\">${e.length}</span>道小题上传成绩失败</div>\\n                    </div>\\n                  `;return void(await Qe.askUserToRetry(a,{cancelButtonText:\"取消\"})?(Sa(\"上传中，请稍等\"),Qe.retryFailedTasks(e)):za().catch(()=>{Sa(\"上传中，请稍等\"),Qe.retryFailedTasks(e)}))}V.logCustom(\"taskQueueHandler触发\"+(a?\"返回上一页\":\"跳转结果页\"),{tag:\"FLOW_PRAC\"}),Z.close(Ne),l?l():a?Pe.go(-1):(Ae({set_id:je,homework_id:Fe.query.homework_id??\"\"}),Pe.replace({name:\"mockExamResult\",query:Fe.query,state:{data:JSON.stringify(R)}}))})})}"
+      }
+    ],
+    "sync_endpoint": "/m/audio/sync-v2",
+    "sync_request_builder": "const requestAnswerLogs=async e=>{const{ecardInfo:t}=useUserInfoStore$1(),n=useSpecialStore(),{first_column_id:r,question_type_score:o}=e;let i={};try{i=\"string\"==typeof e.score_detail?JSON.parse(e.score_detail):e.score_detail}catch(e3){}const{total_score_init:a,total_score:s}=i||{},l=a||s,c=await n.getColumnsNeed125(r);c&&t?.rate_scale&&l&&o&&(e.real_score=scoreFormatter_125(o/5*l));const u=c?t?.rate_scale:void 0,d=c&&u?\"0.125\":void 0;i.rate_scale=u||0,delete i.total_score_init,delete i.xml_score,delete i.question_type_score,delete i.is_rejected,delete i.except_info,delete i.first_column_id,e.score_detail=JSON.stringify(i);const p=Object.assign(e,{rate_scale:u,graduation:d,client_time:currentTimestampToDate(),mark_service:1,version:\"2\"});return await hyRequest.postIt(\"/m/audio/sync-v2\",Object.assign(p))",
+    "sync_default_body": "import{fr as e}from\"./index-5543d811.js\";function i(){const i={resource_id:\"\",real_score:0,score:0,set_id:\"\",entity_id:\"\",order:\"\",serial_id:\"\",mistake_id:0,upload_file_id:\"\",upload_file_url:\"\",spx_file_url:\"\",mark_trace_id:\"\",detail_file_id:\"\",detail_file_url:\"\",score_detail:\"\"};return{postAudioSyncLogs:function(r={}){const t={...i,...r};return new Promise((i,r)=>{e(t).then(e=>{i(e)}).catch(e=>{r(e)})})}}}export{i as u};\n",
+    "sync_field_sources": {
+      "resource_id": "route.query.resource_id",
+      "real_score": "score_detail.real_score ?? score_detail.total_score, then overwritten by scoreFormatter_125 rule",
+      "score": "score_detail.total_score",
+      "set_id": "route.query.set_id",
+      "entity_id": "step.exam.exam_id",
+      "order": "question.question_order",
+      "serial_id": "state.serial_id",
+      "mistake_id": "route.query.mistake_id ?? \"\"",
+      "upload_file_id/upload_file_url/spx_file_url/mark_trace_id/detail_file_id/detail_file_url": "useRecordResult.getResult()",
+      "score_detail": "JSON string; recording => engine result I; choice => {total_score,choose,choose_id,category}",
+      "first_column_id": "stepper g = examItem.type || examItem.first_column_id || \"\"",
+      "question_type_score": "choice: exam.exam_score ; recording: question.question_score",
+      "correct": "route.query.redoIndex ? 1 : undefined",
+      "question_total_point": "state.total_point (Examine only)",
+      "rate_scale": "getColumnsNeed125(first_column_id) ? ecardInfo.rate_scale : undefined",
+      "graduation": "rate_scale ? \"0.125\" : undefined",
+      "client_time": "currentTimestampToDate()",
+      "mark_service": 1,
+      "version": "2",
+      "exam_id": "forced null by handleRequestParams"
+    },
+    "report_endpoint_by_family": {
+      "word_homework": "g/homework/score-sync",
+      "word_homework_clear": "g/homework/score-drop",
+      "word_pk_non_homework": "g/pk/submit-word",
+      "generic_homework": "m/homework/submit",
+      "reading_writing_exam": "/m/exam/submit",
+      "phonetic_new_homework": "g/homework/report-score",
+      "phonetic_old": "g/set/report-score"
+    },
+    "report_request_builder": "requestHomeworkWordCommit:e=>{const t=useUserInfoStore$1().userInfo,n=a.value??\"\";try{let t=JSON.stringify(e);LoggerUtils.logCustom(`submit-score currentTime=${(new Date).getTime()}-params=${t}`)}catch(s){}const r=e.id||e.homework_id;if(r&&String(r)!==String(n))return LoggerUtils.logCustom(`submit-score blocked: params.id=${r} != store.homework_id=${n}，数据不属于当前作业，阻止提交`),Promise.resolve({code:-1,msg:\"homework_id mismatch, submission blocked\"});const o=isBcHomeworkStruct(e.wordInfo)?`${e.wordInfo?.unit_code??\"\"}`:\"\",i={detail:0==e.pk?e.detail.map(e=>({...e,client_time:currentTimestampToDate()})):e.score_detail.map(e=>({word_id:e.word_id,question_id:e.question_id,...e.item_id&&e.question_item_id?{item_id:e.item_id,question_item_id:e.question_item_id}:{},score_rate:e.point>0?1:0,score_detail:JSON.stringify({choose:e.answer,score:e.point>0?100:0}),client_time:currentTimestampToDate()})),homework_id:parseInt(n),resource_id:e.resource_id,type:e.type,use_time:e.use_time,mark_service:1,seq_id:e.seq_id?e.seq_id:md5((t?.raw_phone??\"\")+n+new Date(Date.now()).toISOString(),16)};return requestHomeworkScoreSync(buildWordHomeworkScoreSyncBCParams(i,o))",
+    "score_rules": [
+      {
+        "id": "scoreFormater",
+        "code": "function scoreFormater(e,t=2){let n=Number(e)*Math.pow(10,t);return Math.round(Number(n))/Math.pow(10,t)}"
+      },
+      {
+        "id": "scoreFormatter_125",
+        "code": "function scoreFormatter_125(e,t=2){return scoreFormater(.125*Math.ceil(Number(e)/.125))}",
+        "note": "ceil to 1/8 grid"
+      },
+      {
+        "id": "ConvertToPercentScore",
+        "code": "function ConvertToPercentScore(e,t,n=0){return e&&t?scoreFormater(Number(e)/Number(t)*100,n):0}"
+      },
+      {
+        "id": "calculateRealScore",
+        "code": "function calculateRealScore(e,t){return scoreFormater(Number(e)/5*Number(t))}"
+      },
+      {
+        "id": "calculateRealScoreWithCategory",
+        "code": "function calculateRealScoreWithCategory(e,t,n){return EvaluationTypes.includes(n)?calculateRealScore(e,t):e}"
+      },
+      {
+        "id": "getColumnsNeed125",
+        "code": "const t=[FirstColumnType.SimulationExam,FirstColumnType.ListeningSimulation,FirstColumnType.SynchronousListening]; await this.getSpecialColumn(); return this.specialColumn.reduce((e,t)=>[...e,...t.first_column.map(e=>e.id)],t).some(t=>t==e)"
+      },
+      {
+        "id": "useExamScore.percentageQuestion",
+        "code": "function t(t,n){return t&&e.every(e=>e!=t)||n&&5!=n}"
+      },
+      {
+        "id": "useExamScore.scoreFilter",
+        "code": "scoreFilter:function(e,t,n){return[n?scoreFormater(t):ConvertToPercentScore(t,e,0),n?e:100]}"
+      },
+      {
+        "id": "sync_125_override",
+        "code": "c&&t?.rate_scale&&l&&o&&(e.real_score=scoreFormatter_125(o/5*l))",
+        "note": "o=question_type_score, l=total_score_init||total_score"
+      },
+      {
+        "id": "useExamResult.total",
+        "code": "return{updatedLogs:o,totalScore:h(i)}",
+        "note": "i = sum of real_score; h = scoreFormater"
+      },
+      {
+        "id": "collector_same_family_protocol",
+        "code": "`${D}_${o.entity_id}_${o.order}${q}${_??0}${q}${u}${q}0`",
+        "note": "q=String.fromCharCode(1); last sub-question absorbs remainder when 100==u && count>1"
+      },
+      {
+        "id": "pk_local_percent",
+        "code": "let a=Math.ceil(Qe.value/(10*ie.length)*100)"
+      },
+      {
+        "id": "per_question_real_score",
+        "code": "const I={...R,total_score:_(w),total_score_init:w,real_score:G,category:e,accuracy_score:$,fluency_score:b,standard_score:O,first_column_id:p,question_type_score:h}",
+        "note": "G=calculateRealScore(question_type_score,total_score)"
+      }
+    ],
+    "field_sources": {
+      "question_type_score": {
+        "choice": "step.exam.exam_score",
+        "recording": "step.question.question_score",
+        "used_by": [
+          "calculateRealScore",
+          "scoreFormatter_125 (numerator)",
+          "buried point i_totalScore"
+        ]
+      },
+      "total_score / total_score_init": {
+        "from": "engine result via useRecordResult",
+        "used_by": [
+          "scoreFormatter_125 (l)",
+          "real_score fallback"
+        ]
+      },
+      "rate_scale": {
+        "from": "useUserInfoStore().ecardInfo.rate_scale (m/ecard/get)",
+        "used_by": [
+          "top-level rate_scale",
+          "graduation=0.125"
+        ]
+      },
+      "first_column_id": {
+        "from": "exam item / type",
+        "used_by": [
+          "getColumnsNeed125",
+          "percentageQuestion",
+          "scoreFilterHomework",
+          "needDownloadRes"
+        ]
+      },
+      "set_score": {
+        "from": "local template_*/res.json",
+        "used_by": [
+          "ProcessPaper.totalScore accumulation"
+        ]
+      }
+    },
+    "endpoints": [
+      "/m/audio/sync-v2",
+      "/m/set/get-score-detail",
+      "/m/set/reset-score-v2",
+      "/m/set/column",
+      "g/set/column-v2",
+      "/m/exam/struct",
+      "/m/exam/get-score-detail",
+      "/m/exam/sync",
+      "/m/exam/submit",
+      "/m/homework/info",
+      "m/homework/struct",
+      "g/homework/struct",
+      "g/homework/list",
+      "g/homework/score-detail",
+      "g/homework/score-sync",
+      "g/homework/score-drop",
+      "g/homework/report-score",
+      "g/set/report-score",
+      "g/homework/get-score",
+      "g/set/get-score",
+      "v2/homework/struct",
+      "m/homework/submit",
+      "m/homework/set-use-time",
+      "g/homework/checkstart",
+      "g/homework/pk-info",
+      "g/pk/start-word-pk",
+      "g/pk/submit-word",
+      "g/pk/count",
+      "g/pk/ranklist",
+      "g/word/struct",
+      "g/word/score-report",
+      "g/word/add-new",
+      "g/word/is-in-notebook",
+      "g/word/master",
+      "g/word/new-notebook",
+      "g/set/word-list",
+      "g/set/ppr-res",
+      "/g/set/mark-txt",
+      "g/data/audio-task-submit",
+      "m/homework/audio-task-retry",
+      "m/homework/audio-task-cancel",
+      "m/file/pre-upload",
+      "m/mistake/check",
+      "m/mistake/update",
+      "m/score/detail",
+      "/proxy/resourcePlatformInterface/pageItems",
+      "/proxy/resourcePlatformInterface/findByIds",
+      "/rop/open/v1/wordItem/listByWordIds",
+      "/rop/open/v2/word/findByIds",
+      "/config/config/getResourcePlatformToken",
+      "system/time",
+      "m/ecard/get",
+      "m/ecard/list",
+      "/point-service/homework/rank/list"
+    ],
+    "likely_mismatches": [
+      "choice answer matched on option_name (key), not option text and not index",
+      "three coexisting score scales: point=10000 (PK record), 10/question (PK UI), score_rate=0/1 + score=100 (homework submit)",
+      "word homework final report must use g/homework/score-sync (+ g/homework/score-drop before retry), NOT g/homework/report-score",
+      "125 stretching requires 4 ANDed conditions and uses ceil-to-1/8, plus rate_scale and graduation='0.125'",
+      "collector.word result protocol is set3q5aScore (entity_id/order/score/total with \\x01) and last sub-question absorbs the remainder"
+    ]
+  }
+}

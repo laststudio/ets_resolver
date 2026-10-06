@@ -235,15 +235,38 @@ pub fn collect_choose(content: &Value, content2: Option<&Value>, _info: Option<&
         );
 
         let mut options = Vec::new();
+        // 结构化选项：官方 payload 的 score_detail 里除了 `choose`（= xx_mc，选项字母）
+        // 还有 `choose_id`（= xx_xh，选项序号）。见前端 useExamStepper::G()：
+        //   score_detail: { total_score, choose: s.xx_mc, choose_id: n, category }
+        // 且判分是 `info.xtlist[].answer === 所选选项的 xxlist[].xx_mc`（两边都是字母，
+        // 已用真实语料证实：xx_mc="A"、xx_nr="选项文本"、answer="C"）。
+        let mut options_detail: Vec<Value> = Vec::new();
         if let Some(xxlist) = xt.get("xxlist").and_then(|v| v.as_array()) {
             for o in xxlist {
                 let mc = get_str(o.get("xx_mc").unwrap_or(&Value::Null));
                 let nr = clean(&get_str(o.get("xx_nr").unwrap_or(&Value::Null)));
+                let xh = get_str(o.get("xx_xh").unwrap_or(&Value::Null));
                 if !nr.is_empty() || !mc.is_empty() {
                     options.push(format!("{mc}. {nr}"));
                 }
+                if !mc.is_empty() || !xh.is_empty() {
+                    options_detail.push(json!({"xx_xh": xh, "xx_mc": mc, "xx_nr": nr}));
+                }
             }
         }
+        let raw_answer = clean(&get_str(xt.get("answer").unwrap_or(&Value::Null)));
+        // 正确答案对应的选项序号（官方 choose_id = xx_xh）
+        let choose_id = options_detail
+            .iter()
+            .find(|o| {
+                let mc = o.get("xx_mc").and_then(|v| v.as_str()).unwrap_or("");
+                !mc.is_empty() && mc.eq_ignore_ascii_case(&raw_answer)
+            })
+            .and_then(|o| o.get("xx_xh").and_then(|v| v.as_str()).map(|s| s.to_string()))
+            .unwrap_or_default();
+        let mut extra = Map::new();
+        extra.insert("choose_id".into(), Value::String(choose_id));
+        extra.insert("options_detail".into(), Value::Array(options_detail));
 
         questions.push(make_question(
             Some(no),
@@ -251,10 +274,10 @@ pub fn collect_choose(content: &Value, content2: Option<&Value>, _info: Option<&
             TYPE_CHOOSE,
             stid,
             question_text,
-            vec![clean(&get_str(xt.get("answer").unwrap_or(&Value::Null)))],
+            vec![raw_answer],
             options,
             Vec::new(),
-            None,
+            Some(extra),
         ));
     }
     questions

@@ -1,0 +1,212 @@
+{
+  "doc": "D_android_only_families",
+  "title": "官方 Android 客户端侧「移动端独有题型族」语义核查（静态）",
+  "source_root": "/home/shuaiqiu/Projects/ets源码恢复/",
+  "apk": "ets源码恢复/E听说中学_7.0.65.2439.apk",
+  "dex_dir": "ets源码恢复/7c049f4b45298848ef1137b58e393915/",
+  "method": {
+    "static_only": true,
+    "ran_client": false,
+    "network": false,
+    "packet_capture": false,
+    "channels": [
+      "grep 明文 Java 全树（42 个 jadx_* 目录）",
+      "自写 Python 读取 11 个 dex 的 string_ids → 266136 条唯一字符串（/tmp/ets_dex_strings.txt）",
+      "jadx 1.5.6 全量反编译 11 个 dex 到 /tmp/jadx_c11、/tmp/jadx_rest、/tmp/jadx_rest2（补齐 jadx_* 未导出的类）"
+    ]
+  },
+
+  "key_findings": {
+    "repeat_essay_exists": false,
+    "repeat_dialogue_exists": false,
+    "collector_literals_in_android": ["collector.read", "collector.repeat", "collector.sentence", "collector.word"],
+    "collector_literals_in_pc_frontend": ["collector.3q5a", "collector.choose", "collector.dialogue", "collector.fill", "collector.picture", "collector.read", "collector.repeat", "collector.role", "collector.word"],
+    "question_type_name_exists_in_android": false,
+    "android_field_names": ["question_type (int)", "type_name (String)"],
+    "answer_compare_mode_word_choice": "option_name（选项文本）== question.answer",
+    "answer_compare_mode_word_spell": "trim(answer).toLowerCase() == userAnswer.toLowerCase()（用户答案不 trim）",
+    "answer_compare_mode_reading": "引擎 XML（total_score/accuracy/fluency/integrity/standard/stress），客户端不做文本比对",
+    "family_dispatch_layer": "Java 仅比较 4 个字面量；总分派 PaperUtils.d() → native (com.fort.andjni.JniLib id 14747)"
+  },
+
+  "not_found": [
+    { "target": "repeat_essay", "ways": ["42 目录 grep --include=*.java", "11 dex string_ids grep -cx", "全量反编译树 grep -rl"] },
+    { "target": "repeat_dialogue", "ways": ["同上"] },
+    { "target": "REPEAT_ESSAY / REPEAT_DIALOGUE", "ways": ["grep -rn REPEAT_ --include=*.java", "dex 串表"] },
+    { "target": "question_type_name", "ways": ["dex 串表 grep -cx = 0", "全量反编译树 grep -rn = 0"] },
+    { "target": "collector.essay / collector.dialogue / collector.3q5a / collector.role / collector.picture / collector.fill / collector.choose", "ways": ["grep -rhoE '\"collector\\.[a-z_0-9]+\"' 全量反编译树 → 只有 4 个"] },
+    { "target": "3q5a（子串）", "ways": ["dex 串表 grep -i 3q5a = 0"] },
+    { "target": "中文『复述』作为题型名", "ways": ["全量反编译树 grep 复述（唯一命中是超能单词营销文案）", "dex 串表"] },
+    { "target": "InfoExtraBean.java", "ways": ["find / -name InfoExtraBean.java（仅被 PaperUtils import，本体未导出）"] },
+    { "target": "fj（PC collector.repeat 的 info.fj）在移动端的对应物", "ways": ["grep -rn '\"fj\"' 全量反编译树（唯一命中 mp4parser Iso639 语种码表）"] },
+    { "target": "数字 question_type ↔ isTypeXxx() 的对应关系", "ways": ["9 个谓词体全为 JniLib.cZ native 桩", "全量反编译无实现"] }
+  ],
+
+  "family_repeat_essay": {
+    "android_has_independent_family": false,
+    "official_family_name": "collector.repeat",
+    "evidence": [
+      { "file": "jadx_paper/sources/com/ets100/secondary/utils/PaperUtils.java", "lines": "1826-1842", "class": "PaperUtils", "method": "p0", "snippet": "if (examTypeListBean.getExamTypeCollect() != null && \"collector.repeat\".equals(examTypeListBean.getExamTypeCollect().toLowerCase())) { ... List<List<InfoExtraBean>> list = contentExtraMap.get(examId); ... h(arrayList, arrayList2, list2, sb.toString()); }" },
+      { "file": "jadx_paper/sources/com/ets100/secondary/utils/PaperUtils.java", "lines": "1878-1901", "class": "PaperUtils", "method": "q0", "snippet": "float fE2 = s7.e2(examListBean.getExamScore()); int size = list.size(); float fK2 = s7.k2(Float.valueOf(fE2 / size), 2); float fD0 = d0(Float.valueOf(fE2 - (i10 * fK2))); ... setQuestionOrder(String.valueOf(i12)); setQuestionCount(\"1\");" },
+      { "file": "jadx_paper/sources/com/ets100/secondary/utils/PaperUtils.java", "lines": "1497-1537", "class": "PaperUtils", "method": "h", "snippet": "filename = filename.replaceAll(infoExtraBean.getId(), infoExtraBean.getValue() + \"\"); ... templateCtrlBean2.setSubid(subId);" },
+      { "file": "jadx_paper/sources/com/ets100/secondary/utils/PaperUtils.java", "lines": "1285-1291", "class": "PaperUtils", "method": "d", "snippet": "Object objCL = JniLib.cL(PaperUtils.class, this, paperStructBean, contentExtraMap, 14747);" }
+    ],
+    "data_hierarchy": "contentExtraMap: Map<exam_id, List<List<InfoExtraBean>>>; exam_list[].exam_id 为 key；外层 list 一条 = 一题；subid=\"<exam_id>_<n>\"（n 从 1 起）",
+    "question_split": "题数 = contentExtraMap[exam_id].size()",
+    "question_no_rule": "question_order = \"1\"..\"N\"（客户端重新生成），question_count = \"1\"",
+    "score_rule": "每题 = round2(大题分 / 题数)；最后一题 = 大题分 - (题数-1)*每题分",
+    "answer_source": "下发字段（非模板固定）",
+    "answer_source_paths": [
+      "content.json → info.value（篇章原文）/ info.translate（译文）/ info.audio（范读）",
+      "paper.Jason → txlist[0].stlist[0].sublist[].text（句子/对话行原文）",
+      "教程通道：Custom2StructBean.getText() → JsQuestionParamBean(\"essay_con\"/\"phrase_con\"/\"words_con\")"
+    ],
+    "submit_identity_fields": ["stid", "entity_id", "order", "seq", "seq_id", "homework_id", "resource_id", "set_id", "questionId"],
+    "max_score_per_line": 1.0
+  },
+
+  "family_repeat_dialogue": {
+    "android_has_independent_family": false,
+    "independent_structures": ["DialoguePaperBean / DialoguePaperItemBean（paper.Jason 通道）", "CcExamSpeakDialogueFrg（教程/CC 通道，独立 Fragment）"],
+    "source_file": "paper.Jason",
+    "evidence": [
+      { "file": "jadx_paper/sources/com/ets100/secondary/utils/PaperUtils.java", "lines": "1186-1283", "class": "PaperUtils", "method": "c0", "snippet": "File file = new File(string, \"paper.Jason\"); ... JSONArray jSONArray2 = jSONArray.getJSONObject(0).getJSONArray(\"stlist\"); ... JSONArray jSONArray3 = jSONObject2.getJSONArray(\"sublist\"); ... setOrder(s7.m2(jSONObject3.getString(\"seq\"))); setRole(...); setRoleIndex(...); setTextContent(jSONObject3.getString(\"text\")); setBeginTime(...\"begintime\"); setEndTime(...\"endtime\"); setTranslate(...\"translate\"); setMaxScore(1.0f); setCategory(com.ets100.secondary.xml.a.f40647l);" },
+      { "file": "/tmp/jadx_c11/.../tutorial/ui/cc/frg/h.java", "lines": "1-8", "class": "h (CcExamSpeakDialogueFrg)", "snippet": "public int B() { return com.ets100.secondary.tutorial.R.layout.frg_cc_exam_speak_dialogue; }" },
+      { "file": "dex 类名枚举", "snippet": "com/ets100/secondary/tutorial/ui/cc/frg/{BaseCcFrg,CcExamChooseDoubleFrg,CcExamChooseSingleFrg,CcExamSentenceSortFrg,CcExamSpeakCompositionFrg,CcExamSpeakDialogueFrg,CcExamSpeakSentenceFrg,CcExamWordBlankFrg,CcExamWordSortFrg,CcExamWordTableFrg}" }
+    ],
+    "data_hierarchy": "paper.Jason → txlist[0].stlist[0]: {audio, stid, title, sublist[]}; sublist[] 一条 = 一题: {seq→order, role→role/roleIndex, text→textContent(答案), translate, begintime, endtime}; 行级模板 = <entityOrder>/<entityOrder>.ctrl",
+    "question_no_rule": "order = int(sublist[].seq)（沿用下发值，不重新生成）",
+    "score_rule": "每行 maxScore = 1.0f；category 硬编码 read_sentence",
+    "answer_source": "下发字段 sublist[].text（非模板固定）",
+    "submit_identity_fields": ["entity_id (继承 stlist[0].stid)", "entityOrder", "order", "role/roleIndex", "setId", "questionId", "questionSetId", "sequence", "audioFileId", "xmlFileId", "markService", "index/maxIndex", "parentAccountId"],
+    "distinguish_from_repeat": {
+      "file_layer": "paper.Jason（对话族）vs content.json（collector.repeat）",
+      "field_layer": "存在 role/roleIndex/begintime/endtime/sublist → 对话族；只存在 contentExtraMap 子表 + subid=<exam_id>_n → collector.repeat",
+      "score_layer": "maxScore=1.0 + category=read_sentence → 对话族；question_score=round2(大题分/题数) → collector.repeat",
+      "invalid_signal": "exam_type_collect == \"collector.repeat_dialogue\"（官方客户端从不比较该名字）"
+    }
+  },
+
+  "android_only_family_model": {
+    "resource_platform_families": ["collector.read", "collector.repeat", "collector.sentence", "collector.word"],
+    "cc_tutorial_fragments": [
+      "CcExamChooseSingleFrg", "CcExamChooseDoubleFrg", "CcExamWordBlankFrg", "CcExamWordSortFrg",
+      "CcExamWordTableFrg", "CcExamSentenceSortFrg", "CcExamSpeakCompositionFrg",
+      "CcExamSpeakDialogueFrg", "CcExamSpeakSentenceFrg"
+    ],
+    "child_paper_item_type_tokens_present_in_dex": ["choose", "essay", "fill", "picture", "read", "repeat", "role", "sentence", "topic", "word"],
+    "child_paper_item_type_tokens_absent": ["dialogue", "3q5a", "repeat_essay", "repeat_dialogue"],
+    "type_predicate_impl": "/tmp/jadx_c11/sources/com/ets100/secondary/utils/h7.java — a()~y() 共 25 个静态方法，全部 JniLib.cZ native 桩",
+    "cc_models": {
+      "CcStructSetBean": ["question: List<CcStructQuestion>"],
+      "CcStructQuestion": ["category: int", "children: List<CcStructChildren>", "description: String", "id: int"],
+      "CcStructChildren": ["content", "standardAnswer", "option: List<CcStructOption>", "audioUrl", "engineType", "engineArea", "markType", "questionCategory: int", "questionId: int", "questionSetId", "order: int", "tips", "userAudio", "userChoose", "detailFileUrl", "uploadFileUrl", "hasScore", "statusRecord", "statusPoint", "indexCurrent/indexMax", "avgPoint", "+ native getEntityOrder/getPprResId/getPprMarkType"],
+      "CcStructOption": ["option", "text"],
+      "CcTypeAnswer": ["answer", "option", "type"]
+    }
+  },
+
+  "scoring_semantics": {
+    "question_type_field": {
+      "android_java": [
+        { "file": "jadx_word_struct/sources/com/ets100/secondary/request/word/SyncWordQuestionBean.java", "lines": "26-27", "snippet": "@SerializedName(\"question_type\") private int questionType;" },
+        { "file": "jadx_word_struct/sources/com/ets100/secondary/request/word/SyncWordQuestionBean.java", "lines": "31-32", "snippet": "@SerializedName(\"type_name\") private String typeName;" },
+        { "file": "jadx_models/sources/com/ets100/superword/api/data/WordQuestionEntity.java", "lines": "61-69", "snippet": "private final int question_type; ... private final String type_name;" }
+      ],
+      "question_type_name": "Android 客户端不存在（dex 串表 0 命中）；仅 PC 前端 chunk wordCourseSourceHelpers-f63ae392.js 存在且恒为空串",
+      "pc_snippet": "{id:a.resourceQuestionId(e), question_type:Number(t), option:r??\"\", ..., question_type_name:\"\"}",
+      "predicates_with_callsites": ["isTypeListenChosen", "isTypeEnToCn", "isTypeCnToEn", "isTypeDictationWord", "isTypeWriteWord"],
+      "predicates_without_callsites": ["isTypeReadWord", "isTypeSpell", "isTypeHearSpoken", "isTypeAnalysis"],
+      "verifiability": "数字→谓词 的对应关系不可静态证实（谓词体全 native）"
+    },
+    "answer_compare_choice": {
+      "compares": "option_name（选项文本）",
+      "not_compares": ["选项字母", "选项 id"],
+      "evidence": [
+        { "file": "jadx_exam/sources/com/ets100/syncword/ui/fragment/h.java", "lines": "304-321", "snippet": "this.i = this.H.get(i).getOptionName(); answer = this.e.getAnswer(); ... this.e.setUserScoreRate(this.i.equals(answer) ? 1.0f : 0.0f); ... if (this.i.equals(answer)) { this.e.setUserScoreRate(1.0f); }" },
+        { "file": "jadx_exam/sources/com/ets100/syncword/ui/fragment/h.java", "lines": "369-389", "snippet": "String optionName = this.H.get(i3).getOptionName(); if (optionName.equals(this.i)) { if (this.i.equals(this.e.getAnswer())) { i = i3; break; } i2 = i3; } else if (optionName.equals(this.e.getAnswer())) { i = i3; }" },
+        { "file": "jadx_exam/sources/com/ets100/syncword/ui/fragment/WordBattleFragment.java", "lines": "670-692", "snippet": "if (Intrinsics.areEqual(((SyncWordOptionBean) it.next()).getOptionName(), homeworkScoreWordBean != null ? homeworkScoreWordBean.getAnswer() : null)) { break; } ... if (Intrinsics.areEqual(homeworkScoreWordBean.getAnswer(), answer)) { this.l += 10; }" },
+        { "file": "jadx_exam/sources/com/ets100/syncword/ui/fragment/WordBattleFragment.java", "lines": "1059-1064", "snippet": "if (Intrinsics.areEqual(syncWordOptionBean.getOptionName(), answer)) { this.this$0.j++; this.this$0.k += 10; }" }
+      ],
+      "option_source": { "file": "jadx_word_struct/sources/com/ets100/secondary/request/word/SyncWordQuestionBean.java", "lines": "69-90", "snippet": "JSONArray jSONArray = new JSONArray(getOption()); ... if (jSONObject.has(\"option_name\")) { syncWordOptionBean.setOptionName(string); syncWordOptionBean.setOptionValue(string2); }" }
+    },
+    "answer_compare_spell_dictation": {
+      "compares": "文本（忽略大小写）；标准答案额外 trim",
+      "evidence": { "file": "jadx_exam/sources/com/ets100/syncword/ui/fragment/q.java", "lines": "78-116", "snippet": "String string = StringsKt.trim(answer).toString(); String lowerCase = string.toLowerCase(locale); ... String lowerCase2 = str.toLowerCase(locale); syncWordQuestionBean.setUserScoreRate(Intrinsics.areEqual(lowerCase2, lowerCase) ? 1.0f : 0.0f);" }
+    },
+    "submit_score_sync": {
+      "endpoint": "g/homework/score-sync",
+      "evidence": { "file": "jadx_syncword/sources/com/ets100/syncword/request/SyncWordRepository.java", "lines": "1255-1280" },
+      "payload": {
+        "homework_id": "long",
+        "resource_id": "string",
+        "use_time": "int",
+        "seq_id": "string",
+        "type": 6,
+        "mark_service": 1,
+        "detail[]": { "score_rate": "point>0?1:0", "score_detail": "{\"choose\":\"<answer>\",\"version\":\"<ver>\"}", "client_time": "string" }
+      },
+      "score_detail_builder": { "file": "jadx_syncword/sources/com/ets100/syncword/request/SyncWordRepository.java", "lines": "1732-1749", "snippet": "sb2.append(\"{\\\"choose\\\": \\\"\");" },
+      "server_roundtrip": { "file": "jadx_syncword/sources/com/ets100/syncword/request/SyncWordRepository.java", "lines": "1436-1444", "snippet": "homeworkScoreWordBean.setPoint(homeworkScoreWordBean.getScoreRate()); JSONObject jSONObject = new JSONObject(getScoreDetail()); if (jSONObject.has(\"choose\")) { homeworkScoreWordBean.setAnswer(jSONObject.getString(\"choose\")); }" },
+      "bean_fields": ["answer", "audioUrl", "clientTime", "itemId", "point", "questionId", "questionItemId", "scoreDetail", "scoreRate", "wordId", "xmlUrl"]
+    },
+    "reading_scoring": {
+      "mode": "引擎 XML，客户端不做文本比对",
+      "categories": { "read_word": "jadx_score/.../xml/a.java:37 (f40645j)", "read_chapter": ":40 (f40646k)", "read_sentence": ":43 (f40647l)", "sentence": ":52 (f40650o)", "word": ":46 (f40648m)" },
+      "xml_attributes": ["content", "total_score", "accuracy_score", "fluency_score", "integrity_score", "standard_score", "stress_score", "is_rejected", "except_info", "words_per_min", "beg_pos", "end_pos"],
+      "evidence": { "file": "jadx_score/sources/com/ets100/secondary/xml/a.java", "lines": "423-457", "class": "com.ets100.secondary.xml.a", "method": "r" }
+    },
+    "pc_frontend_choose_compare": {
+      "compares": "选项字母换算为数字串",
+      "snippet": "function b(e){...t.toUpperCase()...r>=65&&r<=90?o+=(r-64).toString():o+=t[i]...} case\"collector.choose\": ... b(t.info.xtlist.find(e=>e.xt_xh===\"\"+o.order)?.answer) ... b(o.detail.choose)",
+      "file": "pc_client_web/chunks/useExamResult-d9fb4671.js"
+    }
+  },
+
+  "cross_check_our_impl": [
+    { "id": 1, "item": "族名 collector.repeat_essay", "official": "不存在", "ours": "collectors.rs:16 定义常量 + :1382 显式路由", "diff": "我方多出的名字" },
+    { "id": 2, "item": "族名 collector.repeat_dialogue", "official": "不存在", "ours": "collectors.rs:123 QUESTION_TYPES; spec.rs:206 spec", "diff": "我方多出的名字" },
+    { "id": 3, "item": "族名 collector.essay", "official": "不存在", "ours": "collectors.rs:124; spec.rs:214", "diff": "我方多出的名字" },
+    { "id": 4, "item": "族名 collector.dialogue", "official": "不存在", "ours": "collectors.rs:120,125（重复两次）", "diff": "我方多出的名字 + 重复项" },
+    { "id": 5, "item": "移动端实际族名", "official": "4 个：read/repeat/sentence/word", "ours": "spec.rs 有 read/repeat/sentence/word，但被 4 个不存在的族名抢路由", "diff": "路由优先级需纠正" },
+    { "id": 6, "item": "复述切分依据", "official": "contentExtraMap[exam_id] 子表", "ours": "content.info.sublist[] (collectors.rs:540)", "diff": "字段路径不同" },
+    { "id": 7, "item": "题号", "official": "question_order=\"1\"..\"N\"（重新生成）", "ours": "no=i+1 (collectors.rs:546)", "diff": "语义一致" },
+    { "id": 8, "item": "分值", "official": "均分 + 末题余数", "ours": "不输出分值", "diff": "缺失" },
+    { "id": 9, "item": "对话族来源文件", "official": "paper.Jason → txlist[0].stlist[0].sublist[]", "ours": "无 paper.Jason 路径", "diff": "来源不同" },
+    { "id": 10, "item": "角色扮演字段", "official": "role/roleIndex/begintime/endtime", "ours": "未解析", "diff": "能力缺口" },
+    { "id": 11, "item": "对话族 category", "official": "硬编码 read_sentence", "ours": "无", "diff": "能力缺口" },
+    { "id": 12, "item": "legacy 族分派", "official": "extra_data 子表 + 下发 text", "ours": "legacy.rs:257-266 五个族名全走 collector_repeat_essay_dialogue，读 info.question[].std[].value", "diff": "与官方完全不重合" },
+    { "id": 13, "item": "spec.rs model 标注（复述）", "official": "InfoObjBean 实际字段 audio/choose_type/st_content/st_nr/st_pic/st_sm/stid/xtlist，无 sublist", "ours": "spec.rs:200 \"InfoObjBean (sublist[])\"", "diff": "注释与官方类不符" },
+    { "id": 14, "item": "spec.rs model 标注（对话）", "official": "paper.Jason + DialoguePaperItemBean 全字段", "ours": "spec.rs:208 只有类名", "diff": "信息不完整" },
+    { "id": 15, "item": "QUESTION_TYPES 去重", "official": "-", "ours": "collectors.rs:118-126 collector.dialogue 出现两次", "diff": "冗余" },
+    { "id": 16, "item": "collector.3q5a", "official": "移动端不存在（连子串都没有）", "ours": "collectors.rs:20 / spec.rs:183", "diff": "仅 PC 侧存在" },
+    { "id": 17, "item": "spec.rs WORD_SYMBOLS symbol 列", "official": "官方有调用点的是 isTypeWriteWord / isTypeDictationWord；isTypeSpell / isTypeReadWord 零调用", "ours": "16→isTypeSpell, 17→isTypeSpell/read, 18→isTypeDictation", "diff": "谓词名与官方调用点不一致" },
+    { "id": 18, "item": "spec.rs 注释字段名", "official": "Android 侧是 type_name", "ours": "注释写 question_type_name", "diff": "字段名错位（question_type_name 是 PC/web 字段）" }
+  ],
+
+  "consistency_ok": [
+    { "item": "原文即答案", "official": "ContentJsonInfoBean.value 即朗读文本；pe.p.U() 把 getText() 注入 essay_con/phrase_con/words_con", "ours": "collect_read 把文本同时放进 question 与 answers（collectors.rs:493-505）" },
+    { "item": "stid 取值", "official": "ContentJsonInfoBean.stid / DialoguePaperBean.stid", "ours": "stid_of() 读 content.info.stid（collectors.rs:144-150）" },
+    { "item": "option_name/option_value 结构", "official": "SyncWordQuestionBean.getOptionData()", "ours": "parse_pk_options()（collectors.rs:520-535）" }
+  ],
+
+  "unresolved": [
+    { "item": "question_type(int) ↔ isTypeXxx() 精确对应", "reason": "9 个谓词体全在 com.fort.andjni.JniLib（native 壳）" },
+    { "item": "ChildPaperItemBean.type token → 族", "reason": "com.ets100.secondary.utils.h7 的 a()~y() 25 个静态方法全 native" },
+    { "item": "CC category → Fragment 映射", "reason": "BaseCcFrg / CcExamAct / CcExamViewModel 方法体全 native" },
+    { "item": "InfoExtraBean 字段定义", "reason": "类本体未导出到任何 jadx 输出，仅被 PaperUtils import" },
+    { "item": "6=听音选义 … 20=中译英 中文名", "reason": "客户端不含这些中文字符串，名字由服务端 type_name / question_type_name 下发" },
+    { "item": "fj（PC repeat）在移动端对应物", "reason": "dex 中 fj 无任何 Java 引用" }
+  ],
+
+  "deliverables": [
+    "/home/shuaiqiu/Projects/ets_resolver/docs/official_semantics/D_android_only_families.md",
+    "/home/shuaiqiu/Projects/ets_resolver/docs/official_semantics/D_android_only_families.json"
+  ],
+  "files_modified": [],
+  "files_created": [
+    "/home/shuaiqiu/Projects/ets_resolver/docs/official_semantics/D_android_only_families.md",
+    "/home/shuaiqiu/Projects/ets_resolver/docs/official_semantics/D_android_only_families.json"
+  ],
+  "temp_artifacts_outside_repo": ["/tmp/ets_dex_strings.txt", "/tmp/jadx_c11", "/tmp/jadx_rest", "/tmp/jadx_rest2"]
+}

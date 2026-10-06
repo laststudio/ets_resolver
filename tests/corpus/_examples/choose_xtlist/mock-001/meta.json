@@ -2,5 +2,6 @@
   "region": "synthetic",
   "type": "schema-demo",
   "source": "手写最小样例，仅用于演示语料库结构与跑通一致性测试",
-  "captured_at": "2026-01-01"
+  "captured_at": "2026-01-01",
+  "note": "手写最小样例 + 补齐 xx_xh（与官方真实模板一致：xx_xh=选项序号，xx_mc=选项字母）"
 }

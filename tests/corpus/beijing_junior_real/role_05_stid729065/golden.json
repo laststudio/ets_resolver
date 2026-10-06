@@ -1,0 +1,59 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 729065,
+      "question": "What does the girl like doing in her free time?",
+      "answers": [
+        "Dancing.",
+        "She likes dancing.",
+        "She likes dancing in her free time.",
+        "She likes dancing when she is free.",
+        "She likes to dance.",
+        "She likes to dance when she is free.",
+        "She likes to dance in her free time.",
+        "She enjoys dancing.",
+        "She enjoys dancing when she is free.",
+        "She enjoys dancing in her free time.",
+        "The girl likes dancing.",
+        "The girl likes dancing when she is free.",
+        "The girl likes dancing in her free time.",
+        "The girl likes to dance.",
+        "The girl likes to dance when she is free.",
+        "The girl likes to dance in her free time.",
+        "The girl enjoys dancing.",
+        "The girl enjoys dancing when she is free.",
+        "The girl enjoys dancing in her free time.",
+        "She likes dancing in her spare time.",
+        "In her free time, she likes dancing.",
+        "When she is free, she likes dancing.",
+        "In her spare time, she likes dancing.",
+        "Grace likes dancing in her free time.",
+        "She loves dancing.",
+        "She loves dancing in her free time.",
+        "She loves dancing when she is free.",
+        "The girl loves dancing.",
+        "The girl loves dancing in her free time.",
+        "The girl loves dancing when she is free.",
+        "Grace likes dancing.",
+        "Grace likes dancing when she is free.",
+        "Grace loves dancing in her free time.",
+        "Grace loves dancing when she is fee.",
+        "Grace enjoys dancing.",
+        "Grace enjoys dancing in her free time.",
+        "Grace enjoys dancing when she is fee."
+      ],
+      "options": [],
+      "important": [
+        "dancing",
+        "dance"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ]
+}

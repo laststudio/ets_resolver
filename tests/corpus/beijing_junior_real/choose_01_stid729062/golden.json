@@ -1,0 +1,75 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.choose",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.choose",
+      "stid": 729062,
+      "question": "When is David's birthday?",
+      "answers": [
+        "B"
+      ],
+      "options": [
+        "A. This Friday.",
+        "B. Next week.",
+        "C. Next month."
+      ],
+      "important": [],
+      "choose_id": "2",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "This Friday."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "Next week."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "Next month."
+        }
+      ],
+      "_no_source": "local"
+    },
+    {
+      "no": 2,
+      "type": "collector.choose",
+      "stid": 729062,
+      "question": "Which part do the speakers ask classmates' opinions on?",
+      "answers": [
+        "C"
+      ],
+      "options": [
+        "A. The food.",
+        "B. The guests.",
+        "C. The music."
+      ],
+      "important": [],
+      "choose_id": "3",
+      "options_detail": [
+        {
+          "xx_xh": "1",
+          "xx_mc": "A",
+          "xx_nr": "The food."
+        },
+        {
+          "xx_xh": "2",
+          "xx_mc": "B",
+          "xx_nr": "The guests."
+        },
+        {
+          "xx_xh": "3",
+          "xx_mc": "C",
+          "xx_nr": "The music."
+        }
+      ],
+      "_no_source": "local"
+    }
+  ]
+}

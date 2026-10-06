@@ -8,9 +8,21 @@
         "xt_nr": "ets_th1 What did the man forget to do?",
         "answer": "C",
         "xxlist": [
-          {"xx_mc": "A", "xx_nr": "Take the bag."},
-          {"xx_mc": "B", "xx_nr": "Lock the door."},
-          {"xx_mc": "C", "xx_nr": "Leave food for the cat."}
+          {
+            "xx_mc": "A",
+            "xx_nr": "Take the bag.",
+            "xx_xh": "1"
+          },
+          {
+            "xx_mc": "B",
+            "xx_nr": "Lock the door.",
+            "xx_xh": "2"
+          },
+          {
+            "xx_mc": "C",
+            "xx_nr": "Leave food for the cat.",
+            "xx_xh": "3"
+          }
         ]
       }
     ]

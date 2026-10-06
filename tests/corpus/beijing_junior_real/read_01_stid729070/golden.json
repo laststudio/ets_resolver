@@ -1,0 +1,19 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.read",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.read",
+      "stid": 729070,
+      "question": "Hello, everyone. I'd like to talk about my trip to Beijing. Last summer vacation, I visited some places of interest in Beijing with my friend. We went to the Palace Museum, Beihai Park, the Summer Palace and the Great Wall. I learned a lot of knowledge about Chinese art and culture. I think Beijing is a modern city with a long and rich history. It's really worth visiting. Now I am interested in the stories about Beijing. Next vacation, we are going to visit some other places and learn more. I'm sure I'll get a better understanding of the city.",
+      "answers": [
+        "Hello, everyone. I'd like to talk about my trip to Beijing. Last summer vacation, I visited some places of interest in Beijing with my friend. We went to the Palace Museum, Beihai Park, the Summer Palace and the Great Wall. I learned a lot of knowledge about Chinese art and culture. I think Beijing is a modern city with a long and rich history. It's really worth visiting. Now I am interested in the stories about Beijing. Next vacation, we are going to visit some other places and learn more. I'm sure I'll get a better understanding of the city."
+      ],
+      "options": [],
+      "important": [],
+      "_no_source": "local"
+    }
+  ]
+}

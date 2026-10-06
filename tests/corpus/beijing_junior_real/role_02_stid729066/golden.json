@@ -1,0 +1,43 @@
+{
+  "captured_from": "resolver_self_recorded",
+  "note": "PARITY_UPDATE=1 录制；作为门禁前请用官方结果替换 questions",
+  "structure_type": "collector.role",
+  "questions": [
+    {
+      "no": 1,
+      "type": "collector.role",
+      "stid": 729066,
+      "question": "How long will it take to get to Xiangshan Park by bus?",
+      "answers": [
+        "About 25 minutes.",
+        "It'll take about 25 minutes.",
+        "It'll take about 25 minutes to get there by bus.",
+        "It'll take him about 25 minutes.",
+        "It'll take him about 25 minutes to get there by bus.",
+        "It will take him about 25 minutes.",
+        "It will take him about 25 minutes to get there by bus.",
+        "It will take about 25 minutes to get there by bus.",
+        "It will take 25 minutes to get to Xiangshan Park by bus.",
+        "It'll take 25 minutes to get to Xiangshan Park by bus.",
+        "It will take about 25 minutes to take a bus to Xiangshan Park.",
+        "It is going to take about 25 minutes to get to Xiangshan Park by bus.",
+        "It's going to take about 25 minutes to get to Xiangshan Park by bus.",
+        "It is going to take about 25 minutes to get there by bus.",
+        "It's going to take about 25 minutes to get there by bus.",
+        "Around 25 minutes.",
+        "25 minutes or so.",
+        "Nearly 25 minutes.",
+        "Almost 25 minutes.",
+        "It will take about 25 minutes to go to the park by bus. About 25 minutes is needed."
+      ],
+      "options": [],
+      "important": [
+        "twenty five minutes",
+        "twenty rice minutes",
+        "rice"
+      ],
+      "role": "b",
+      "_no_source": "local"
+    }
+  ]
+}
