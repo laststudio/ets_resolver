@@ -382,7 +382,7 @@ fn collect_std_only(content: &Value, qtype: &str) -> Vec<Value> {
         if value.is_empty() {
             continue;
         }
-        let no = get_i64(s.get("xth").unwrap_or(&Value::Null)).unwrap_or(i as i64 + 1);
+        let no = std_no(s, i as i64 + 1);
         result.push(make_question(
             Some(no),
             Some("local"),
@@ -398,6 +398,57 @@ fn collect_std_only(content: &Value, qtype: &str) -> Vec<Value> {
     result
 }
 
+
+/// `info.std[]` 的题号：官方两处实现用的键**不一样**——
+/// - 套题链路（`useExamStepper::G()`）：`std.find(e => e.xth === a)`
+/// - 听说同步 `Practice`：`std.find(e => e.th === l[1])`
+/// 且示例数据里出现过 `"th":"1."`（带尾点）。这里统一兼容，避免漏题/错题号。
+fn std_no(s: &Value, fallback: i64) -> i64 {
+    for key in ["xth", "th"] {
+        if let Some(v) = s.get(key) {
+            if let Some(n) = get_i64(v) {
+                return n;
+            }
+            let raw = get_str(v);
+            let trimmed = raw.trim().trim_end_matches('.').trim();
+            if let Ok(n) = trimmed.parse::<i64>() {
+                return n;
+            }
+        }
+    }
+    fallback
+}
+
+/// `info.std[].value` 的多个可接受答案：官方用 `/` 分隔并逐项 `trim().toLowerCase()`
+/// （PC：`X(e.value).split("/").map(e=>e.trim().toLowerCase())`；
+/// 另一处 iframe 模板：`slashToArr: str.replace(/<br \/>/g,'').split('/')`）。
+/// `X()` 还会做中英标点归一（’→'、：→:、。→.、——→-、_→-）。
+pub fn std_accepted_answers(value: &str) -> Vec<String> {
+    value
+        .replace("<br />", "")
+        .replace("<br/>", "")
+        .split('/')
+        .map(|s| normalize_answer_text(s.trim()))
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// 官方 `X()`：中英标点归一 + 转小写（仅用于**比较**，不改变对外输出）。
+fn normalize_answer_text(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            '\u{2018}' | '\u{2019}' => '\'',
+            '\u{ff1a}' => ':',
+            '\u{ff0c}' => ',',
+            '\u{3002}' => '.',
+            '\u{2014}' | '\u{ff0d}' => '-',
+            '_' => '-',
+            other => other,
+        })
+        .collect::<String>()
+        .to_lowercase()
+}
+
 pub fn collect_fill(content: &Value, _content2: Option<&Value>, _info: Option<&Value>) -> Vec<Value> {
     let stid = stid_of(content);
     let info = content.get("info").and_then(|v| v.as_object());
@@ -409,7 +460,7 @@ pub fn collect_fill(content: &Value, _content2: Option<&Value>, _info: Option<&V
 
     let mut result = Vec::new();
     for (i, s) in std.iter().enumerate() {
-        let no = get_i64(s.get("xth").unwrap_or(&Value::Null)).unwrap_or(i as i64 + 1);
+        let no = std_no(s, i as i64 + 1);
         result.push(make_question(
             Some(no),
             Some("local"),
@@ -1090,7 +1141,7 @@ pub fn collect_generic_routed(
     if let Some(std) = info_obj.get("std").and_then(|v| v.as_array()) {
         if std
             .first()
-            .and_then(|s| s.get("xth"))
+            .and_then(|s| s.get("xth").or_else(|| s.get("th")))
             .map_or(false, |_| true)
         {
             return (collect_fill(content, content2, info), "std_fill");
@@ -1414,6 +1465,26 @@ pub fn parse_content_routed(
     }
     if content.get("word_question").is_some() || content.get("word_questions").is_some() {
         return explicit(collect_word_pk(content), "word_pk");
+    }
+    // `collector.word` 是**独立族**（词汇课，题目带 question_type ∈ {6,16,17,18,19,20}），
+    // 但历史上也有"文本集合形态"的 word 资源包。先按**结构**判定：
+    // 出现词汇题标记就按词汇题处理，否则维持"文本集合 = 朗读"的既有行为。
+    if st == TYPE_WORD || st.contains("word") {
+        let wordish = info
+            .and_then(|v| v.get("word_question").or_else(|| v.get("word_questions")))
+            .is_some()
+            || info
+                .and_then(|v| v.get("question"))
+                .and_then(|v| v.as_array())
+                .map_or(false, |qs| {
+                    qs.iter().any(|q| q.get("question_type").is_some() || q.get("option").is_some())
+                });
+        if wordish {
+            let parsed = collect_word_pk(content);
+            if !parsed.is_empty() {
+                return explicit(parsed, "word_pk");
+            }
+        }
     }
     // 朗读家族：collector.read / collector.sentence / collector.word（文本集合形态）/
     // read_passage_standard / read_sentence_standard / read_word_standard
