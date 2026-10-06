@@ -384,6 +384,9 @@ pub fn cloud_zip_password_json(path: &str) -> Value {
 }
 
 fn cloud_authorized_response(operation: impl FnOnce() -> Result<Value, CloudError>) -> Value {
+    if !auth::is_auth_enabled() {
+        return response(operation());
+    }
     match auth::authorize_for_feature(auth::CLOUD_MODE_FEATURE) {
         Ok(_) => response(operation()),
         Err(error) => json!({
@@ -1304,14 +1307,16 @@ mod tests {
 
     #[test]
     fn cloud_operation_does_not_run_without_remote_auth() {
+        auth::set_auth_enabled(true);
         let called = AtomicBool::new(false);
         let result = cloud_authorized_response(|| {
             called.store(true, Ordering::SeqCst);
             Ok(Value::Null)
         });
         assert_eq!(result["ok"], false);
-        assert_eq!(result["error"]["code"], "auth_disabled");
+        assert_eq!(result["error"]["code"], "auth_not_configured");
         assert!(!called.load(Ordering::SeqCst));
+        auth::set_auth_enabled(false);
     }
 
     #[test]

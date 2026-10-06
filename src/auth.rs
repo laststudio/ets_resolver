@@ -302,7 +302,6 @@ pub extern "C" fn set_auth_enabled(enabled: bool) {
 }
 
 /// 查询内部授权是否启用。
-#[cfg(not(feature = "cloud-library"))]
 #[cfg_attr(all(not(feature = "cloud-library"), not(target_os = "android")), no_mangle)]
 pub extern "C" fn is_auth_enabled() -> bool {
     state().lock().unwrap().enabled
