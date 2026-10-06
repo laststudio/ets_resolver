@@ -45,6 +45,36 @@ JNI 可用 ✅
 | 每个 JNI 方法的**函数体**（含完整性校验、诊断、分类、契约分发）行为正确 | 应用内 `System.loadLibrary("resolver")` 的库名解析 |
 | 响应信封契约（`ok` / `error.code` / `meta`）在 JNI 边界上不变形 | Kotlin 侧 `external fun` 声明与 so 是否漂移（见第三层） |
 
+## 设备侧（真机）跑自校验 —— 两种方式，都不需要发版
+
+### 方式 A：不装 App，直接推 dex + so（最快，推荐先用这个）
+
+```bash
+./tools/jni_probe/run_device.sh          # 需要 adb 可见的设备
+```
+做四件事：编译探针(`javac --release 17`) → `d8` 出 dex → 推 so/dex 到 `/data/local/tmp`
+→ 用 `app_process --nice-name=com.shuaiqiu.fuckets100` 在应用进程名下运行并打印结果。
+`--nice-name` 让 `/proc/self/cmdline` 通过包名校验；`-Dexpected.digest=` 会断言
+"运行期摘要 == 静态工具算出的摘要"。
+
+### 方式 B：App 内的 instrumented test
+
+```bash
+cd ../Fe-pro
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.shuaiqiu.fuckets100.ResolverJniInstrumentedTest
+# 只看自校验那一项：
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.shuaiqiu.fuckets100.ResolverJniInstrumentedTest#selfCheckDigestMatchesInjectedExpectation
+```
+用例 `selfCheckDigestMatchesInjectedExpectation` 会把**完整报告打进 logcat**，便于采集各机型映射形态：
+```bash
+adb logcat -s TestRunner:I | grep SELFCHECK
+```
+
+关注字段：`text_digest_match`（必须 true 才能开强制）、`digest_enforced`（灰度期应为 false）、
+`injection_strong`（干净设备应为空）、`anon_exec_count`（ART/JIT 常见，仅供参考）。
+
 ## 三层测试策略
 
 | 层 | 需要什么 | 覆盖 | 状态 |

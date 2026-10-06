@@ -60,6 +60,8 @@ CI（两遍构建 + 守卫）
    即为强制模式（CI 会用宿主产物先证明"开强制不影响代码段"）。
 
 对拍工具：`python3 tools/integrity/segment_digest.py <so> [--json]`
+真机验证：`./tools/jni_probe/run_device.sh`（不装 App，推 dex+so 用 app_process 跑）
+          或 Fe-pro 的 `ResolverJniInstrumentedTest#selfCheckDigestMatchesInjectedExpectation`
 宿主探针：`./tools/jni_probe/run.sh`（会断言"运行时摘要 == 静态摘要"，13 项检查）
 
 ## 二之补充、生产签名钥已烘进产物（根因修复）
