@@ -608,6 +608,99 @@ pub fn parse_pk_options(opt_val: &Value) -> Vec<String> {
     options
 }
 
+
+/// `collector.repeat` / 语篇听读类：**`info.fj[]` 每句 = 一小题**。
+///
+/// 官方语义（静态提取，附证据）：
+/// - PC 前端 `useExamStepper`：`case"collector.repeat": for(const n of r.info.fj) e = \`${D}_${r.info.stid}_${n.xh}\``
+///   —— 逐句生成同步键，即**一句一题**，题号取 `fj[].xh`。
+/// - 答案页：`v-for='i in one.info.fj'`。
+/// - 真实内容包实测（tests/corpus/guangdong_hs_monitor_a/2_课内语篇听读）：
+///   `info.fj` 有 10 项，元素 = `{value: 'It boils down to this:', xh: '1', fs: '0.40',
+///   ai: '...', time: '15', audio: 'fj1.mp3'}`；同目录 `info_extra.json` 也正好 10 行
+///   （`[{id:'fj_xh',value:'1'},{id:'wt_xh',value:'1'},{id:'record_time',value:'15'}]`），
+///   行数与小题数一致 —— 与"按行数切题/均分"的官方行为吻合。
+///
+/// 旧行为把整段 `info.value` 出成 **1 题**，等于丢掉 N-1 题（实测 10/12 句只剩 1 题）。
+pub fn collect_repeat_by_sentence(
+    content: &Value,
+    content2: Option<&Value>,
+    info: Option<&Value>,
+) -> Vec<Value> {
+    let stid = stid_of(content);
+    let info_obj = info
+        .and_then(|v| v.get("info"))
+        .or_else(|| content.get("info"))
+        .and_then(|v| v.as_object());
+    let fj = info_obj
+        .and_then(|o| o.get("fj"))
+        .and_then(|v| v.as_array())
+        .or_else(|| {
+            content2
+                .and_then(|c| c.get("info"))
+                .and_then(|o| o.get("fj"))
+                .and_then(|v| v.as_array())
+        })
+        .cloned()
+        .unwrap_or_default();
+    if fj.is_empty() {
+        return Vec::new();
+    }
+    let passage = info_obj
+        .and_then(|o| o.get("value"))
+        .map(|v| clean(&get_str(v)))
+        .unwrap_or_default();
+    let mut questions = Vec::new();
+    for (i, item) in fj.iter().enumerate() {
+        let obj = item.as_object();
+        let text = obj
+            .and_then(|o| o.get("value"))
+            .or_else(|| obj.and_then(|o| o.get("text")))
+            .map(|v| clean(&get_str(v)))
+            .unwrap_or_default();
+        if text.is_empty() {
+            continue;
+        }
+        let no = obj
+            .map(|o| std_no(&Value::Object(o.clone()), i as i64 + 1))
+            .unwrap_or(i as i64 + 1);
+        let mut extra = Map::new();
+        // 逐句音频文件名（官方 fj[].audio，如 "fj1.mp3"）：客户端可据此播放句子音频
+        if let Some(audio) = obj
+            .and_then(|o| o.get("audio"))
+            .map(|v| get_str(v))
+            .filter(|s| !s.is_empty())
+        {
+            extra.insert("audio".into(), Value::String(audio));
+        }
+        // 录音时长（秒）：官方 info_extra.json 的 record_time，实测与 fj[].time 一致
+        if let Some(secs) = obj
+            .and_then(|o| o.get("time"))
+            .map(|v| get_str(v))
+            .filter(|s| !s.is_empty())
+        {
+            extra.insert("record_time".into(), Value::String(secs));
+        }
+        // 整段原文（供上下文展示；答案仍是逐句）
+        if !passage.is_empty() {
+            extra.insert("passage".into(), Value::String(passage.clone()));
+        }
+        // 跟读/听读类：上传音频由引擎评分，提交值官方为空串
+        questions.push(make_question(
+            Some(no),
+            Some("local"),
+            "collector.repeat",
+            stid,
+            text.clone(),
+            vec![text],
+            Vec::new(),
+            Vec::new(),
+            Some(extra),
+        ));
+    }
+    questions
+}
+
 pub fn collect_repeat_essay(content: &Value, content2: Option<&Value>, info: Option<&Value>) -> Vec<Value> {
     let stid = stid_of(content);
     let info_obj = content.get("info");
@@ -1127,6 +1220,14 @@ pub fn collect_generic_routed(
     {
         return (collect_word_pk(content), "word_pk");
     }
+    // `info.fj[]` 是"逐句跟读/语篇听读"：**一句一题**（官方行为）。
+    // 必须排在 generic read 兜底之前，否则整段会被当成 1 题（实测少 N-1 题）。
+    if info_obj.get("fj").map_or(false, |v| v.is_array()) {
+        let qs = collect_repeat_by_sentence(content, content2, info);
+        if !qs.is_empty() {
+            return (qs, "repeat_by_sentence");
+        }
+    }
     if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
         return (collect_repeat_essay(content, content2, info), "repeat_essay");
     }
@@ -1452,6 +1553,20 @@ pub fn parse_content_routed(
     // 注意不能用 contains("choice")：那会把 `word.choice`（词汇PK）误路由到选择题。
     if st.contains("choose") || st.contains("listen_choice") {
         return explicit(collect_choose(content, content2, info), TYPE_CHOOSE);
+    }
+    // 同上：structure_type 明确是 repeat/听读类且带 info.fj 时，按逐句切题
+    if st == "collector.repeat" || st.contains("repeat") {
+        let has_fj = info
+            .and_then(|v| v.get("info"))
+            .or_else(|| content.get("info"))
+            .and_then(|o| o.get("fj"))
+            .map_or(false, |v| v.is_array());
+        if has_fj {
+            let qs = collect_repeat_by_sentence(content, content2, info);
+            if !qs.is_empty() {
+                return explicit(qs, "collector.repeat");
+            }
+        }
     }
     if st == TYPE_REPEAT_ESSAY {
         return explicit(

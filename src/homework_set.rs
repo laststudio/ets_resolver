@@ -526,19 +526,42 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
                     .unwrap_or(exam_score);
                 score_note = "template_per_question";
             } else if exam_score > 0.0 && !questions.is_empty() {
-                let each = round2(exam_score / questions.len() as f64);
-                for q in questions.iter_mut() {
+                // 官方按题数均分大题分，且**末题吞尾差**，保证逐题之和 == 大题分：
+                //   js: const n = (e/t).toFixed(2), r = (e-(t-1)*n).toFixed(2); [...n×(t-1), r]
+                // （提取自官方前端的 collector.repeat 展开逻辑）
+                // 反例：12 句 × 0.33 = 3.96 会把 4 分大题报成 3.96 分 —— 必须让末题补 0.04。
+                let n = questions.len();
+                let each = round2(exam_score / n as f64);
+                let last = round2(exam_score - each * (n - 1) as f64);
+                for (i, q) in questions.iter_mut().enumerate() {
+                    let score = if i + 1 == n { last } else { each };
                     if let Some(obj) = q.as_object_mut() {
-                        obj.insert("score".into(), json!(each));
+                        obj.insert("score".into(), json!(score));
                     }
                 }
-                total_from_template += round2(each * questions.len() as f64);
+                total_from_template += round2(each * (n - 1) as f64 + last);
                 score_note = "template_section_even_split";
-                warnings.push(format!(
-                    "section[{section_pos}] 模板小题数({}) 与合并后题数({}) 不一致，已按大题分均分",
-                    tpl_questions.len(),
-                    questions.len()
-                ));
+                // 逐句展开（collector.repeat 的 info.fj[]）是**官方预期行为**，不再报"不一致"
+                let per_sentence = questions
+                    .iter()
+                    .all(|q| q.get("passage").is_some() || q.get("audio").is_some());
+                if per_sentence {
+                    warnings.push(format!(
+                        "section[{section_pos}] 官方按 info.fj[] 逐句展开：模板 1 小题 → {} 句，\
+                         大题分 {:?} 按句均分（前 {} 句 {}，末句 {} 吞尾差）",
+                        n,
+                        exam_score,
+                        n - 1,
+                        each,
+                        last
+                    ));
+                } else {
+                    warnings.push(format!(
+                        "section[{section_pos}] 模板小题数({}) 与合并后题数({}) 不一致，已按大题分均分",
+                        tpl_questions.len(),
+                        questions.len()
+                    ));
+                }
             } else {
                 warnings.push(format!(
                     "section[{section_pos}] 模板未提供可用分值，逐题满分留空"
@@ -558,9 +581,19 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
             .and_then(|v| v.as_array())
             .map(|a| a.len())
             .unwrap_or(0);
+        // 官方的**逐句展开**是预期行为，不是"多题异常"：
+        // `collector.repeat`（语篇听读/跟读）在客户端按 `info.fj[]` **一句一小题**展开
+        // （PC 前端 `case"collector.repeat": for(const n of r.info.fj) ...`），
+        // 且大题分按句均分 —— 真实数据里 `fj[].fs` 正好是 4/10=0.40、4/12=0.33。
+        // 因此"合并后题数 > 模板小题数"时，只要每题都带逐句标记（passage/audio），
+        // 就按 match 处理（并把扩展方式写进 expansion 字段），否则仍按 above_template 报警。
+        let per_sentence_expansion = questions.len() > template_question_count
+            && questions
+                .iter()
+                .all(|q| q.get("passage").is_some() || q.get("audio").is_some());
         let count_status = if section.template_section.is_none() {
             "no_template"
-        } else if template_question_count == questions.len() {
+        } else if template_question_count == questions.len() || per_sentence_expansion {
             "match"
         } else if questions.len() < template_question_count {
             "below_template"
@@ -609,6 +642,8 @@ pub fn merge(packages_value: &Value, res: Option<&Value>, homework_value: Option
             "question_count": questions.len(),
             "template_question_count": template_question_count,
             "count_status": count_status,
+            // "per_sentence" = 官方按 info.fj[] 逐句展开（题数多于模板小题数是预期的）
+            "expansion": if per_sentence_expansion { json!("per_sentence") } else { Value::Null },
             "package_indexes": section.packages.iter().map(|p| p.index).collect::<Vec<_>>(),
             // 官方挂载键：real_id（部分接口叫 entity_id），客户端/后端做分节挂载时用它
             "real_ids": section

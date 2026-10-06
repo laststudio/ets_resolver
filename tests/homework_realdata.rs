@@ -303,10 +303,18 @@ fn real_collector_repeat_paper_no_longer_loses_questions() {
         let info: Value = serde_json::from_str(&fs::read_to_string(dir.join("info.json")).unwrap()).unwrap();
         let content2: Value = serde_json::from_str(&fs::read_to_string(dir.join("content2.json")).unwrap()).unwrap();
         let questions = resolver::parse_task_value(&content, Some(&content2), Some(&info));
+        // 题数期望：`collector.repeat`（语篇听读）**按 info.fj[] 逐句切题** —— 官方前端
+        // `case"collector.repeat": for(const n of r.info.fj) ...` 是一句一题；
+        // 真实数据佐证 `fj[].fs` = 该大题分 ÷ 句数（4 分卷：10 句 → 0.40、12 句 → 0.33）。
+        // 其余族仍是"一个内容包 = 一题"。
+        let expected = match content["structure_type"].as_str().unwrap_or("") {
+            "collector.repeat" => content["info"]["fj"].as_array().map(|a| a.len()).unwrap_or(1),
+            _ => 1,
+        };
         assert_eq!(
             questions.len(),
-            1,
-            "{case}（structure_type={}）应出 1 题，实际 {} —— 文本跟读类不能为空",
+            expected,
+            "{case}（structure_type={}）应出 {expected} 题，实际 {}",
             content["structure_type"],
             questions.len()
         );
@@ -323,7 +331,9 @@ fn real_collector_repeat_paper_no_longer_loses_questions() {
             "questions": questions,
         }));
     }
-    assert_eq!(total_questions, 5);
+    // 5 个包合计 25 题：单词朗读1 + 课内语篇朗读1 + 课内语篇听读10 + 课外语篇听读12 + 故事复述1
+    // （两个 collector.repeat 包按 info.fj[] 逐句展开；旧行为把它们各算 1 题 → 少 20 题）
+    assert_eq!(total_questions, 25);
 
     let homework = json!({"id": "104456286", "name": "9月4日周末听说练习", "set_type": 1, "resource_id": "1784",
         "struct": {"contents": [{"group_name": "单词朗读"}, {"group_name": "课内语篇朗读"}, {"group_name": "课内语篇听读"},
@@ -332,7 +342,8 @@ fn real_collector_repeat_paper_no_longer_loses_questions() {
     let paper = &merged["paper"];
     assert_eq!(paper["totalScore"], 20.0, "修复后整卷应是 20 分（修复前 12 分）");
     assert_eq!(paper["totalScore_source"], "res_template_set_score");
-    assert_eq!(paper["question_count"], 5);
+    // 合并后总题数 25（两个 collector.repeat 包按 info.fj[] 逐句展开；旧行为各算 1 题）
+    assert_eq!(paper["question_count"], 25);
     assert_eq!(merged["coverage"]["unmatched_packages"].as_array().unwrap().len(), 0);
     let scores: Vec<f64> = paper["sections"]
         .as_array()
@@ -341,7 +352,21 @@ fn real_collector_repeat_paper_no_longer_loses_questions() {
         .flat_map(|s| s["questions"].as_array().unwrap())
         .map(|q| q["score"].as_f64().unwrap())
         .collect();
-    assert_eq!(scores, vec![4.0, 4.0, 4.0, 4.0, 4.0]);
+    // 逐题满分 = 大题分按题数均分，且**末题吞尾差**（官方前端 collector.repeat 展开逻辑：
+    //   `n=(e/t).toFixed(2); r=(e-(t-1)*n).toFixed(2); [...n×(t-1), r]`）
+    //   单词朗读 4.0 ｜ 课内语篇朗读 4.0 ｜
+    //   课内语篇听读 4 分 ÷ 10 句 = 0.40 ×10 ｜
+    //   课外语篇听读 4 分 ÷ 12 句 = 0.33 ×11 + 末句 0.37（吞尾差，合计仍是 4.00）｜
+    //   故事复述 4.0
+    // 这样逐题之和 == 卷面 20 分（若不做尾差补偿：12×0.33=3.96，整卷会少 0.04 分）。
+    let mut expected = vec![4.0, 4.0];
+    expected.extend(std::iter::repeat_n(0.4, 10));
+    expected.extend(std::iter::repeat_n(0.33, 11));
+    expected.push(0.37);
+    expected.push(4.0);
+    assert_eq!(scores, expected);
+    let sum: f64 = scores.iter().sum();
+    assert!((sum - 20.0).abs() < 1e-9, "逐题满分之和必须等于卷面分 20，实际 {sum}");
 }
 
 #[test]
@@ -544,12 +569,23 @@ fn completeness_guard_reports_full_alignment_for_real_paper() {
     assert_eq!(completeness["is_complete"], true);
     assert_eq!(completeness["missing_vs_template"], 0);
     assert_eq!(completeness["template_questions"], 5);
-    assert_eq!(completeness["parsed_questions"], 5);
+    // 合并后题数 = 单词朗读1 + 课内语篇朗读1 + 课内语篇听读10 + 课外语篇听读12 + 故事复述1 = 25。
+    // `collector.repeat` 的逐句展开是**官方预期行为**（info.fj[] 一句一题、大题分按句均分），
+    // 因此这些节必须报 count_status="match" 且带 expansion="per_sentence"，而不是 above_template。
+    assert_eq!(completeness["parsed_questions"], 25);
     // 每个大题都用官方挂载键挂上（无家族兜底）
     for section in merged["paper"]["sections"].as_array().unwrap() {
         assert_eq!(section["mount_confidence"], "exact", "{section}");
         assert_eq!(section["count_status"], "match", "{section}");
     }
+    // 逐句展开的两节要显式标注，便于客户端区分"官方展开"与真的多题
+    let expansions: Vec<&str> = merged["paper"]["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["expansion"].as_str())
+        .collect();
+    assert_eq!(expansions, vec!["per_sentence", "per_sentence"]);
     let warnings = merged["warnings"].as_array().unwrap();
     assert!(
         !warnings.iter().any(|w| w.as_str().unwrap_or("").contains("below_template")),
