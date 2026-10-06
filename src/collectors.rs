@@ -1220,16 +1220,18 @@ pub fn collect_generic_routed(
     {
         return (collect_word_pk(content), "word_pk");
     }
-    // `info.fj[]` 是"逐句跟读/语篇听读"：**一句一题**（官方行为）。
-    // 必须排在 generic read 兜底之前，否则整段会被当成 1 题（实测少 N-1 题）。
+    // 逐句类两条路径，**优先 sublist**（线上 `collect_repeat_essay` 走 sublist 已被生产验证：
+    // 真实作业 107576379「短文跟读」解析出 27 题、107576881 出 31 题，成绩正常）。
+    // 只有在没有 sublist 时才用 `info.fj[]`（一句一题，官方前端 `for(const n of r.info.fj)`）——
+    // 否则整段 `info.value` 会被当成 1 题（实测那种包里 10/12 句只剩 1 题）。
+    if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
+        return (collect_repeat_essay(content, content2, info), "repeat_essay");
+    }
     if info_obj.get("fj").map_or(false, |v| v.is_array()) {
         let qs = collect_repeat_by_sentence(content, content2, info);
         if !qs.is_empty() {
             return (qs, "repeat_by_sentence");
         }
-    }
-    if info_obj.get("sublist").map_or(false, |v| v.is_array()) {
-        return (collect_repeat_essay(content, content2, info), "repeat_essay");
     }
     if info_obj.get("question").map_or(false, |v| v.is_array())
         || info_obj.get("questions").map_or(false, |v| v.is_array())
@@ -1556,11 +1558,16 @@ pub fn parse_content_routed(
     }
     // 同上：structure_type 明确是 repeat/听读类且带 info.fj 时，按逐句切题
     if st == "collector.repeat" || st.contains("repeat") {
-        let has_fj = info
+        let info_obj = info
             .and_then(|v| v.get("info"))
-            .or_else(|| content.get("info"))
-            .and_then(|o| o.get("fj"))
+            .or_else(|| content.get("info"));
+        let has_sublist = info_obj
+            .and_then(|o| o.get("sublist"))
             .map_or(false, |v| v.is_array());
+        let has_fj = !has_sublist
+            && info_obj
+                .and_then(|o| o.get("fj"))
+                .map_or(false, |v| v.is_array());
         if has_fj {
             let qs = collect_repeat_by_sentence(content, content2, info);
             if !qs.is_empty() {
