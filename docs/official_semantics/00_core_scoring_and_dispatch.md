@@ -399,3 +399,56 @@ e.answer === s.xx_mc && (l = m(a.question_score / a.question_count))   // 答对
    `![listeningSync,textReading,textShadowing].includes(entity_type)`。
    `scoreFilter(rawTotal, score, isAbsolute)` → `[isAbsolute?scoreFormater(score):ConvertToPercentScore(score,rawTotal), isAbsolute?rawTotal:100]`。
    它影响**展示/分母**，对"我们该提交什么"的直接影响未验证 → 先记录。
+
+---
+
+## 15. 词汇族线路完整核对（真实载荷 + 官方前端逐字代码）
+
+### 15.1 真实载荷形态（`tests/fixtures/word_struct_guangdong_hs_pk.json`：3 词 × 6 题型）
+
+```json
+{ "question_type": 6,  "question_type_name": "听音选义", "answer": "D",
+  "option": "[{\"option_name\":\"A\",\"option_value\":\"n.政治，政治活动\"}, …]" }
+{ "question_type": 16, "question_type_name": "默写词汇", "answer": "trait", "option": "" }
+{ "question_type": 17, "question_type_name": "朗读词汇", "answer": "",      "option": "" }
+{ "question_type": 18, "question_type_name": "听写词汇", "answer": "trait", "option": "" }
+{ "question_type": 19, "question_type_name": "英译中",   "answer": "B",     "option": "[{option_name:A, option_value:'n.燃料'}, …]" }
+{ "question_type": 20, "question_type_name": "中译英",   "answer": "A",     "option": "[{option_name:A, option_value:'trait'}, …]" }
+```
+- **选项型（6/19/20）**：`option_name` = **选项字母**、`option_value` = 展示文本；**answer 是字母**。
+- **拼写型（16/18）**：answer = **单词原文**。
+- **朗读型（17）**：answer **为空**（分数来自引擎评测）。
+
+我方解析输出核对（`parse_word_pk_value`，3 词 × 6 题型 = 18 题）：
+`word.choice→"D"`、`word.write→"trait"`、`word.read→原文（官方为空，供展示）`、
+`word.dictation→"trait"`、`word.translate_en_cn→中文释义（官方为字母）`、
+`word.translate_cn_en→英文单词（官方为字母）` —— `answers` 给"给人看的可读答案"，
+**上交值另由 `submit_answer` 给官方字母** ✓（这一分工是既定设计）。
+
+### 15.2 两个端点的分流（**两个官方客户端一致**）
+
+```js
+// PC 前端 index-5543d811.js
+requestWordHomeworkSubmit = e => {
+  if (1 == this.practiceType) {                      // 作业
+    const t = this.getSeconds();
+    return this.homeworkPractice.requestHomeworkWordCommit({...e, use_time: t});
+  }
+  return requestPKSubmitWord(e);                     // PK：原样 POST g/pk/submit-word
+};
+```
+- **词汇作业 → `POST g/homework/score-sync`**（Android 侧同结论：`SyncWordRepository.java:1255-1280`）
+- **词汇 PK → `POST g/pk/submit-word`**
+
+两种端点 `detail[]` 形态**不同**：
+
+| 端点 | 逐题明细 |
+|---|---|
+`g/pk/submit-word` | `{word_id, question_id, point: 10000\|0, answer: option_name}`（官方 PK.vue：`ae.push(Ee(answer==option_name ? 1e4 : 0, option_name))`） |
+`g/homework/score-sync` | `{word_id, question_id, [item_id, question_item_id], score_rate: point>0?1:0, score_detail: JSON.stringify({choose: answer, score: point>0?100:0}), client_time}` + 信封 `{homework_id, resource_id, type, use_time, mark_service:1, seq_id}` |
+
+**我方核对结果**：
+- PK 明细 `{point: 10000|0, answer}` **与官方完全一致** ✓（此前的 `10000` 修复正确）
+- 但**词汇作业此前也走 PK 端点**（且多调了 `start-word-pk`）—— 与官方分流不符。
+  已按官方实现 `g/homework/score-sync` 路径（构造器 + 客户端 + runner 分支），
+  由环境变量 `ETS_WORD_HOMEWORK_SCORE_SYNC` 控制，**默认关闭**（不动线上行为，待 A/B）。
