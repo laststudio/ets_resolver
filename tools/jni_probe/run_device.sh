@@ -37,5 +37,11 @@ echo "   ${DIGEST:0:24}…"
 echo "④ 推送到设备并运行"
 adb push "$SO" /data/local/tmp/libresolver.so >/dev/null
 adb push "$DEX" "/data/local/tmp/$(basename "$DEX")" >/dev/null
+OUT_REMOTE=/data/local/tmp/jni_probe_result.txt
+adb shell "rm -f $OUT_REMOTE"
+# 注意：Android 上 app_process 的 stdout 常被吞，探针会同时把结果写到 out.file
 adb shell "cd /data/local/tmp && CLASSPATH=$(basename "$DEX") app_process --nice-name=com.shuaiqiu.fuckets100 \
-  -Dresolver.lib=/data/local/tmp/libresolver.so -Dexpected.digest=$DIGEST /data/local/tmp com.shuaiqiu.fuckets100.JniProbe"
+  -Dresolver.lib=/data/local/tmp/libresolver.so -Dexpected.digest=$DIGEST -Dout.file=$OUT_REMOTE \
+  /data/local/tmp com.shuaiqiu.fuckets100.JniProbe" || true
+echo "--- 设备侧结果（$OUT_REMOTE）---"
+adb shell "cat $OUT_REMOTE" || echo "  （无输出文件，见上方直接输出或 logcat）"

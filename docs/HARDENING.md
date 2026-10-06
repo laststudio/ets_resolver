@@ -83,12 +83,36 @@ CI（两遍构建 + 守卫）
 攻击套件相应扩到 **8 个用例**（新增"不传动态公钥 + 生产 key_id + 垃圾签名"与
 "配置一把错钥 + 生产 key_id + 垃圾签名"，均拒绝）。
 
+## 二之三、契约入口的授权门禁（本次补齐）
+
+libcloud 的所有数据接口都走 `cloud_authorized_response`（强制 `cloud_mode` 授权），
+旧接口 `parseTaskAuthorized/parseBatchAuthorized` 也强制 `answer_parser` 授权 ——
+**但契约入口 `resolve_request` 的解析类 op 此前完全没有授权检查**：
+任何人调用 `{"op":"parse_task",...}` 就能拿到答案（宿主探针在 `setAuthEnabled(false)` 后
+仍能解析，即为实证）。而客户端早已切到契约，等于把"库内强制联网校验、补丁掉 Java 层也没用"
+这条设计目标架空了。
+
+现在对**产出题目/答案**的 op 加门禁：`parse_task` / `parse_batch` / `parse_word_pk` /
+`parse_homework_set`；被拒时返回标准错误信封（`auth_*` / `network_error`），不泄露答案。
+**保持免费**的 op：`capabilities` / `spec` / `diagnose` / `shape_fingerprint` /
+`extract_meta` / `classify_homework(_list)` / `res_template` / `apply_res_template`
+（遥测必须能在授权被拒时照常上报结构指纹，否则永远发现不了新题型）。
+
+**只在 Android 目标默认开启**（`cfg(target_os = "android")`）：
+宿主 Linux 产物由后端 Python（`call_op("parse_task")`）、Fe PC、CI 对拍消费，
+它们没有客户端授权上下文，强开会把服务端消费者拦死。
+
+> **边界如实说明**：公开发布同时含宿主 `.so` 与 `wasm`，二者不带该门禁 ——
+> 所以这道门禁能约束 Android 客户端，但**保护不了算法本身**。要真正保护只有两条路：
+> 不再发布宿主/wasm 产物，或把解析放到服务端（客户端只拿结果）。
+
 ## 三、已知薄弱点（诚实清单）
 
 | 项 | 现状 | 影响 |
 |---|---|---|
 | OLLVM（FLA/SUB/BCF/字符串 Pass） | **未实现**（CI 里是桩，见文末） | 反编译出来仍是可读性较高的 Rust；只有 6 处手写 CFF 保护关键路径 |
 | 段加密 / 段自校验之外的完整性 | 无 | 代码段可修复式 patch（自校验能发现，但灰度期不拦） |
+| 宿主 `.so` / `wasm` 的授权门禁 | **无**（宿主/wasm 默认不启用契约门禁） | 任何人下载宿主产物即可无授权解析 —— 门禁只约束 Android 客户端 |
 | Debug 构建的签名校验 | `EXPECTED_SIGNATURE_SHA256` 为空时按设计**跳过** | 仅 Release 包严格校验 |
 | 宿主 Linux .so / wasm | 无 Android 专有校验；wasm 基本等于源码级可读 | Fe_web 按设计不走 wasm，只请求后端 |
 | CFF 覆盖度 | 关键路径（授权验签、完整性校验、包名校验）已覆盖；解析分发/ZIP 密码推导未覆盖 | 可继续扩展 |

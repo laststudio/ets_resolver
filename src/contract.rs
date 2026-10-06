@@ -196,6 +196,74 @@ pub fn capabilities() -> Value {
 }
 
 /// 统一入口：一次 JSON 进、一次 JSON 出。
+// ============================================================================
+// 契约入口的授权门禁
+//
+// 背景：libcloud 的所有数据接口都走 `cloud_authorized_response`（强制 cloud_mode
+// 授权），旧接口 `parseTaskAuthorized/parseBatchAuthorized` 也强制 answer_parser
+// 授权；**但契约入口（客户端现在走的 resolve_request）此前完全没有授权检查** ——
+// 只要调用 `{"op":"parse_task",...}` 就能拿到答案，等于把"库内部强制联网校验、
+// 补丁掉 Java 层也没用"这条设计目标架空了。
+//
+// 因此对**产出题目/答案**的 op 补上授权门禁：
+//   parse_task / parse_batch / parse_word_pk / parse_homework_set
+// 不门禁的（保持免费，避免影响遥测与服务端消费者）：
+//   capabilities / spec / diagnose / shape_fingerprint / extract_meta /
+//   classify_homework(_list) / res_template / apply_res_template
+//
+// **只在 Android 目标默认开启**：
+//   宿主 Linux 产物由后端（Python `call_op("parse_task")`）、Fe PC、CI 对拍使用，
+//   它们没有客户端授权上下文，强开会把后端自己拦死。
+//   （安全边界如实说明：公开发布里同时含宿主 .so 与 wasm，二者不带门禁，
+//     所以该门禁只能约束 Android 客户端，不能保护算法本身。）
+thread_local! {
+    static ENFORCE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// 契约解析类 op 是否强制 answer_parser 授权。Android 默认 true，其余目标 false。
+pub fn enforce_answer_parser_auth() -> bool {
+    ENFORCE_OVERRIDE
+        .with(|c| c.get())
+        .unwrap_or(cfg!(target_os = "android"))
+}
+
+/// 测试/宿主场景临时覆盖门禁开关（仅影响当前线程，避免并行测试互相干扰）。
+pub fn override_enforce_answer_parser_auth(value: Option<bool>) {
+    ENFORCE_OVERRIDE.with(|c| c.set(value));
+}
+
+/// 是否为需要授权的 op。
+fn op_requires_auth(op: &str) -> bool {
+    matches!(
+        op,
+        "parse_task" | "parse_batch" | "parse_word_pk" | "parse_homework_set"
+    )
+}
+
+/// 执行门禁：通过返回 None，被拒返回已构造好的错误响应。
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+fn auth_gate(op: &str) -> Option<Value> {
+    if !enforce_answer_parser_auth() || !op_requires_auth(op) {
+        return None;
+    }
+    match crate::auth::authorize_for_feature(crate::auth::ANSWER_PARSER_FEATURE) {
+        Ok(_grant) => None,
+        Err(e) => Some(respond_err(
+            op,
+            error(
+                &e.code,
+                &e.message,
+                "该 op 需要有效的 answer_parser 授权：请先配置授权地址/令牌并完成授权",
+            ),
+        )),
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+fn auth_gate(_op: &str) -> Option<Value> {
+    None
+}
+
 pub fn handle(request: &Value) -> Value {
     let op = request
         .get("op")
@@ -234,6 +302,10 @@ pub fn handle(request: &Value) -> Value {
         .filter(|v| v.is_object())
         .cloned()
         .unwrap_or_else(|| json!({}));
+
+    if let Some(denied) = auth_gate(op_ref) {
+        return denied;
+    }
 
     match op_ref {
         "capabilities" => respond_ok(op_ref, capabilities(), None),
@@ -701,5 +773,72 @@ mod tests {
         assert_eq!(out["result"][0]["score"], 1.5);
         assert_eq!(out["result"][1]["score"], 1.5);
         assert_eq!(out["meta"]["filled_no"], 2);
+    }
+}
+
+#[cfg(test)]
+mod auth_gate_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse_req() -> Value {
+        json!({"version": 1, "op": "parse_task",
+               "payload": {"content": {"structure_type": "collector.fill",
+                                       "info": {"std": [{"xth": "1", "value": "A"}]}}}})
+    }
+
+    #[test]
+    fn contract_parse_ops_are_gated_when_enforced() {
+        override_enforce_answer_parser_auth(Some(true));
+        // 未配置授权（无 base_url/token）→ 必须被拒，而不是照常出答案
+        let resp = handle(&parse_req());
+        assert_eq!(resp["ok"], json!(false), "开启门禁后解析必须失败: {resp}");
+        let code = resp["error"]["code"].as_str().unwrap_or("");
+        assert!(
+            code.starts_with("auth_") || code == "auth_disabled" || code == "network_error",
+            "应返回授权类错误码，实际 {code}: {resp}"
+        );
+
+        // 四个"出答案"的 op 都要门禁（用各自最小入参）
+        for op in ["parse_task", "parse_batch", "parse_word_pk", "parse_homework_set"] {
+            let req = json!({"version": 1, "op": op, "payload": {}});
+            let r = handle(&req);
+            assert_eq!(r["ok"], json!(false), "{op} 应被门禁拦下");
+            let c = r["error"]["code"].as_str().unwrap_or("");
+            assert!(!c.is_empty() && c != "invalid_input", "{op} 应是授权错误而非参数错误: {r}");
+        }
+        override_enforce_answer_parser_auth(None);
+    }
+
+    #[test]
+    fn diagnostic_and_metadata_ops_stay_free() {
+        override_enforce_answer_parser_auth(Some(true));
+        // 遥测/元数据类 op 不门禁：授权被拒时也要能上报结构指纹，否则永远发现不了新题型
+        let diag = handle(&json!({"version": 1, "op": "diagnose",
+            "payload": {"content": {"structure_type": "collector.fill",
+                                    "info": {"std": [{"xth": "1", "value": "A"}]}}}}));
+        assert_eq!(diag["ok"], json!(true), "diagnose 不应被门禁拦: {diag}");
+
+        let caps = handle(&json!({"version": 1, "op": "capabilities"}));
+        assert_eq!(caps["ok"], json!(true), "capabilities 不应被门禁拦");
+
+        let cls = handle(&json!({"version": 1, "op": "classify_homework_list",
+            "payload": {"homeworks": []}}));
+        assert_eq!(cls["ok"], json!(true), "classify_homework_list 不应被门禁拦: {cls}");
+        override_enforce_answer_parser_auth(None);
+    }
+
+    #[test]
+    fn gate_is_off_by_default_on_host_targets() {
+        // 宿主（后端 Python / Fe PC / CI 对拍）默认不门禁，否则会把服务端消费者拦死
+        assert_eq!(
+            enforce_answer_parser_auth(),
+            cfg!(target_os = "android"),
+            "宿主目标应默认关闭契约授权门禁"
+        );
+        override_enforce_answer_parser_auth(Some(false));
+        let resp = handle(&parse_req());
+        assert_eq!(resp["ok"], json!(true), "关闭门禁时解析应正常: {resp}");
+        override_enforce_answer_parser_auth(None);
     }
 }

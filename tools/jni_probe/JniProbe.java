@@ -9,13 +9,28 @@ public final class JniProbe {
     private static final List<String> FAILURES = new ArrayList<>();
     private static int passed = 0;
 
+    /** 结果落盘（Android 上 app_process 的 stdout 常被吞，落盘最稳）。 */
+    private static final StringBuilder REPORT = new StringBuilder();
+    private static java.io.File outFile;
+
+    private static void emit(String line) {
+        System.out.println(line);
+        REPORT.append(line).append('\n');
+        if (outFile != null) {
+            try (java.io.FileWriter w = new java.io.FileWriter(outFile, false)) {
+                w.write(REPORT.toString());
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     private static void check(String name, boolean ok, String detail) {
         if (ok) {
             passed++;
-            System.out.printf("  ✅ %-26s %s%n", name, detail);
+            emit(String.format("  ✅ %-26s %s", name, detail));
         } else {
             FAILURES.add(name + " -> " + detail);
-            System.out.printf("  ❌ %-26s %s%n", name, detail);
+            emit(String.format("  ❌ %-26s %s", name, detail));
         }
     }
 
@@ -39,17 +54,23 @@ public final class JniProbe {
 
     public static void main(String[] args) {
         String lib = System.getProperty("resolver.lib", "target/debug/libresolver.so");
-        System.out.println("libresolver: " + lib);
+        String outPath = System.getProperty("out.file", "");
+        if (!outPath.isEmpty()) {
+            outFile = new java.io.File(outPath);
+            emit("输出文件: " + outPath);
+        }
+        emit("libresolver: " + lib);
         try {
             System.load(lib);
         } catch (Throwable t) {
-            System.out.println("  ❌ System.load 失败: " + t);
+            emit("  ❌ System.load 失败: " + t);
             System.exit(2);
         }
-        System.out.println("  ✅ System.load 成功（JNI_OnLoad 已执行，方法已动态注册）\n");
+        emit("  ✅ System.load 成功（JNI_OnLoad 已执行，方法已动态注册）\n");
 
         // 1) 完整性自校验 + 包名校验（宿主上 ActivityThread 不存在 -> 按设计放行）
         String integrity = ResolverNative.selfIntegrityCheck();
+        emit("SELFCHECK_RAW " + integrity);
         check("selfIntegrityCheck",
                 integrity != null && integrity.contains("\"cmdline_valid\":true"),
                 "cmdline_valid=true（argv[0] 伪装生效）");
@@ -129,12 +150,12 @@ public final class JniProbe {
         check("parseBatchAuthorized(旧接口,未授权)",
                 batch != null && batch.contains("\"ok\":false"), trim(batch));
 
-        System.out.printf("%n结果: %d 项通过, %d 项失败%n", passed, FAILURES.size());
+        emit(String.format("%n结果: %d 项通过, %d 项失败", passed, FAILURES.size()));
         if (!FAILURES.isEmpty()) {
-            FAILURES.forEach(f -> System.out.println("  失败: " + f));
+            FAILURES.forEach(f -> emit("  失败: " + f));
             System.exit(1);
         }
-        System.out.println("JNI 可用 ✅");
+        emit("JNI 可用 ✅");
     }
 
     private static String trim(String s) {
