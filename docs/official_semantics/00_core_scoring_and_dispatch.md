@@ -344,3 +344,58 @@ C 认为 `option_name` 是选项**键**、D 认为它是选项**文本**。用�
 > 曾因只给 `official_payload.build_score_detail` 加 `choose_id` 导致默认分支逐题 `TypeError`，
 > 而 runner 路径测试依赖数据库、CI 跑不全。现加 `test_both_score_detail_builders_accept_the_same_kwargs`
 > 用签名一致性兜住这类问题。
+
+---
+
+## 12. 客观题与朗读类的 `score_detail` 是**两套形态**（已按官方收紧）
+
+| 题型 | 官方 `score_detail` 键 | 证据 |
+|---|---|---|
+**客观题**（choose / fill） | `{total_score, choose, choose_id, category}`（**仅 4 个**） | `useExamStepper::G()`：`score_detail:{ total_score:l, choose:s.xx_mc, choose_id:n, category:a.evaluation_type }`；未作答 `{total_score:"0", choose:"", category}`（无 `choose_id`） |
+**朗读/口语类** | `{total_score, accuracy/fluency/integrity/standard_score, …}` + 引擎写入的 `real_score` | `useRecordResult`；C 组 §"朗读型没有正确答案，只有评测分" |
+
+**我方此前的问题**：客观题复用了朗读类的构造，于是 `score_detail` 里塞进了
+`fluency_score: q_score*0.99 / accuracy_score: q_score*0.98 / …` 这类**捏造维度分**
+（客观题不存在"流畅度/准确度"）。现已改为 `build_objective_score_detail()`，
+客观题只发官方那 4 个键。
+
+### 逐题得分的官方规则（客观题）
+```js
+e.answer === s.xx_mc && (l = m(a.question_score / a.question_count))   // 答对 = 大题分 ÷ 题数
+```
+即**答对就给满该题小分**（不是按口语 profile 折算）——我方客观题 `profile.total = q_score` 与之等价 ✓。
+
+---
+
+## 13. 全语料"丢题"扫描结果（27 例真实包，修完 repeat 后）
+
+对每个真实内容包，比较"自然题数"（`info.fj` / `info.question` / `info.xtlist` / `info.std` / `info.sublist`）
+与解析题数，结果：
+
+- **无丢题**：除已修的 `collector.repeat`（1 → 10/12 题）外，其余全部一一对应。
+- 3 处"看似不符"经核实**不是 bug**：`collector.picture` 的 `info.std` 是**多篇参考范文**
+  （1 题 + N 条 `answers`，官方只渲染前 3 篇），并非多题。
+
+| 族 | 自然题数来源 | 解析题数 | 结论 |
+|---|---|---|---|
+`collector.repeat` | `info.fj`（10 / 12） | 10 / 12 | 已修（原先 1） |
+`collector.choose` | `info.xtlist` | 一致 | ✓ |
+`collector.fill` | `info.std` | 一致 | ✓ |
+`collector.role` / `3q5a` | `info.question`（1~8） | 一致 | ✓ |
+`collector.picture` | `info.std`＝范文数（1~5） | 1 题 + N answers | ✓ 不是丢题 |
+`collector.read` / `word` | 单值 `info.value` | 1 | ✓ |
+
+---
+
+## 14. 仍未解的两项（证据不足，先记录不猜）
+
+1. **`{{thN}}` / `{{smN}}` 占位符**：官方用 `exam_info` 的 `{id,value}` 列表对**整个 content JSON**
+   做全局字符串替换（iframe 原文：`e.exam_info.reduce((e,t)=>e.replace(new RegExp(t.id,"g"),t.value), e)`）。
+   但**我们的语料里没有任何 `exam_info`**，也没有 `{{th…}}` 实例 → 无法验证。
+   469 份官方模板里只有 `{{st1}}…{{st7}}`（挂载键，我方已正确处理）。
+   → 什么时候拿到带 `exam_info` 的真实包，再照官方规则实现。
+2. **`percentageQuestion`**（百分比制 vs 绝对分展示）：
+   `isAbsolute = (first_column_id != ListeningSpeakingSynchronous)`；错题本用
+   `![listeningSync,textReading,textShadowing].includes(entity_type)`。
+   `scoreFilter(rawTotal, score, isAbsolute)` → `[isAbsolute?scoreFormater(score):ConvertToPercentScore(score,rawTotal), isAbsolute?rawTotal:100]`。
+   它影响**展示/分母**，对"我们该提交什么"的直接影响未验证 → 先记录。

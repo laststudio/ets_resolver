@@ -1,0 +1,1316 @@
+{
+  "doc": "F_iframe_interaction_and_submit",
+  "title": "官方 E听说 PC 端 iframe 作答交互与提交/判分语义（静态逆向）",
+  "method": "只读静态分析；未运行客户端、未抓包、未联网、未 sudo",
+  "sources": {
+    "iframe_web": "/home/shuaiqiu/Projects/ets源码恢复/iframe_web/",
+    "pc_client_web": "/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/",
+    "ours": [
+      "/home/shuaiqiu/Projects/ets_resolver/src/collectors.rs",
+      "/home/shuaiqiu/Projects/lastudio-platform/lastudio-backend/auto_complete/runner.py",
+      "/home/shuaiqiu/Projects/lastudio-platform/lastudio-backend/auto_complete/official_payload.py",
+      "/home/shuaiqiu/Projects/lastudio-platform/lastudio-backend/auto_complete/scoring.py",
+      "/home/shuaiqiu/Projects/lastudio-platform/lastudio-backend/homework.py"
+    ]
+  },
+  "our_snapshot_hashes": {
+    "runner.py": {
+      "md5": "cae64f4d18b793b06ae40910894dba54",
+      "mtime": "2026-10-06T19:56:18+08:00",
+      "changed_during_analysis": false
+    },
+    "official_payload.py": {
+      "md5": "08c2228bb96742fd3f0dbf84214e2b9c",
+      "mtime": "2026-10-06T19:56:28+08:00",
+      "changed_during_analysis": false
+    },
+    "scoring.py_19_56": {
+      "md5": "688172578a5de8ded693498efca50af5"
+    },
+    "scoring.py_20_0x": {
+      "md5": "b1e08cd81336ca0bd764f3e68e677200",
+      "mtime": "2026-10-06T19:59:13+08:00",
+      "changed_during_analysis": true,
+      "change": "新增 build_score_detail(choose_id) 形参 —— 修复 D1"
+    },
+    "note": "diff 结论以 20:0x 复核为准；scoring.py 在分析期间被并发修复"
+  },
+  "key_conclusions": [
+    "题面上的 setPCChoose/setPCChoose2/setPcBlank/set3q5aScore/showEssay_2/showPhrase_2/showScoreDetail/getChoice/ReturnChoose 都不是原生插件桥，而是外层壳通过 iframe load 事件拿到 contentWindow 后直接挂载/直接调用的普通 JS 函数",
+    "iframe 内没有任何判分逻辑；对 user_answer == right_answer 的比较只用于上色",
+    "choose/fill 的判分发生在外层壳 JS 内（读本地 content_{real_id}.json 答案键），与 iframe/原生/服务端无关",
+    "语音族（read/3q5a/role/dialogue/word/repeat）的分数来自云端音频评测接口 g/data/audio-task-submit，前端只做清零/拒识/维度拉伸/卷面换算",
+    "我方实现有 2 处差异需要处置：D1（已于 19:59 修复）与 D2（实现方确认为移动端口径、有意保留）"
+  ],
+  "channels": {
+    "outer_to_iframe": {
+      "mechanism": "DynamicIframe 的 load 事件把 contentWindow 抛给上层，上层直接在 contentWindow 上调用/赋值全局函数",
+      "evidence": [
+        {
+          "file": "pc_client_web/chunks/DynamicIframe-bafff5bc.js",
+          "offset": 865,
+          "code": "async function I(){const s=x.value;M(\"load\",s.contentWindow),await u(), ...}"
+        },
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 9258,
+          "code": "if(1==t.displayAnswerContent&&y.setPCChoose2){const e=o.map(e=>`${e.entity_id}_${e.order}_${e.choose_id}`);y.setPCChoose2.apply(null,e),r()}"
+        }
+      ],
+      "sandbox_note": {
+        "attr": "sandbox=\"allow-scripts\"",
+        "evidence": {
+          "file": "pc_client_web/chunks/DynamicIframe-bafff5bc.js",
+          "offset": 310,
+          "code": "props:{src:{type:String,default:\"\"},isWriting:{type:Boolean,default:!1},sandbox:{type:String,default:\"allow-scripts\"}}"
+        },
+        "unconfirmed": "无 allow-same-origin 时跨 window 访问本应抛 SecurityError；在 pc_client_web 全量 grep webSecurity|nodeIntegration 无命中，故“为何能访问”未确认"
+      }
+    },
+    "postMessage_from_iframe": {
+      "scope": "仅 getWordTranslate / disabledUserSelect / wordTranslation（DynamicIframe 内 handler）",
+      "evidence": {
+        "file": "pc_client_web/chunks/DynamicIframe-bafff5bc.js",
+        "offset": 1000,
+        "code": "switch(e){case\"getWordTranslate\":...case\"resourceLoadError\":...}"
+      }
+    },
+    "iframe_message_dispatcher_on_listen_pages": {
+      "file": "iframe_web/js/pc-listen-fn.js",
+      "lines": "1109-1123",
+      "cases": [
+        "canListen",
+        "setChallengeStar"
+      ],
+      "code": "$(window).on('message', function(e){ ... var type = originalEventData.type || ''; ... switch( type ){ case 'canListen': canListen(); break; case 'setChallengeStar': setChallengeStar(); break; default: break; } })",
+      "implication": "showEssay_2/showPhrase_2/showScoreDetail/set3q5aScore/setPcBlank/setPCChoose 不可能经 postMessage 到达听说页"
+    },
+    "postMessage_phonogramMap": {
+      "page": "iframe_web/phonogramMap.html (loads js/fn.js at line 315)",
+      "sender": "pc_client_web/chunks/PhoneticPracticeView-a54655d6.js",
+      "envelope": "{type, data}；派发器把 data 展开成参数（fn.js:1198-1200 / 1222-1223）",
+      "code": "Y.postMessage({type:\"showPhrase_OldStruct\",data:t},\"*\"); Y.postMessage({type:\"showScoreDetail_1\",data:Object.values({...})},\"*\"); postMessage({type:\"setZoom\",data:...})",
+      "relevance": "与本任务 9 族无关，仅解释 fn.js 存在却用不上的原因"
+    }
+  },
+  "families": [
+    {
+      "id": "choose",
+      "structure_type": "collector.choose",
+      "cn": "选择题/听后选择",
+      "evaluation_type": "由外层 paper 的 question_list[].evaluation_type 提供（例：listen_choice_standard）",
+      "interaction": "点击 li.choose1（图片选项）或 div.choose2（文字选项），只加 class choose_selected，不做中间存储；元素 id 即状态 = {stid}_{xt_xh}_{xx_xh}",
+      "interaction_evidence": [
+        {
+          "file": "iframe_web/js/pc-view-kttb1.js",
+          "lines": "5-14"
+        },
+        {
+          "file": "iframe_web/pc-listen.html",
+          "lines": "165-206"
+        }
+      ],
+      "answer_shape": {
+        "pathA_逐题练习": {
+          "type": "string",
+          "format": "逗号分隔 entity_id_order_xx_xh；未作答末段为 0",
+          "example": "115852_1_2,115852_2_0,121271_1_1",
+          "evidence": {
+            "file": "iframe_web/js/pc-listen-choose.js",
+            "lines": "46-83"
+          },
+          "side_effect": "调用前置 window.ReturnChoose(ret)"
+        },
+        "pathB_错题重做": {
+          "type": "json_string",
+          "format": "[{id:\"stid_xt_xh\", answer:\"A\"}]",
+          "evidence": {
+            "file": "iframe_web/js/pc-listen-fn.js",
+            "lines": "898-950"
+          },
+          "channel": "window.kttb_ReturnChoose(ansStr)"
+        }
+      },
+      "handoff_to_outer": [
+        {
+          "when": "逐题练习",
+          "how": "外层主动 y.getChoice() 取返回值；外层把 y.ReturnChoose 设为打日志/空函数",
+          "evidence": {
+            "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+            "offsets": [
+              12499,
+              9319
+            ]
+          }
+        },
+        {
+          "when": "错题重做",
+          "how": "iframe 侧 .next_icon_choose 点击 -> kttb_getPcChoise() -> window.kttb_ReturnChoose(json)",
+          "evidence": [
+            {
+              "file": "iframe_web/js/pc-view-kttb1.js",
+              "lines": "19-60"
+            },
+            {
+              "file": "pc_client_web/chunks/Practice-1694d88a.js",
+              "offset": 13568
+            }
+          ]
+        }
+      ],
+      "bridge": [
+        "getChoice",
+        "ReturnChoose",
+        "setPCChoose",
+        "setPCChoose2",
+        "kttb_getPcChoise",
+        "kttb_ReturnChoose",
+        "kttb_setPcChoise"
+      ],
+      "iframe_side_bug_observed": {
+        "what": "kttb_getPcChoise 的 .choose2 分支用 numtoa($(c).index())（0 基），而 numtoa(0) 因 if(str) 为假直接 return false",
+        "consequence": "文字选项第一项时 answer===false；Practice 的 _t 用 i.answer===e.answer 比对，永不成立",
+        "evidence": [
+          {
+            "file": "iframe_web/js/pc-listen-fn.js",
+            "lines": "943-953, 976-992"
+          },
+          {
+            "file": "pc_client_web/chunks/Practice-1694d88a.js",
+            "offset": 12422
+          }
+        ],
+        "certainty": "evidence（代码路径确凿），未在真机验证"
+      }
+    },
+    {
+      "id": "fill",
+      "structure_type": "collector.fill",
+      "cn": "填空题/听后记录",
+      "interaction": "在 input 内打字；input id = {stid}_{xth}",
+      "interaction_evidence": [
+        {
+          "file": "iframe_web/pc-listen-answer.html",
+          "lines": "404-410"
+        },
+        {
+          "file": "iframe_web/pc-listen.html",
+          "lines": "296-318"
+        }
+      ],
+      "answer_shape": {
+        "pathA_逐题练习": {
+          "type": "json_string",
+          "format": "[{id:\"stid_xth\", answer:\"原文\"}]（不做 URL 编码）",
+          "evidence": {
+            "file": "iframe_web/js/pc-listen-fn.js",
+            "lines": "797-809"
+          },
+          "channel": "window.returnPcBlank(ansStr)"
+        },
+        "pathB_错题重做": {
+          "type": "json_string",
+          "format": "同上，但 answer 经 encodeURIComponent",
+          "evidence": {
+            "file": "iframe_web/js/pc-listen-fn.js",
+            "lines": "836-858"
+          },
+          "channel": "window.kttb_returnPcBlank(ansStr)"
+        }
+      },
+      "handoff_to_outer": [
+        {
+          "when": "逐题练习",
+          "how": "外层 y.getPcBlank()；并预先设 y.returnPcBlank=async t=>{...}",
+          "evidence": {
+            "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+            "offsets": [
+              13118,
+              14229
+            ]
+          }
+        },
+        {
+          "when": "错题重做",
+          "how": ".next_icon/.next_icon_gap 点击 -> kttb_getPcBlank() -> window.kttb_returnPcBlank(json)",
+          "evidence": [
+            {
+              "file": "iframe_web/js/pc-view-kttb3.js",
+              "lines": "1-6"
+            },
+            {
+              "file": "pc_client_web/chunks/Practice-1694d88a.js",
+              "offset": 13646
+            }
+          ]
+        }
+      ],
+      "bridge": [
+        "getPcBlank",
+        "returnPcBlank",
+        "setPcBlank",
+        "kttb_getPcBlank",
+        "kttb_returnPcBlank",
+        "kttb_setPcBlank"
+      ]
+    },
+    {
+      "id": "read_chapter",
+      "structure_type": "collector.read",
+      "evaluation_type": "read_chapter",
+      "cn": "模仿朗读",
+      "interaction": "外壳录音控件录音（iframe 内无任何录音按钮：grep -c record pc-listen.html = 0）；iframe 只显示原文与分数",
+      "answer_shape": {
+        "type": "audio_file",
+        "detail": "wav + 云端返回的评分 XML；前端归一成 score_detail 对象"
+      },
+      "handoff_to_outer": {
+        "how": "useExamStepper 的 action.record -> Z.record() -> answerHandler(x.trigger)",
+        "evidence": {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 15400
+        }
+      },
+      "answer_display_bridge": [
+        "showEssay_2",
+        "showScoreDetail",
+        "showScore",
+        "setUserrecord",
+        "PlayRecord",
+        "StopRecord",
+        "changeImgsrc"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3569
+      }
+    },
+    {
+      "id": "read_sentence",
+      "structure_type": "collector.read（单大题）/ collector.word",
+      "evaluation_type": "read_sentence",
+      "cn": "朗读句子",
+      "interaction": "同 read_chapter（外壳录音）",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "showPhrase_2",
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 4520,
+        "code": "\"read_sentence\"===t.evaluation_type&&e.showPhrase_2.apply(null,S)"
+      }
+    },
+    {
+      "id": "read_word",
+      "structure_type": "collector.word",
+      "evaluation_type": "read_word",
+      "cn": "朗读单词",
+      "interaction": "同 read_chapter（外壳录音）",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 4520,
+        "code": "if(!I()&&(\"read_chapter\"===t.evaluation_type?e.showEssay_2.apply(null,S):\"read_sentence\"===t.evaluation_type&&e.showPhrase_2.apply(null,S),\"read_word\"!==t.evaluation_type)){const t=k?.dimension_result||[];e.showScoreDetail.apply(null,t.slice(0,3))}"
+      },
+      "note": "read_word 既不给 showEssay_2 也不给 showPhrase_2，只给 showScoreDetail；逐小题分数走 set3q5aScore"
+    },
+    {
+      "id": "3q5a",
+      "structure_type": "collector.3q5a",
+      "cn": "听选信息/三问五答",
+      "interaction": "外壳录音（逐小题）",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "set3q5aScore",
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3200
+      }
+    },
+    {
+      "id": "role",
+      "structure_type": "collector.role",
+      "cn": "角色扮演/听选信息",
+      "interaction": "外壳录音",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "set3q5aScore",
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3200
+      }
+    },
+    {
+      "id": "dialogue",
+      "structure_type": "collector.dialogue",
+      "cn": "回答问题/对话",
+      "interaction": "外壳录音",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "set3q5aScore",
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3200
+      }
+    },
+    {
+      "id": "repeat",
+      "structure_type": "collector.repeat",
+      "cn": "跟读与模仿",
+      "interaction": "外壳录音（按 fj 分句逐句）",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "set3q5aScore",
+        "showScoreDetail"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3200
+      }
+    },
+    {
+      "id": "word",
+      "structure_type": "collector.word",
+      "cn": "朗读单词（新版逐词）",
+      "interaction": "外壳录音",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "answer_display_bridge": [
+        "set3q5aScore"
+      ],
+      "answer_display_evidence": {
+        "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+        "offset": 3200
+      }
+    },
+    {
+      "id": "picture",
+      "structure_type": "collector.picture",
+      "evaluation_type": "topic",
+      "cn": "故事复述",
+      "interaction": "外壳录音",
+      "answer_shape": {
+        "type": "audio_file"
+      },
+      "bridge": [],
+      "note": "未找到该族专属桥；答案页只渲染 topic/value/std[]"
+    }
+  ],
+  "bridges": [
+    {
+      "name": "getChoice",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "lines": "46-83"
+        },
+        {
+          "file": "iframe_web/js/PC-choose.js",
+          "lines": "20-49",
+          "loaded_by": "无任何 html（死文件）"
+        }
+      ],
+      "called_by": "useExamStepper-8ad3fbd7.js（offset 12499 / 9349 附近）",
+      "args": "无",
+      "returns": "string：逗号分隔 entity_id_order_xx_xh，未作答末段 0",
+      "side_effect": "调用 window.ReturnChoose(ret)"
+    },
+    {
+      "name": "ReturnChoose",
+      "defined_in": [],
+      "status": "iframe 无实现（纯回调位）；定义者=外层",
+      "assigned_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 12499,
+          "code": "y.ReturnChoose=e=>{N.logCustom(`操作选择的answers:${JSON.stringify(e)}`,{tag:\"FLOW_PRAC\"})}"
+        },
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 9319,
+          "code": "y.ReturnChoose=()=>{}"
+        }
+      ],
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "line": 81,
+          "code": "window.ReturnChoose(ret);"
+        },
+        {
+          "file": "iframe_web/js/PC-choose.js",
+          "line": 47,
+          "code": "window.ReturnChoose(ret);"
+        }
+      ]
+    },
+    {
+      "name": "setPCChoose",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "lines": "96-140"
+        },
+        {
+          "file": "iframe_web/js/PC-choose.js",
+          "lines": "52-91",
+          "loaded_by": "无"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 4748
+        }
+      ],
+      "args": "变长，每个 = \"{entity_id}_{order}_{学生选项序号}\\x01{正确选项序号}\"；未作答 = \"{entity_id}_{order}\\x01{正确选项序号}\"",
+      "returns": "无",
+      "arg_builder_verbatim": "const i=b(t.info.xtlist.find(e=>e.xt_xh===\"\"+o.order)?.answer);return o.detail.choose?e.push(`${o.entity_id}_${o.order}_${b(o.detail.choose)}${String.fromCharCode(1)}${i}`):e.push(`${o.entity_id}_${o.order}${q}${i}`)",
+      "b_function_verbatim": "function b(e){if(!e)return\"0\";for(var t=e.toUpperCase(),o=\"\",i=0;i<t.length;i++){var r=t.charCodeAt(i);if(r>=65&&r<=90)o+=(r-64).toString();else o+=t[i]}return o}",
+      "semantics": "b(\"A\")=\"1\"，字母被转成 1 基序号，正好等于 xx_xh"
+    },
+    {
+      "name": "setPCChoose2",
+      "defined_in": [],
+      "status": "未找到实现",
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 9258,
+          "code": "if(1==t.displayAnswerContent&&y.setPCChoose2){const e=o.map(e=>`${e.entity_id}_${e.order}_${e.choose_id}`);y.setPCChoose2.apply(null,e),r()}"
+        }
+      ],
+      "args": "数组，每个 = \"{entity_id}_{order}_{choose_id}\"（仅 3 段，无 \\x01，无正确答案）",
+      "returns": "无（调用带 && 守卫，缺失时静默跳过）",
+      "search_keywords": [
+        "setPCChoose2",
+        "setPcChoose2",
+        "PCChoose2",
+        "Choose2"
+      ]
+    },
+    {
+      "name": "setPcBlank",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "811-822"
+        },
+        {
+          "file": "iframe_web/js/fn.js",
+          "lines": "868-879"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 5187
+        }
+      ],
+      "args": "字符串 JSON.stringify([{id, answer, status}])，status 为 '0'/'1' 字符串",
+      "returns": "无",
+      "arg_builder_verbatim": "t.detail.choose?e.push({id:`${t.entity_id}_${t.order}`,answer:t.detail.choose,status:((t.real_score||t.score_rate)??0)>0?1:0}):e.push({id:`${t.entity_id}_${t.order}`,answer:\"\",status:0})"
+    },
+    {
+      "name": "getPcBlank",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "797-809"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 14229
+        }
+      ],
+      "args": "无",
+      "returns": "无（结果走 window.returnPcBlank）"
+    },
+    {
+      "name": "returnPcBlank",
+      "defined_in": [],
+      "status": "iframe 无实现（回调位）",
+      "assigned_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 13118
+        }
+      ],
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "line": 808,
+          "code": "window.returnPcBlank(ansStr);"
+        }
+      ]
+    },
+    {
+      "name": "set3q5aScore",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "776-794"
+        },
+        {
+          "file": "iframe_web/js/fn.js",
+          "lines": "832-850"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 3200
+        }
+      ],
+      "args": "变长，每个 = \"{set_id}_{entity_id}_{order}\\x01{分}\\x01{满分}\\x01\\\"0\\\"\"（第 4 段恒为 \"0\"）",
+      "returns": "无",
+      "arg_builder_verbatim": "const m=`${D}_${o.entity_id}_${o.order}${q}${_??0}${q}${u}${q}0`;return t.push(m),t"
+    },
+    {
+      "name": "showPhrase_2",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "85-148"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 4520,
+          "condition": "evaluation_type === 'read_sentence'"
+        }
+      ],
+      "args": "变长字符串，元素 8 段 \\x01：word|en|us|en_audio|us_audio|score|100|trans",
+      "returns": "无"
+    },
+    {
+      "name": "showEssay_2",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "269-343"
+        },
+        {
+          "file": "iframe_web/js/fn.js",
+          "lines": "390-461"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 4520,
+          "condition": "evaluation_type === 'read_chapter'"
+        }
+      ],
+      "args": "同上 8 段；另接受原样字符串 \"<tab>\" / \"<br>\"",
+      "returns": "无",
+      "diff_between_copies": "pc-listen-fn.js 版有 `if (num == -20) color='#979797'`（角色句灰）分支，fn.js 版没有"
+    },
+    {
+      "name": "showScoreDetail",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "406-482"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 4620,
+          "code": "e.showScoreDetail.apply(null,t.slice(0,3))"
+        }
+      ],
+      "args": "index0=准确度 index1=流畅度 index2=完整度 index3=标准度",
+      "returns": "无"
+    },
+    {
+      "name": "showScoreDetail_1",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "484-563"
+        },
+        {
+          "file": "iframe_web/js/fn.js",
+          "lines": "541-620"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/PhoneticPracticeView-a54655d6.js",
+          "channel": "postMessage -> phonogramMap.html 的 fn.js",
+          "code": "Y.postMessage({type:\"showScoreDetail_1\",data:Object.values({accuracyScore:...,fluencyScore:...,integrityScore:...})},\"*\")"
+        }
+      ],
+      "relevance": "音标练习，与 9 族无关"
+    },
+    {
+      "name": "setUserrecord",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "lines": "757-764"
+        }
+      ],
+      "called_by": [],
+      "status": "调用点未找到",
+      "search_keywords": [
+        "setUserrecord",
+        "Userrecord",
+        "userrecord"
+      ]
+    },
+    {
+      "name": "setPCCheckChoose",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "lines": "94-107"
+        },
+        {
+          "file": "iframe_web/js/PC-choose.js",
+          "lines": "94-107"
+        }
+      ],
+      "called_by": [],
+      "status": "外层无调用",
+      "search_keywords": [
+        "setPCCheckChoose",
+        "PCCheckChoose"
+      ]
+    },
+    {
+      "name": "kttb_ReturnChoose",
+      "defined_in": [],
+      "status": "iframe 无实现（回调位）",
+      "assigned_by": [
+        {
+          "file": "pc_client_web/chunks/Practice-1694d88a.js",
+          "offset": 13568,
+          "code": "\"collector.choose\"===a?dt.kttb_ReturnChoose=T(async e=>{...})"
+        }
+      ],
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "line": 949,
+          "code": "window.kttb_ReturnChoose(ansStr);"
+        },
+        {
+          "file": "iframe_web/js/fn.js",
+          "line": 1006,
+          "code": "window.kttb_ReturnChoose && window.kttb_ReturnChoose(ansStr);"
+        }
+      ]
+    },
+    {
+      "name": "kttb_returnPcBlank",
+      "defined_in": [],
+      "status": "iframe 无实现（回调位）",
+      "assigned_by": [
+        {
+          "file": "pc_client_web/chunks/Practice-1694d88a.js",
+          "offset": 13646
+        }
+      ],
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "line": 857,
+          "code": "window.kttb_returnPcBlank(ansStr);"
+        }
+      ]
+    },
+    {
+      "name": "ck_ReturnChoose",
+      "defined_in": [],
+      "status": "未找到实现",
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/pc-view-kttb5.js",
+          "line": 20,
+          "code": "window.ck_ReturnChoose(ansStr);"
+        }
+      ],
+      "search_keywords": [
+        "ck_ReturnChoose",
+        "ReturnChoose"
+      ]
+    },
+    {
+      "name": "getChooseChange",
+      "defined_in": [],
+      "status": "未找到实现",
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 9564,
+          "code": "a.getChooseChange(()=>{clearTimeout(e),e=setTimeout(()=>{r()},50)})"
+        }
+      ],
+      "search_keywords": [
+        "getChooseChange",
+        "chooseChange",
+        "ChooseChange"
+      ]
+    },
+    {
+      "name": "webInteraction.getAnswerList",
+      "defined_in": [],
+      "status": "未找到实现",
+      "called_from_iframe": [
+        {
+          "file": "iframe_web/js/method.js",
+          "line": 56,
+          "code": "window.webInteraction.getAnswerList(JSON.stringify(arr)+\"\",childId+\"\");"
+        }
+      ],
+      "note": "method.js 未被任何 html 加载",
+      "search_keywords": [
+        "webInteraction",
+        "getAnswerList"
+      ]
+    },
+    {
+      "name": "setData",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-default.js",
+          "lines": "15-88"
+        }
+      ],
+      "signature": "setData(set, page, set_id, order, type)",
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 9100,
+          "code": "a.setData(s,l,e,\"\",n,1==v)"
+        },
+        {
+          "file": "pc_client_web/chunks/Practice-1694d88a.js",
+          "code": "e.setData(l,s,Me.setId)"
+        }
+      ],
+      "note": "order 恒传 \"\"，因此 orderFormat() 恒返回 true（不过滤任何小题）"
+    },
+    {
+      "name": "setBackgroundColor",
+      "defined_in": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "lines": "142-147"
+        }
+      ],
+      "called_by": [
+        {
+          "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+          "offset": 15625,
+          "code": "if(a.includes(\"viewpng\")){var t=a.match(/viewpng\\('([^']+)'\\)/);y.setBackgroundColor(t[1])}"
+        }
+      ],
+      "channel": "script 步骤的 filename 文本解析"
+    },
+    {
+      "name": "PlayRecord/StopRecord",
+      "defined_in": [],
+      "status": "iframe 无实现（回调位）",
+      "assigned_by": [
+        {
+          "file": "pc_client_web/chunks/useExamResult-d9fb4671.js",
+          "offset": 2447
+        }
+      ],
+      "called_from_iframe": "pc-listen-choose.js / pc-listen-show-wordinfo.js 的 listen_icon / record_icon 点击"
+    }
+  ],
+  "judging": {
+    "choose": {
+      "where": "外层壳 JS 本地判（不是 iframe、不是原生插件、不是服务端）",
+      "evidence": {
+        "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "offset": 2046
+      },
+      "answer_key_source": "本地已解压的 content_{real_id}.json（getFileJson）",
+      "compare_expression": "e.answer === s.xx_mc",
+      "score_formula": "total_score = scoreFormater(question_score / question_count) ；不匹配或未作答 = 0",
+      "alt_path": {
+        "file": "pc_client_web/chunks/Practice-1694d88a.js",
+        "offset": 12422,
+        "compare_expression": "i.answer===e.answer",
+        "score_formula": "i.answer===e.answer ? c.question_score/c.question_count : 0"
+      }
+    },
+    "fill": {
+      "where": "外层壳 JS 本地判",
+      "evidence": {
+        "file": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js",
+        "offset": 13118
+      },
+      "normalizer_verbatim": "function X(e){const t={\"‘\":\"'\",\"’\":\"'\",\"：\":\":\",\"，\":\",\",\"。\":\".\",\"——\":\"-\",\"—\":\"-\",_:\"-\"};return(e=e.replace(/[‘’：，。———_]/g,e=>t[e])).toLowerCase()}",
+      "compare_expression": "X(e.value).split(\"/\").map(e=>e.trim().toLowerCase()).includes(X(用户输入))",
+      "score_formula": "total_score = scoreFormater(question_score / question_count) 或 0",
+      "note": "choose 字段放用户原始输入（未归一化）；fill 不带 choose_id"
+    },
+    "speaking_families": {
+      "where": "服务端（云 ISE）；前端只做归一",
+      "evidence": [
+        {
+          "file": "pc_client_web/index-5543d811.js",
+          "offset": 2360136,
+          "code": "requestAudioTask=async(e,t)=>await hyRequest.postIt(\"g/data/audio-task-submit\",e,!0,t)"
+        },
+        {
+          "file": "pc_client_web/chunks/useRecordResult-fbe9e75b.js",
+          "code": "const I={...R,total_score:_(w),total_score_init:w,real_score:G,category:e,accuracy_score:$,fluency_score:b,standard_score:O,first_column_id:p,question_type_score:h};"
+        }
+      ],
+      "client_side_rules": {
+        "zero_rules_verbatim": "if(a&&u.includes(a))return{shouldZero:!0,...};if(c===r.IgnorableException)return{shouldZero:!(\"1\"===String(o?.ignore_28707_error??\"\")),...};if(l||d.includes(c)){const e=parseFloat(String(o?.pc_accept_reject_score??\"0\"))||0;return(parseFloat(String(t?.total_score??0))||0)<=e?{shouldZero:!0,...}:{shouldZero:!1,ignoreReject:!0,...}}",
+        "dimension_stretch_verbatim": "if(1==L&&void 0!==t){const o=t;let s=o/(e.total_score>0?e.total_score:1)||1;e.accuracy_score=Q(e.accuracy_score,s),e.fluency_score=Q(e.fluency_score,s),e.standard_score=Q(o,e.total_score),e.has_adjust_dwd=!0,e.stu_total_score=parseFloat(t),...}",
+        "real_score_formula": "calculateRealScore(e,t)=scoreFormater(e/5*t)，e=question_type_score，t=ISE total_score(0~5)"
+      }
+    },
+    "iframe": {
+      "where": "不判分",
+      "color_only_comparisons": [
+        {
+          "file": "iframe_web/js/pc-listen-choose.js",
+          "line": 121,
+          "code": "if (user_answer == right_answer) { ...addClass('c_green') } else { ...addClass('c_red') }"
+        },
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "line": 974,
+          "code": "if (answer === user_answer) { ...select_right } else {...select_wrong}"
+        },
+        {
+          "file": "iframe_web/js/pc-listen-fn.js",
+          "line": 816,
+          "code": "if (item.status == '0') {红} else if(item.status == '1'){绿}"
+        }
+      ]
+    }
+  },
+  "submit_points": [
+    {
+      "name": "requestAnswerLogs",
+      "endpoint": "POST /m/audio/sync-v2",
+      "file": "pc_client_web/index-5543d811.js",
+      "offset": 2436589,
+      "verbatim": "const requestAnswerLogs=async e=>{const{ecardInfo:t}=useUserInfoStore$1(),n=useSpecialStore(),{first_column_id:r,question_type_score:o}=e;let i={};try{i=\"string\"==typeof e.score_detail?JSON.parse(e.score_detail):e.score_detail}catch(e3){}const{total_score_init:a,total_score:s}=i||{},l=a||s,c=await n.getColumnsNeed125(r);c&&t?.rate_scale&&l&&o&&(e.real_score=scoreFormatter_125(o/5*l));const u=c?t?.rate_scale:void 0,d=c&&u?\"0.125\":void 0;i.rate_scale=u||0,delete i.total_score_init,delete i.xml_score,delete i.question_type_score,delete i.is_rejected,delete i.except_info,delete i.first_column_id,e.score_detail=JSON.stringify(i);const p=Object.assign(e,{rate_scale:u,graduation:d,client_time:currentTimestampToDate(),mark_service:1,version:\"2\"});return await hyRequest.postIt(\"/m/audio/sync-v2\",Object.assign(p))}",
+      "field_sources": {
+        "score_detail": "入参 e.score_detail（对象或 JSON 串）→ 删 total_score_init/xml_score/question_type_score/is_rejected/except_info/first_column_id → JSON.stringify（最终是字符串）",
+        "i.rate_scale": "u || 0，u = need125 ? ecardInfo.rate_scale : undefined",
+        "total_score": "不改动（语音题=0~5 原始分；客观题=卷面分 0 或 question_score/question_count）",
+        "real_score": "仅当 need125 && rate_scale && (total_score_init||total_score) && question_type_score 时覆盖为 scoreFormatter_125(question_type_score/5*total_score)",
+        "rate_scale(顶层)": "u（非 1.25 列为 undefined → JSON 中消失）",
+        "graduation": "c && u ? \"0.125\" : undefined（字符串，且仅 1.25 列）",
+        "client_time": "currentTimestampToDate()",
+        "mark_service": "常量 1",
+        "version": "常量字符串 \"2\""
+      },
+      "need125_verbatim": "async getColumnsNeed125(e){const t=[FirstColumnType.SimulationExam,FirstColumnType.ListeningSimulation,FirstColumnType.SynchronousListening];await this.getSpecialColumn();return this.specialColumn.reduce((e,t)=>[...e,...t.first_column.map(e=>e.id)],t).some(t=>t==e)}"
+    },
+    {
+      "name": "postAudioSyncLogs 默认骨架",
+      "file": "pc_client_web/chunks/useAudioSync-0603b875.js",
+      "offset": 288,
+      "verbatim": "const i={resource_id:\"\",real_score:0,score:0,set_id:\"\",entity_id:\"\",order:\"\",serial_id:\"\",mistake_id:0,upload_file_id:\"\",upload_file_url:\"\",spx_file_url:\"\",mark_trace_id:\"\",detail_file_id:\"\",detail_file_url:\"\",score_detail:\"\"};return{postAudioSyncLogs:function(r={}){const t={...i,...r};return new Promise((i,r)=>{e(t).then(e=>{i(e)}).catch(e=>{r(e)})})}}"
+    },
+    {
+      "name": "考试/练习页 Qa",
+      "file": "pc_client_web/chunks/Examine-d229829d.js",
+      "offset": 57915,
+      "verbatim": "function Qa(e){let a=K.getInstance().handleRequestParams({resource_id:Oe,real_score:e.score_detail.real_score??e.score_detail.total_score,score:e.score_detail.total_score,set_id:je,entity_id:e.entity_id,order:e.order,upload_file_id:e.upload_file_id??\"\",upload_file_url:e.upload_file_url??\"\",spx_file_url:e.spx_file_url??\"\",mark_trace_id:e.mark_trace_id??\"\",detail_file_id:e.detail_file_id??\"\",detail_file_url:e.detail_file_url??\"\",score_detail:e.score_detail,question_total_point:R.total_point});if(ka({...}),e.noPost)return;const{postAudioSyncLogs:l}=xe();return await l(a)}",
+      "handleRequestParams_verbatim": "handleRequestParams:e=>(e.exam_id=null,{...e,homework_id:a.value})",
+      "note": "Qa 重建字面量，故上游的 serial_id/choose_id/mistake_id 不会进请求体"
+    },
+    {
+      "name": "选择题真正上报时机",
+      "file": "pc_client_web/chunks/Examine-d229829d.js",
+      "offset": 51557,
+      "verbatim": "Ze.value.chooseCheckHandler(async()=>{Xe.value.forEach(e=>{V.logCustom(`Examine.vue检查答案步骤的提交:${JSON.stringify(e)}`,{tag:\"FLOW_PRAC\"}),Ea(e)})}), Ze.value.chooseHandler(async e=>{const a=K.getInstance().handleRequestParams({resource_id:Oe,real_score:e.score_detail.real_score??e.score_detail.total_score,score:e.score_detail.total_score,set_id:je,entity_id:e.entity_id,order:e.order,serial_id:R.serial_id,upload_file_id:\"\",upload_file_url:\"\",detail_file_id:\"\",detail_file_url:\"\",choose_id:e.score_detail.choose_id,score_detail:e.score_detail});a.first_column_id=e.first_column_id,a.question_type_score=e.question_type_score,ka({...})})"
+    },
+    {
+      "name": "模考页",
+      "file": "pc_client_web/chunks/MockExamDetails-2a7d03a6.js",
+      "offset": 7393,
+      "note": "与考试页同构；多 serial_id / mistake_id，本地缓存 standard_score:Oe(a)"
+    },
+    {
+      "name": "听说专练/综合页",
+      "file": "pc_client_web/chunks/Comprehensive-1968af87.js",
+      "offset": 7633,
+      "verbatim": "const l=t.getInstance().handleRequestParams({resource_id:ze,score:e.score_detail.total_score,set_id:Ge,entity_id:e.entity_id,order:e.order,upload_file_id:...,upload_file_url:...,spx_file_url:...,mark_trace_id:...,detail_file_id:...,detail_file_url:...,mistake_id:Be.query.mistake_id??\"\",score_detail:JSON.stringify(e.score_detail)});l.first_column_id=e.first_column_id,l.question_type_score=e.question_type_score;const{postAudioSyncLogs:s}=pe();return await s(l)",
+      "note": "该路径没有顶层 real_score"
+    },
+    {
+      "name": "错题重做页 ct",
+      "file": "pc_client_web/chunks/Practice-1694d88a.js",
+      "offset": 11495,
+      "verbatim": "function ct(e){...(本地缓存 {audio:\"\",detail:e.score_detail,detail_file:\"\",entity_id:e.entity_id,order:Number(e.order),real_score:ut(e),standard_score:e.score_detail.total_score});const a=o.getInstance().handleRequestParams({resource_id:ma,score:e.score_detail.total_score,set_id:_a,entity_id:e.entity_id,order:e.order,mistake_id:...,upload_file_id:...,upload_file_url:...,spx_file_url:...,mark_trace_id:...,detail_file_id:...,detail_file_url:...,score_detail:JSON.stringify(e.score_detail),question_total_point:Y.total_point});a.first_column_id=e.first_column_id,a.question_type_score=e.question_type_score;const{postAudioSyncLogs:t}=ke();...}",
+      "note": "该路径同样没有顶层 real_score"
+    },
+    {
+      "name": "客观题 score_detail 字面量（错题重做，两条）",
+      "choose": "t.push({entity_id:n,order:o,score_detail:{total_score:i.answer===e.answer?c.question_score/c.question_count:0,choose:e.answer,category:c.evaluation_type}})",
+      "fill": "t.push({entity_id:n,order:o,score_detail:{total_score:1==u?r.question_score/r.question_count:0,choose:e.answer,category:r.evaluation_type}})",
+      "both_omit": [
+        "choose_id"
+      ]
+    }
+  ],
+  "score_detail_field_sources": {
+    "speaking": {
+      "builder": "pc_client_web/chunks/useRecordResult-fbe9e75b.js",
+      "verbatim": "const I={...R,total_score:_(w),total_score_init:w,real_score:G,category:e,accuracy_score:$,fluency_score:b,standard_score:O,first_column_id:p,question_type_score:h};",
+      "R": "解析评测 XML 得到的属性集（c(e,t.data.xml)）",
+      "w": "ISE 原始 total_score（0~5）",
+      "_": "scoreFormater（d3 导出）",
+      "G": "calculateRealScore(question_type_score, w) = scoreFormater(question_type_score/5*w)",
+      "category": "入参 e = question.evaluation_type",
+      "final_sent_keys": "删掉 total_score_init/xml_score/question_type_score/is_rejected/except_info/first_column_id 后 = {维度分..., total_score(0~5), real_score(卷面), category(evaluation_type), rate_scale}"
+    },
+    "objective": {
+      "builder": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js（G / fill IIFE）",
+      "keys": [
+        "total_score",
+        "choose",
+        "choose_id(仅 choose)",
+        "category"
+      ],
+      "category_source": "a.evaluation_type（question_list[0]）"
+    },
+    "display_only": {
+      "dimension_result": "[accuracy, fluency, integrity, standard]，见 adjustWordColor-bccb26cb.js 的 I()",
+      "essayData_element": "8 段 \\x01：word|en|us|en_audio|us_audio|score|100|trans；另可 push \"<br>\"",
+      "score_map": "color-bad→0, color-good→81, color-mid→61, 角色句→-20, dp_message==16→200, dp_message>16→0"
+    }
+  },
+  "diffs_vs_ours": [
+    {
+      "id": "D1",
+      "risk": "已修复（19:59）",
+      "title": "scoring.build_score_detail 曾不接受 choose_id",
+      "was": {
+        "ours": {
+          "file": "auto_complete/runner.py",
+          "lines": "1618-1624"
+        },
+        "ours2": {
+          "file": "auto_complete/scoring.py",
+          "lines": "519-527(旧)",
+          "code": "def build_score_detail(profile, *, category, choose=\"\", repeat_mode=True, graduation=0.125, clamp=True)"
+        },
+        "impact": "AUTO_COMPLETE_OFFICIAL_PAYLOAD 默认关闭 ⇒ 每题 TypeError"
+      },
+      "now": {
+        "scoring.py:519-528": "已新增 choose_id: str = \"\" 并写入 payload；docstring 固化\"两分支必须关键字参数兼容\""
+      },
+      "action": "无需再动"
+    },
+    {
+      "id": "D2",
+      "risk": "口径不一致（实现方已确认有意保留，非会判错）",
+      "title": "rate_scale / graduation：我方默认走移动端口径，官方 PC 是条件字符串",
+      "ours": {
+        "scoring.py": "\"rate_scale\": 1 if graduation == 0.125 else 0",
+        "runner.py:1633": "\"graduation\": 0.125（数字，无条件）"
+      },
+      "official_pc": {
+        "score_detail.rate_scale": "u||0，非 1.25 列 = 0",
+        "顶层 graduation": "仅 1.25 列且 rate_scale 存在时给，字符串 \"0.125\"",
+        "顶层 rate_scale": "非 1.25 列不出现"
+      },
+      "official_mobile": "ReadFollowAnswerBean.java:28 -> private int graduation（整数）",
+      "resolution": "scoring.py 注释明确：两官方端本身不一致；旧路径服务端长期实测可用（回读官方 point 能对上），故不在线改；要切 PC 口径请开 AUTO_COMPLETE_OFFICIAL_PAYLOAD=1"
+    },
+    {
+      "id": "D3",
+      "risk": "只影响记录（若服务端按 category 分派则升为会判错）",
+      "title": "score_detail.category 值域不同",
+      "ours": {
+        "runner.py:1612": "category=q[\"category\"] if not is_choose else \"choose\"",
+        "homework.py:422-435": "STRUCTURE_TYPE_META：collector.read -> (\"read_sentence\", \"模仿朗读\")"
+      },
+      "official": "category = question.evaluation_type（collector.read 在官方是 read_chapter）"
+    },
+    {
+      "id": "D4",
+      "risk": "只影响记录",
+      "title": "客观题 score_detail.total_score 数值域",
+      "ours": "profile.total（0~5 ISE 语义分）",
+      "official": "question_score/question_count（卷面分）或 0"
+    },
+    {
+      "id": "D5",
+      "risk": "只影响记录（推断：可能 400）",
+      "title": "score / total_score 用字符串承载",
+      "ours": {
+        "runner.py:1634": "\"score\": f\"{profile.total:.2f}\"",
+        "official_payload.py:151": "\"total_score\": f\"{profile.total:.2f}\"",
+        "scoring.py:531": "\"total_score\": f\"{profile.total:.2f}\""
+      },
+      "official": "均为 number（scoreFormater 返回值）"
+    },
+    {
+      "id": "D6",
+      "risk": "只影响记录",
+      "title": "语音题 score_detail 与顶层 real_score 缺失",
+      "ours": {
+        "official_payload.build_score_detail": "payload 里没有 real_score 键（只写维度分 + rate_scale + choose/choose_id/category）",
+        "runner.py:1652-1657": "顶层 real_score 仅在 AUTO_COMPLETE_OFFICIAL_PAYLOAD=1 时由 sync_payload_extras 补；默认路径完全没有顶层 real_score"
+      },
+      "official": "score_detail.real_score = scoreFormater(question_type_score/5*total_score)（useRecordResult 的 I），且 requestAnswerLogs 删键清单不含 real_score；Qa/Examine/Mock 路径顶层 real_score 必给（Comprehensive/Practice 路径则不给）"
+    },
+    {
+      "id": "D7",
+      "risk": "只影响记录（审计）",
+      "title": "mark_trace_id 语义不同",
+      "ours": {
+        "runner.py:1677": "json.dumps({\"engine\": \"cloud\"})"
+      },
+      "official": "t?.traceId || t?.sid（评测引擎 trace）"
+    },
+    {
+      "id": "D8",
+      "risk": "无影响（推断）",
+      "title": "字段多给/少给",
+      "ours_extra": [
+        "correct",
+        "auto_submit",
+        "use_time",
+        "serial_id",
+        "mistake_id",
+        "seq_id",
+        "score_detail.stress_score",
+        "score_detail.repeat_mode",
+        "score_detail.version"
+      ],
+      "ours_missing": [
+        "question_total_point"
+      ],
+      "official_note": "官方顶层无 use_time（用时只在 m/homework/submit）；question_total_point 在 Qa 路径必带"
+    },
+    {
+      "id": "D9",
+      "risk": "可能需要 A/B（潜在会判错）",
+      "title": "order 取法",
+      "ours": {
+        "runner.py:1626-1627": "sync_order = str(sub_order + 1)",
+        "homework.py:552": "\"sub_order\": idx（content 内下标）"
+      },
+      "official": "xt_xh / xth / question_order（大题内官方题号，字符串）",
+      "equivalence_condition": "题号从 1 连续 且 一个 content ⇔ 一个大题",
+      "risk_detail": "homework.py 的分节按 type 聚合（1194-1249 用 q.get(\"sub_order\")）；若某节跨多个 stid，sub_order 会在第二个 content 处重新从 0 开始（entity_id 不同，主键仍唯一）。我方未使用 q[\"order\"]（= no = {{th}} 全局题号），两者都可能与官方 xt_xh 不等"
+    },
+    {
+      "id": "D10",
+      "risk": "无影响",
+      "title": "choose 的取值",
+      "ours": {
+        "runner.py:1602": "取正确答案字母"
+      },
+      "official": "学生所选选项的 xx_mc；未作答为 \"\"",
+      "reason": "我方恒答对，数值一致"
+    }
+  ],
+  "will_misjudge_ranking": [
+    {
+      "rank": 1,
+      "diff": "D1",
+      "severity": "已修复（19:59）",
+      "summary": "非官方分支曾把 choose_id 传给 scoring.build_score_detail（签名无此参数）→ TypeError；现已对齐"
+    },
+    {
+      "rank": 2,
+      "diff": "D9",
+      "severity": "可能判错（需 A/B）",
+      "summary": "order 用节内下标+1 而非官方 xt_xh"
+    },
+    {
+      "rank": 3,
+      "diff": "D2",
+      "severity": "口径不一致（有意保留）",
+      "summary": "rate_scale/graduation 默认走移动端口径，官方 PC 是条件字符串"
+    },
+    {
+      "rank": 4,
+      "diff": "D3",
+      "severity": "只影响记录（条件升级）",
+      "summary": "score_detail.category 值与官方 evaluation_type 不同"
+    },
+    {
+      "rank": 5,
+      "diff": "D5",
+      "severity": "只影响记录（推断可 400）",
+      "summary": "score / total_score 是字符串"
+    },
+    {
+      "rank": 6,
+      "diff": "D4",
+      "severity": "只影响记录",
+      "summary": "客观题 total_score 数值域可能不同"
+    },
+    {
+      "rank": 7,
+      "diff": "D6",
+      "severity": "只影响记录",
+      "summary": "语音题 score_detail 缺 real_score；默认路径亦无顶层 real_score"
+    },
+    {
+      "rank": 8,
+      "diff": "D7",
+      "severity": "只影响记录（审计）",
+      "summary": "mark_trace_id 非引擎 trace"
+    },
+    {
+      "rank": 9,
+      "diff": "D8",
+      "severity": "无影响（推断）",
+      "summary": "字段多给/少给（缺 question_total_point）"
+    },
+    {
+      "rank": 10,
+      "diff": "D10",
+      "severity": "无影响",
+      "summary": "choose 取值与官方一致（恒答对）"
+    }
+  ],
+  "not_found": [
+    {
+      "target": "setPCChoose2 实现",
+      "keywords": [
+        "setPCChoose2",
+        "setPcChoose2",
+        "PCChoose2",
+        "Choose2"
+      ],
+      "only_call_site": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js offset 9258"
+    },
+    {
+      "target": "getChooseChange 实现",
+      "keywords": [
+        "getChooseChange",
+        "chooseChange",
+        "ChooseChange"
+      ],
+      "only_call_site": "pc_client_web/chunks/useExamStepper-8ad3fbd7.js offset 9564"
+    },
+    {
+      "target": "ck_ReturnChoose 实现",
+      "keywords": [
+        "ck_ReturnChoose",
+        "ReturnChoose"
+      ],
+      "only_call_site": "iframe_web/js/pc-view-kttb5.js:20"
+    },
+    {
+      "target": "webInteraction.getAnswerList 实现",
+      "keywords": [
+        "webInteraction",
+        "getAnswerList"
+      ],
+      "only_call_site": "iframe_web/js/method.js:56（method.js 无 html 加载）"
+    },
+    {
+      "target": "setUserrecord 调用点",
+      "keywords": [
+        "setUserrecord",
+        "Userrecord",
+        "userrecord"
+      ],
+      "note": "iframe 有定义无调用"
+    },
+    {
+      "target": "setPCCheckChoose 调用点",
+      "keywords": [
+        "setPCCheckChoose",
+        "PCCheckChoose"
+      ],
+      "note": "iframe 有定义无调用"
+    },
+    {
+      "target": "collector.picture 专属桥",
+      "keywords": [
+        "collector.picture",
+        "picture",
+        "topic"
+      ],
+      "note": "该族无任何桥"
+    },
+    {
+      "target": "iframe 侧 evaluation_type 使用",
+      "keywords": [
+        "evaluation_type",
+        "read_chapter",
+        "read_sentence",
+        "read_word"
+      ],
+      "note": "iframe 全量无命中"
+    },
+    {
+      "target": "Electron webSecurity 配置",
+      "keywords": [
+        "webSecurity",
+        "nodeIntegration",
+        "preload",
+        "allow-same-origin"
+      ],
+      "note": "无法解释 sandbox=allow-scripts 下如何跨 window 调用"
+    },
+    {
+      "target": "服务端如何使用 choose_id / rate_scale / graduation",
+      "keywords": [],
+      "note": "纯前端静态范围不可知，需抓包或服务端验证"
+    }
+  ],
+  "dead_files": [
+    {
+      "file": "iframe_web/js/PC-choose.js",
+      "reason": "无任何 html 引用（grep -ln 'PC-choose.js' *.html 无命中），是 pc-listen-choose.js 的旧版"
+    },
+    {
+      "file": "iframe_web/js/method.js",
+      "reason": "无任何 html 引用，且其唯一出口 webInteraction 无实现"
+    },
+    {
+      "file": "iframe_web/js/fn.js",
+      "reason": "仅 phonogramMap.html 加载（音标练习），与听说页 9 族无关"
+    }
+  ],
+  "reproduce_commands": [
+    "grep -n \"setPCChoose\\|setPcBlank\\|set3q5aScore\\|showEssay_2\\|showPhrase_2\\|showScoreDetail\\|getChoice\\|ReturnChoose\\|getPcBlank\" \"/home/shuaiqiu/Projects/ets源码恢复/iframe_web/js/\"*.js",
+    "grep -rno \"setPCChoose2\\|getChooseChange\\|postAudioSyncLogs\\|requestAnswerLogs\" \"/home/shuaiqiu/Projects/ets源码恢复/pc_client_web/chunks/\"*.js",
+    "grep -c \"record\" \"/home/shuaiqiu/Projects/ets源码恢复/iframe_web/pc-listen.html\"",
+    "grep -ln \"js/fn.js\" \"/home/shuaiqiu/Projects/ets源码恢复/iframe_web/\"*.html"
+  ]
+}
