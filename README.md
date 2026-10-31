@@ -239,6 +239,17 @@ cargo test                 # Rust 单元测试 (含签名校验、篡改/过期�
 python3 test_auth_e2e.py   # 端到端: 需本地后端已运行并 seed answer_parser 功能
 ```
 
+### 离线构建（Fe 离线版 / 无后端环境）
+
+Fe 离线版不接入 LastStudio 后端，无法取得 answer_parser 的签名 grant。Android 产物支持通过
+构建期环境变量 RESOLVER_OFFLINE=1 关闭契约解析接口（resolve_request 的 parse 类 op）的联网授权门禁：
+
+    RESOLVER_OFFLINE=1 cargo ndk -t arm64-v8a build --release
+
+- 只影响设置该变量时的产物；宿主 / Linux / 后端构建请不要设置，保持原有授权门禁
+- set_auth_config / authorize_feature / parse_task_authorized 等授权接口与旧接口逻辑保持不变
+- Release CI 的 Android 构建已默认设置该变量；宿主与 Linux 产物不受影响
+
 ### 编译产物
 
 ```bash
