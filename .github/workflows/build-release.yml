@@ -63,6 +63,10 @@ jobs:
           ./tools/jni_probe/run.sh
 
       - name: Build Android arm64 resolver/cloud SOs (strong hardening)
+        env:
+          # Fe 离线版：Android 产物关闭契约解析的 answer_parser 联网授权门禁。
+          # 宿主 / Linux / 后端构建不设置该变量，授权门禁保持原样。
+          RESOLVER_OFFLINE: '1'
         run: |
           cargo ndk -t arm64-v8a build --release --workspace
           ls -la target/aarch64-linux-android/release/libresolver.so
@@ -80,6 +84,7 @@ jobs:
       - name: Inject self-check digest (two-pass build + guard)
         env:
           RESOLVER_INTEGRITY_ENFORCE: ${{ vars.RESOLVER_INTEGRITY_ENFORCE || '0' }}
+          RESOLVER_OFFLINE: '1'
         run: |
           set -euo pipefail
           DIR=target/aarch64-linux-android/release

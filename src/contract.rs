@@ -221,7 +221,14 @@ thread_local! {
 }
 
 /// 契约解析类 op 是否强制 answer_parser 授权。Android 默认 true，其余目标 false。
+///
+/// 离线版构建：设置环境变量 RESOLVER_OFFLINE=1 编译时，Android 产物会关闭该门禁
+/// （Fe 离线版没有 LastStudio 后端，无法取得 grant）。宿主 / Linux / 后端构建不设置该变量，
+/// 仍保持原有门禁；parse_task_authorized 等旧接口的授权逻辑也不受影响。
 pub fn enforce_answer_parser_auth() -> bool {
+    if option_env!("RESOLVER_OFFLINE").is_some() {
+        return false;
+    }
     ENFORCE_OVERRIDE
         .with(|c| c.get())
         .unwrap_or(cfg!(target_os = "android"))
